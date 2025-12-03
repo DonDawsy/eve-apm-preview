@@ -1,10 +1,12 @@
 # EVE-APM Preview
 
-A desktop application that helps EVE Online players manage multiple game windows more efficiently.
-
 ## What is EVE-APM Preview?
 
 EVE-APM Preview creates small thumbnail previews of all your EVE Online client windows, making it easy to monitor and switch between multiple characters at a glance. Whether you're multiboxing, managing an alt fleet, or just keeping an eye on multiple characters, this tool streamlines your workflow.
+
+## What EVE-APM Preview Isn't
+
+It's **never** going to let you input broadcast, display portions of your eve client, manipulate your eve client in any way or intentionally help you break the EVE Online EULA/TOS. 
 
 ## Why not just use EVE-O/X Preview?
 
