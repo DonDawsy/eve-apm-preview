@@ -228,7 +228,7 @@ public:
     
     static constexpr bool DEFAULT_UI_HIGHLIGHT_ACTIVE = true;
     static constexpr const char* DEFAULT_UI_HIGHLIGHT_COLOR = "#FFFFFF";
-    static constexpr int DEFAULT_UI_HIGHLIGHT_BORDER_WIDTH = 3;
+    static constexpr int DEFAULT_UI_HIGHLIGHT_BORDER_WIDTH = 2;
     static constexpr bool DEFAULT_UI_HIDE_ACTIVE_THUMBNAIL = false;
     
     static constexpr int DEFAULT_THUMBNAIL_WIDTH = 240;
@@ -274,7 +274,7 @@ public:
     static constexpr int DEFAULT_CHATLOG_FILEDEBOUNCE_MS = 200;
     static constexpr bool DEFAULT_GAMELOG_ENABLE_MONITORING = false;
     
-    static constexpr bool DEFAULT_COMBAT_MESSAGES_ENABLED = true;
+    static constexpr bool DEFAULT_COMBAT_MESSAGES_ENABLED = false;
     static constexpr int DEFAULT_COMBAT_MESSAGE_DURATION = 5000;
     static constexpr int DEFAULT_COMBAT_MESSAGE_POSITION = 3;
     static constexpr const char* DEFAULT_COMBAT_MESSAGE_COLOR = "#FFFFFF";
