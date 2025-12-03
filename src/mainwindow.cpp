@@ -1233,12 +1233,22 @@ void MainWindow::applySettings()
         
         bool shouldMonitor = enableChatLog || enableGameLog;
         
+        // Update character names before starting/refreshing monitoring
+        if (shouldMonitor) {
+            QStringList characterNames = m_characterToWindow.keys();
+            m_chatLogReader->setCharacterNames(characterNames);
+        }
+        
         if (shouldMonitor && !m_chatLogReader->isMonitoring()) {
             m_chatLogReader->start();
             qDebug() << "ChatLog: Monitoring started via settings (ChatLog:" << enableChatLog << ", GameLog:" << enableGameLog << ")";
         } else if (!shouldMonitor && m_chatLogReader->isMonitoring()) {
             m_chatLogReader->stop();
             qDebug() << "ChatLog: Monitoring stopped via settings";
+        } else if (shouldMonitor && m_chatLogReader->isMonitoring()) {
+            // Monitoring is active and should remain active, but settings may have changed
+            m_chatLogReader->refreshMonitoring();
+            qDebug() << "ChatLog: Monitoring refreshed via settings (ChatLog:" << enableChatLog << ", GameLog:" << enableGameLog << ")";
         }
     }
     

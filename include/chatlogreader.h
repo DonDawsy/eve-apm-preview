@@ -46,6 +46,7 @@ signals:
 public slots:
     void startMonitoring();
     void stopMonitoring();
+    void refreshMonitoring();
     void processLogFile(const QString& filePath);
     void markFileDirty(const QString& filePath);
     void processPendingFiles();
@@ -108,6 +109,7 @@ public:
     void setEnableGameLogMonitoring(bool enabled);
     void start();
     void stop();
+    void refreshMonitoring();
     
     QString getSystemForCharacter(const QString& characterName) const;
     bool isMonitoring() const;

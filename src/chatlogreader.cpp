@@ -86,6 +86,49 @@ void ChatLogWorker::setEnableGameLogMonitoring(bool enabled)
     m_enableGameLogMonitoring = enabled;
 }
 
+void ChatLogWorker::refreshMonitoring()
+{
+    QMutexLocker locker(&m_mutex);
+    
+    if (!m_running) {
+        return;  // Not monitoring, nothing to refresh
+    }
+    
+    qDebug() << "ChatLogWorker: Refreshing monitoring with updated settings (ChatLog:" << m_enableChatLogMonitoring << ", GameLog:" << m_enableGameLogMonitoring << ")";
+    
+    // Add or remove directory watchers based on current settings
+    if (m_enableChatLogMonitoring) {
+        QDir logDir(m_logDirectory);
+        if (logDir.exists() && !m_fileWatcher->directories().contains(m_logDirectory)) {
+            m_fileWatcher->addPath(m_logDirectory);
+            qDebug() << "ChatLogWorker: Now watching Chatlogs directory:" << m_logDirectory;
+        }
+    } else {
+        if (m_fileWatcher->directories().contains(m_logDirectory)) {
+            m_fileWatcher->removePath(m_logDirectory);
+            qDebug() << "ChatLogWorker: Stopped watching Chatlogs directory:" << m_logDirectory;
+        }
+    }
+    
+    if (m_enableGameLogMonitoring) {
+        QDir gameLogDir(m_gameLogDirectory);
+        if (gameLogDir.exists() && !m_fileWatcher->directories().contains(m_gameLogDirectory)) {
+            m_fileWatcher->addPath(m_gameLogDirectory);
+            qDebug() << "ChatLogWorker: Now watching Gamelogs directory:" << m_gameLogDirectory;
+        }
+    } else {
+        if (m_fileWatcher->directories().contains(m_gameLogDirectory)) {
+            m_fileWatcher->removePath(m_gameLogDirectory);
+            qDebug() << "ChatLogWorker: Stopped watching Gamelogs directory:" << m_gameLogDirectory;
+        }
+    }
+    
+    // Rescan logs with updated settings
+    scanExistingLogs();
+    
+    qDebug() << "ChatLogWorker: Monitoring refresh completed";
+}
+
 void ChatLogWorker::startMonitoring()
 {
     QMutexLocker locker(&m_mutex);
@@ -1049,6 +1092,17 @@ void ChatLogReader::setEnableGameLogMonitoring(bool enabled)
 {
     m_worker->setEnableGameLogMonitoring(enabled);
     qDebug() << "ChatLogReader: Game log monitoring enabled:" << enabled;
+}
+
+void ChatLogReader::refreshMonitoring()
+{
+    if (!m_monitoring || !m_workerThread->isRunning()) {
+        qDebug() << "ChatLogReader: Cannot refresh - monitoring not active";
+        return;
+    }
+    
+    qDebug() << "ChatLogReader: Requesting monitoring refresh";
+    QMetaObject::invokeMethod(m_worker, "refreshMonitoring", Qt::QueuedConnection);
 }
 
 void ChatLogReader::start()
