@@ -141,6 +141,7 @@ private:
     QCheckBox *m_preserveLogoutPositionsCheck;
     QCheckBox *m_enableSnappingCheck;
     QSpinBox *m_snapDistanceSpin;
+    QLabel *m_snapDistanceLabel;
     QCheckBox *m_lockPositionsCheck;
     
     QSpinBox *m_thumbnailWidthSpin;
@@ -151,6 +152,9 @@ private:
     QSpinBox *m_refreshIntervalSpin;
     QSpinBox *m_opacitySpin;
     QCheckBox *m_showNotLoggedInClientsCheck;
+    QLabel *m_notLoggedInPositionLabel;
+    QPushButton *m_setNotLoggedInPositionButton;
+    QLabel *m_notLoggedInStackModeLabel;
     QComboBox *m_notLoggedInStackModeCombo;
     QCheckBox *m_showNotLoggedInOverlayCheck;
     
@@ -162,15 +166,19 @@ private:
     
     QCheckBox *m_minimizeInactiveCheck;
     QSpinBox *m_minimizeDelaySpin;
+    QLabel *m_minimizeDelayLabel;
     QTableWidget *m_neverMinimizeTable;
     QPushButton *m_addNeverMinimizeButton;
     QPushButton *m_populateNeverMinimizeButton;
     QCheckBox *m_saveClientLocationCheck;
     QPushButton *m_setClientLocationsButton;
+    QLabel *m_setClientLocationsLabel;
     QCheckBox *m_highlightActiveCheck;
     QCheckBox *m_hideActiveClientThumbnailCheck;
     QPushButton *m_highlightColorButton;
+    QLabel *m_highlightColorLabel;
     QSpinBox *m_highlightBorderWidthSpin;
+    QLabel *m_highlightBorderWidthLabel;
     QColor m_highlightColor;
     QTableWidget *m_characterColorsTable;
     QPushButton *m_addCharacterColorButton;
@@ -179,17 +187,25 @@ private:
     
     QCheckBox *m_showCharacterNameCheck;
     QPushButton *m_characterNameColorButton;
+    QLabel *m_characterNameColorLabel;
     QComboBox *m_characterNamePositionCombo;
+    QLabel *m_characterNamePositionLabel;
     QPushButton *m_characterNameFontButton;
+    QLabel *m_characterNameFontLabel;
     
     QCheckBox *m_showSystemNameCheck;
     QPushButton *m_systemNameColorButton;
+    QLabel *m_systemNameColorLabel;
     QComboBox *m_systemNamePositionCombo;
+    QLabel *m_systemNamePositionLabel;
     QPushButton *m_systemNameFontButton;
+    QLabel *m_systemNameFontLabel;
     
     QCheckBox *m_showBackgroundCheck;
     QPushButton *m_backgroundColorButton;
+    QLabel *m_backgroundColorLabel;
     QSpinBox *m_backgroundOpacitySpin;
+    QLabel *m_backgroundOpacityLabel;
     QColor m_characterNameColor;
     QColor m_systemNameColor;
     QColor m_backgroundColor;
@@ -204,14 +220,18 @@ private:
     QCheckBox *m_enableChatLogMonitoringCheck;
     QLineEdit *m_chatLogDirectoryEdit;
     QPushButton *m_chatLogBrowseButton;
+    QLabel *m_chatLogDirectoryLabel;
     QSpinBox *m_fileChangeDebounceSpin;
     QCheckBox *m_enableGameLogMonitoringCheck;
     QLineEdit *m_gameLogDirectoryEdit;
     QPushButton *m_gameLogBrowseButton;
+    QLabel *m_gameLogDirectoryLabel;
     
     QCheckBox *m_showCombatMessagesCheck;
     QComboBox *m_combatMessagePositionCombo;
+    QLabel *m_combatMessagePositionLabel;
     QPushButton *m_combatMessageFontButton;
+    QLabel *m_combatMessageFontLabel;
     QCheckBox *m_combatEventFleetInviteCheck;
     QCheckBox *m_combatEventFollowWarpCheck;
     QCheckBox *m_combatEventRegroupCheck;
@@ -223,6 +243,8 @@ private:
     QMap<QString, QPushButton*> m_eventColorButtons;
     QMap<QString, QSpinBox*> m_eventDurationSpins;
     QMap<QString, QCheckBox*> m_eventBorderCheckBoxes;
+    QMap<QString, QLabel*> m_eventDurationLabels;
+    QLabel *m_miningTimeoutLabel;
     
     QVariantMap m_legacySettings;
     QVariantMap m_evexProfiles;

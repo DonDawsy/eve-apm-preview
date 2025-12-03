@@ -330,24 +330,24 @@ void ConfigDialog::createAppearancePage()
     highlightGrid->setColumnStretch(2, 1);
     highlightGrid->setContentsMargins(24, 0, 0, 0);
     
-    QLabel *colorLabel = new QLabel("Color:");
-    colorLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_highlightColorLabel = new QLabel("Color:");
+    m_highlightColorLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_highlightColorButton = new QPushButton();
     m_highlightColorButton->setFixedSize(150, 32);
     m_highlightColorButton->setCursor(Qt::PointingHandCursor);
     connect(m_highlightColorButton, &QPushButton::clicked, this, &ConfigDialog::onColorButtonClicked);
     
-    QLabel *borderWidthLabel = new QLabel("Border width:");
-    borderWidthLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_highlightBorderWidthLabel = new QLabel("Border width:");
+    m_highlightBorderWidthLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_highlightBorderWidthSpin = new QSpinBox();
     m_highlightBorderWidthSpin->setRange(1, 10);
     m_highlightBorderWidthSpin->setSuffix(" px");
     m_highlightBorderWidthSpin->setFixedWidth(150);
     m_highlightBorderWidthSpin->setStyleSheet(StyleSheet::getSpinBoxWithDisabledStyleSheet());
     
-    highlightGrid->addWidget(colorLabel, 0, 0, Qt::AlignLeft);
+    highlightGrid->addWidget(m_highlightColorLabel, 0, 0, Qt::AlignLeft);
     highlightGrid->addWidget(m_highlightColorButton, 0, 1);
-    highlightGrid->addWidget(borderWidthLabel, 1, 0, Qt::AlignLeft);
+    highlightGrid->addWidget(m_highlightBorderWidthLabel, 1, 0, Qt::AlignLeft);
     highlightGrid->addWidget(m_highlightBorderWidthSpin, 1, 1);
     
     highlightSectionLayout->addLayout(highlightGrid);
@@ -355,7 +355,9 @@ void ConfigDialog::createAppearancePage()
     layout->addWidget(highlightSection);
     
     connect(m_highlightActiveCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_highlightColorLabel->setEnabled(checked);
         m_highlightColorButton->setEnabled(checked);
+        m_highlightBorderWidthLabel->setEnabled(checked);
         m_highlightBorderWidthSpin->setEnabled(checked);
     });
     
@@ -469,23 +471,23 @@ void ConfigDialog::createAppearancePage()
     charGrid->setColumnStretch(2, 1);
     charGrid->setContentsMargins(24, 0, 0, 0);
     
-    QLabel *charColorLabel = new QLabel("Text color:");
-    charColorLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_characterNameColorLabel = new QLabel("Text color:");
+    m_characterNameColorLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_characterNameColorButton = new QPushButton();
     m_characterNameColorButton->setFixedSize(150, 32);
     m_characterNameColorButton->setCursor(Qt::PointingHandCursor);
     connect(m_characterNameColorButton, &QPushButton::clicked, this, &ConfigDialog::onColorButtonClicked);
     
-    QLabel *charPosLabel = new QLabel("Position:");
-    charPosLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_characterNamePositionLabel = new QLabel("Position:");
+    m_characterNamePositionLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_characterNamePositionCombo = new QComboBox();
     m_characterNamePositionCombo->addItems({"Top Left", "Top Center", "Top Right", 
                                              "Bottom Left", "Bottom Center", "Bottom Right"});
     m_characterNamePositionCombo->setFixedWidth(150);
     m_characterNamePositionCombo->setStyleSheet(StyleSheet::getComboBoxWithDisabledStyleSheet());
     
-    QLabel *charFontLabel = new QLabel("Font:");
-    charFontLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_characterNameFontLabel = new QLabel("Font:");
+    m_characterNameFontLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_characterNameFontButton = new QPushButton("Select Font...");
     m_characterNameFontButton->setStyleSheet(StyleSheet::getSecondaryButtonStyleSheet());
     m_characterNameFontButton->setFixedWidth(120);
@@ -497,18 +499,21 @@ void ConfigDialog::createAppearancePage()
         }
     });
     
-    charGrid->addWidget(charColorLabel, 0, 0, Qt::AlignLeft);
+    charGrid->addWidget(m_characterNameColorLabel, 0, 0, Qt::AlignLeft);
     charGrid->addWidget(m_characterNameColorButton, 0, 1);
-    charGrid->addWidget(charPosLabel, 1, 0, Qt::AlignLeft);
+    charGrid->addWidget(m_characterNamePositionLabel, 1, 0, Qt::AlignLeft);
     charGrid->addWidget(m_characterNamePositionCombo, 1, 1);
-    charGrid->addWidget(charFontLabel, 2, 0, Qt::AlignLeft);
+    charGrid->addWidget(m_characterNameFontLabel, 2, 0, Qt::AlignLeft);
     charGrid->addWidget(m_characterNameFontButton, 2, 1);
     
     overlaysSectionLayout->addLayout(charGrid);
     
     connect(m_showCharacterNameCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_characterNameColorLabel->setEnabled(checked);
         m_characterNameColorButton->setEnabled(checked);
+        m_characterNamePositionLabel->setEnabled(checked);
         m_characterNamePositionCombo->setEnabled(checked);
+        m_characterNameFontLabel->setEnabled(checked);
         m_characterNameFontButton->setEnabled(checked);
     });
     
@@ -522,23 +527,23 @@ void ConfigDialog::createAppearancePage()
     sysGrid->setColumnStretch(2, 1);
     sysGrid->setContentsMargins(24, 0, 0, 0);
     
-    QLabel *sysColorLabel = new QLabel("Text color:");
-    sysColorLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_systemNameColorLabel = new QLabel("Text color:");
+    m_systemNameColorLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_systemNameColorButton = new QPushButton();
     m_systemNameColorButton->setFixedSize(150, 32);
     m_systemNameColorButton->setCursor(Qt::PointingHandCursor);
     connect(m_systemNameColorButton, &QPushButton::clicked, this, &ConfigDialog::onColorButtonClicked);
     
-    QLabel *sysPosLabel = new QLabel("Position:");
-    sysPosLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_systemNamePositionLabel = new QLabel("Position:");
+    m_systemNamePositionLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_systemNamePositionCombo = new QComboBox();
     m_systemNamePositionCombo->addItems({"Top Left", "Top Center", "Top Right", 
                                           "Bottom Left", "Bottom Center", "Bottom Right"});
     m_systemNamePositionCombo->setFixedWidth(150);
     m_systemNamePositionCombo->setStyleSheet(StyleSheet::getComboBoxWithDisabledStyleSheet());
     
-    QLabel *sysFontLabel = new QLabel("Font:");
-    sysFontLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_systemNameFontLabel = new QLabel("Font:");
+    m_systemNameFontLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_systemNameFontButton = new QPushButton("Select Font...");
     m_systemNameFontButton->setStyleSheet(StyleSheet::getSecondaryButtonStyleSheet());
     m_systemNameFontButton->setFixedWidth(120);
@@ -550,18 +555,21 @@ void ConfigDialog::createAppearancePage()
         }
     });
     
-    sysGrid->addWidget(sysColorLabel, 0, 0, Qt::AlignLeft);
+    sysGrid->addWidget(m_systemNameColorLabel, 0, 0, Qt::AlignLeft);
     sysGrid->addWidget(m_systemNameColorButton, 0, 1);
-    sysGrid->addWidget(sysPosLabel, 1, 0, Qt::AlignLeft);
+    sysGrid->addWidget(m_systemNamePositionLabel, 1, 0, Qt::AlignLeft);
     sysGrid->addWidget(m_systemNamePositionCombo, 1, 1);
-    sysGrid->addWidget(sysFontLabel, 2, 0, Qt::AlignLeft);
+    sysGrid->addWidget(m_systemNameFontLabel, 2, 0, Qt::AlignLeft);
     sysGrid->addWidget(m_systemNameFontButton, 2, 1);
     
     overlaysSectionLayout->addLayout(sysGrid);
     
     connect(m_showSystemNameCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_systemNameColorLabel->setEnabled(checked);
         m_systemNameColorButton->setEnabled(checked);
+        m_systemNamePositionLabel->setEnabled(checked);
         m_systemNamePositionCombo->setEnabled(checked);
+        m_systemNameFontLabel->setEnabled(checked);
         m_systemNameFontButton->setEnabled(checked);
     });
     
@@ -575,15 +583,15 @@ void ConfigDialog::createAppearancePage()
     bgGrid->setColumnStretch(2, 1);
     bgGrid->setContentsMargins(24, 0, 0, 0);
     
-    QLabel *bgColorLabel = new QLabel("Color:");
-    bgColorLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_backgroundColorLabel = new QLabel("Color:");
+    m_backgroundColorLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_backgroundColorButton = new QPushButton();
     m_backgroundColorButton->setFixedSize(150, 32);
     m_backgroundColorButton->setCursor(Qt::PointingHandCursor);
     connect(m_backgroundColorButton, &QPushButton::clicked, this, &ConfigDialog::onColorButtonClicked);
     
-    QLabel *bgOpacityLabel = new QLabel("Opacity:");
-    bgOpacityLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_backgroundOpacityLabel = new QLabel("Opacity:");
+    m_backgroundOpacityLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_backgroundOpacitySpin = new QSpinBox();
     m_backgroundOpacitySpin->setRange(0, 100);
     m_backgroundOpacitySpin->setSingleStep(5);
@@ -591,15 +599,17 @@ void ConfigDialog::createAppearancePage()
     m_backgroundOpacitySpin->setFixedWidth(150);
     m_backgroundOpacitySpin->setStyleSheet(StyleSheet::getSpinBoxWithDisabledStyleSheet());
     
-    bgGrid->addWidget(bgColorLabel, 0, 0, Qt::AlignLeft);
+    bgGrid->addWidget(m_backgroundColorLabel, 0, 0, Qt::AlignLeft);
     bgGrid->addWidget(m_backgroundColorButton, 0, 1);
-    bgGrid->addWidget(bgOpacityLabel, 1, 0, Qt::AlignLeft);
+    bgGrid->addWidget(m_backgroundOpacityLabel, 1, 0, Qt::AlignLeft);
     bgGrid->addWidget(m_backgroundOpacitySpin, 1, 1);
     
     overlaysSectionLayout->addLayout(bgGrid);
     
     connect(m_showBackgroundCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_backgroundColorLabel->setEnabled(checked);
         m_backgroundColorButton->setEnabled(checked);
+        m_backgroundOpacityLabel->setEnabled(checked);
         m_backgroundOpacitySpin->setEnabled(checked);
     });
     
@@ -1064,15 +1074,15 @@ void ConfigDialog::createBehaviorPage()
     clientLocationGrid->setColumnStretch(2, 1);
     clientLocationGrid->setContentsMargins(24, 0, 0, 0);
     
-    QLabel *setLocationLabel = new QLabel("Current Positions:");
-    setLocationLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_setClientLocationsLabel = new QLabel("Current Positions:");
+    m_setClientLocationsLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     
     m_setClientLocationsButton = new QPushButton("Set Positions");
     m_setClientLocationsButton->setFixedSize(150, 32);
     m_setClientLocationsButton->setStyleSheet(StyleSheet::getSecondaryButtonStyleSheet());
     m_setClientLocationsButton->setToolTip("Save the current window positions of all open EVE clients");
     
-    clientLocationGrid->addWidget(setLocationLabel, 0, 0, Qt::AlignLeft);
+    clientLocationGrid->addWidget(m_setClientLocationsLabel, 0, 0, Qt::AlignLeft);
     clientLocationGrid->addWidget(m_setClientLocationsButton, 0, 1);
     
     windowSectionLayout->addLayout(clientLocationGrid);
@@ -1080,6 +1090,7 @@ void ConfigDialog::createBehaviorPage()
     connect(m_setClientLocationsButton, &QPushButton::clicked, this, &ConfigDialog::onSetClientLocations);
     
     connect(m_saveClientLocationCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_setClientLocationsLabel->setEnabled(checked);
         m_setClientLocationsButton->setEnabled(checked);
     });
     
@@ -1096,15 +1107,15 @@ void ConfigDialog::createBehaviorPage()
     minimizeGrid->setColumnStretch(2, 1);
     minimizeGrid->setContentsMargins(24, 0, 0, 0);
     
-    QLabel *delayLabel = new QLabel("Minimize delay:");
-    delayLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_minimizeDelayLabel = new QLabel("Minimize delay:");
+    m_minimizeDelayLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_minimizeDelaySpin = new QSpinBox();
     m_minimizeDelaySpin->setRange(0, 1000);
     m_minimizeDelaySpin->setSuffix(" ms");
     m_minimizeDelaySpin->setFixedWidth(150);
     m_minimizeDelaySpin->setStyleSheet(StyleSheet::getSpinBoxWithDisabledStyleSheet());
     
-    minimizeGrid->addWidget(delayLabel, 0, 0, Qt::AlignLeft);
+    minimizeGrid->addWidget(m_minimizeDelayLabel, 0, 0, Qt::AlignLeft);
     minimizeGrid->addWidget(m_minimizeDelaySpin, 0, 1);
     
     windowSectionLayout->addLayout(minimizeGrid);
@@ -1147,6 +1158,7 @@ void ConfigDialog::createBehaviorPage()
     layout->addWidget(windowSection);
     
     connect(m_minimizeInactiveCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_minimizeDelayLabel->setEnabled(checked);
         m_minimizeDelaySpin->setEnabled(checked);
         m_neverMinimizeTable->setEnabled(checked);
         m_addNeverMinimizeButton->setEnabled(checked);
@@ -1189,15 +1201,15 @@ void ConfigDialog::createBehaviorPage()
     snapGrid->setColumnStretch(2, 1);
     snapGrid->setContentsMargins(24, 0, 0, 0);
     
-    QLabel *snapLabel = new QLabel("Snapping distance:");
-    snapLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_snapDistanceLabel = new QLabel("Snapping distance:");
+    m_snapDistanceLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_snapDistanceSpin = new QSpinBox();
     m_snapDistanceSpin->setRange(5, 100);
     m_snapDistanceSpin->setSuffix(" px");
     m_snapDistanceSpin->setFixedWidth(150);
     m_snapDistanceSpin->setStyleSheet(StyleSheet::getSpinBoxWithDisabledStyleSheet());
     
-    snapGrid->addWidget(snapLabel, 0, 0, Qt::AlignLeft);
+    snapGrid->addWidget(m_snapDistanceLabel, 0, 0, Qt::AlignLeft);
     snapGrid->addWidget(m_snapDistanceSpin, 0, 1);
     
     positionSectionLayout->addLayout(snapGrid);
@@ -1206,6 +1218,7 @@ void ConfigDialog::createBehaviorPage()
     layout->addWidget(positionSection);
     
     connect(m_enableSnappingCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_snapDistanceLabel->setEnabled(checked);
         m_snapDistanceSpin->setEnabled(checked);
     });
     
@@ -1251,16 +1264,16 @@ void ConfigDialog::createBehaviorPage()
     notLoggedInGrid->setColumnStretch(2, 1);
     notLoggedInGrid->setContentsMargins(24, 0, 0, 0);
     
-    QLabel *positionLabel = new QLabel("Position:");
-    positionLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_notLoggedInPositionLabel = new QLabel("Position:");
+    m_notLoggedInPositionLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     
-    QPushButton *setNotLoggedInPositionButton = new QPushButton("Set Position");
-    setNotLoggedInPositionButton->setToolTip("Set custom position for not-logged-in client thumbnails");
-    setNotLoggedInPositionButton->setStyleSheet(StyleSheet::getButtonStyleSheet());
-    setNotLoggedInPositionButton->setFixedSize(150, 32);
+    m_setNotLoggedInPositionButton = new QPushButton("Set Position");
+    m_setNotLoggedInPositionButton->setToolTip("Set custom position for not-logged-in client thumbnails");
+    m_setNotLoggedInPositionButton->setStyleSheet(StyleSheet::getButtonStyleSheet());
+    m_setNotLoggedInPositionButton->setFixedSize(150, 32);
     
-    QLabel *stackModeLabel = new QLabel("Stack mode:");
-    stackModeLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_notLoggedInStackModeLabel = new QLabel("Stack mode:");
+    m_notLoggedInStackModeLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
     m_notLoggedInStackModeCombo = new QComboBox();
     m_notLoggedInStackModeCombo->addItem("Horizontal");
     m_notLoggedInStackModeCombo->addItem("Vertical");
@@ -1268,23 +1281,25 @@ void ConfigDialog::createBehaviorPage()
     m_notLoggedInStackModeCombo->setFixedWidth(150);
     m_notLoggedInStackModeCombo->setStyleSheet(StyleSheet::getComboBoxWithDisabledStyleSheet());
     
-    notLoggedInGrid->addWidget(positionLabel, 0, 0, Qt::AlignLeft);
-    notLoggedInGrid->addWidget(setNotLoggedInPositionButton, 0, 1);
-    notLoggedInGrid->addWidget(stackModeLabel, 1, 0, Qt::AlignLeft);
+    notLoggedInGrid->addWidget(m_notLoggedInPositionLabel, 0, 0, Qt::AlignLeft);
+    notLoggedInGrid->addWidget(m_setNotLoggedInPositionButton, 0, 1);
+    notLoggedInGrid->addWidget(m_notLoggedInStackModeLabel, 1, 0, Qt::AlignLeft);
     notLoggedInGrid->addWidget(m_notLoggedInStackModeCombo, 1, 1);
     
     notLoggedInSectionLayout->addLayout(notLoggedInGrid);
     
-    connect(setNotLoggedInPositionButton, &QPushButton::clicked, this, &ConfigDialog::onSetNotLoggedInPosition);
+    connect(m_setNotLoggedInPositionButton, &QPushButton::clicked, this, &ConfigDialog::onSetNotLoggedInPosition);
     
     m_showNotLoggedInOverlayCheck = new QCheckBox("Show \"Not Logged In\" overlay text");
     m_showNotLoggedInOverlayCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
     notLoggedInSectionLayout->addWidget(m_showNotLoggedInOverlayCheck);
     
-    connect(m_showNotLoggedInClientsCheck, &QCheckBox::toggled, this, [this, setNotLoggedInPositionButton](bool checked) {
+    connect(m_showNotLoggedInClientsCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_notLoggedInPositionLabel->setEnabled(checked);
+        m_setNotLoggedInPositionButton->setEnabled(checked);
+        m_notLoggedInStackModeLabel->setEnabled(checked);
         m_notLoggedInStackModeCombo->setEnabled(checked);
         m_showNotLoggedInOverlayCheck->setEnabled(checked);
-        setNotLoggedInPositionButton->setEnabled(checked);
     });
     
     layout->addWidget(notLoggedInSection);
@@ -1476,9 +1491,9 @@ void ConfigDialog::createDataSourcesPage()
     
     QHBoxLayout *chatDirLayout = new QHBoxLayout();
     chatDirLayout->setContentsMargins(24, 0, 0, 0);
-    QLabel *chatDirLabel = new QLabel("Chat log directory:");
-    chatDirLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
-    chatDirLabel->setFixedWidth(150);
+    m_chatLogDirectoryLabel = new QLabel("Chat log directory:");
+    m_chatLogDirectoryLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_chatLogDirectoryLabel->setFixedWidth(150);
     
     m_chatLogDirectoryEdit = new QLineEdit();
     m_chatLogDirectoryEdit->setStyleSheet(StyleSheet::getDialogLineEditStyleSheet());
@@ -1489,10 +1504,16 @@ void ConfigDialog::createDataSourcesPage()
     m_chatLogBrowseButton->setFixedWidth(90);
     connect(m_chatLogBrowseButton, &QPushButton::clicked, this, &ConfigDialog::onBrowseChatLogDirectory);
     
-    chatDirLayout->addWidget(chatDirLabel);
+    chatDirLayout->addWidget(m_chatLogDirectoryLabel);
     chatDirLayout->addWidget(m_chatLogDirectoryEdit, 1);
     chatDirLayout->addWidget(m_chatLogBrowseButton);
     logSectionLayout->addLayout(chatDirLayout);
+    
+    connect(m_enableChatLogMonitoringCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_chatLogDirectoryLabel->setEnabled(checked);
+        m_chatLogDirectoryEdit->setEnabled(checked);
+        m_chatLogBrowseButton->setEnabled(checked);
+    });
     
     m_enableGameLogMonitoringCheck = new QCheckBox("Enable game log monitoring");
     m_enableGameLogMonitoringCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
@@ -1500,9 +1521,9 @@ void ConfigDialog::createDataSourcesPage()
     
     QHBoxLayout *gameDirLayout = new QHBoxLayout();
     gameDirLayout->setContentsMargins(24, 0, 0, 0);
-    QLabel *gameDirLabel = new QLabel("Game log directory:");
-    gameDirLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
-    gameDirLabel->setFixedWidth(150);
+    m_gameLogDirectoryLabel = new QLabel("Game log directory:");
+    m_gameLogDirectoryLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_gameLogDirectoryLabel->setFixedWidth(150);
     
     m_gameLogDirectoryEdit = new QLineEdit();
     m_gameLogDirectoryEdit->setStyleSheet(StyleSheet::getDialogLineEditStyleSheet());
@@ -1513,7 +1534,7 @@ void ConfigDialog::createDataSourcesPage()
     m_gameLogBrowseButton->setFixedWidth(90);
     connect(m_gameLogBrowseButton, &QPushButton::clicked, this, &ConfigDialog::onBrowseGameLogDirectory);
     
-    gameDirLayout->addWidget(gameDirLabel);
+    gameDirLayout->addWidget(m_gameLogDirectoryLabel);
     gameDirLayout->addWidget(m_gameLogDirectoryEdit, 1);
     gameDirLayout->addWidget(m_gameLogBrowseButton);
     logSectionLayout->addLayout(gameDirLayout);
@@ -1535,6 +1556,13 @@ void ConfigDialog::createDataSourcesPage()
     debounceLayout->addWidget(m_fileChangeDebounceSpin);
     debounceLayout->addStretch();
     logSectionLayout->addLayout(debounceLayout);
+    
+    connect(m_enableGameLogMonitoringCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_gameLogDirectoryLabel->setEnabled(checked);
+        m_gameLogDirectoryEdit->setEnabled(checked);
+        m_gameLogBrowseButton->setEnabled(checked);
+        m_fileChangeDebounceSpin->setEnabled(checked);
+    });
     
     layout->addWidget(logMonitoringSection);
     
@@ -1564,9 +1592,9 @@ void ConfigDialog::createDataSourcesPage()
     
     QHBoxLayout *positionLayout = new QHBoxLayout();
     positionLayout->setContentsMargins(24, 0, 0, 0);
-    QLabel *positionLabel = new QLabel("Message position:");
-    positionLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
-    positionLabel->setFixedWidth(150);
+    m_combatMessagePositionLabel = new QLabel("Message position:");
+    m_combatMessagePositionLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_combatMessagePositionLabel->setFixedWidth(150);
     
     m_combatMessagePositionCombo = new QComboBox();
     m_combatMessagePositionCombo->setStyleSheet(StyleSheet::getComboBoxStyleSheet());
@@ -1578,16 +1606,16 @@ void ConfigDialog::createDataSourcesPage()
     m_combatMessagePositionCombo->addItem("Bottom Right", 5);
     m_combatMessagePositionCombo->setFixedWidth(150);
     
-    positionLayout->addWidget(positionLabel);
+    positionLayout->addWidget(m_combatMessagePositionLabel);
     positionLayout->addWidget(m_combatMessagePositionCombo);
     positionLayout->addStretch();
     combatSectionLayout->addLayout(positionLayout);
     
     QHBoxLayout *fontLayout = new QHBoxLayout();
     fontLayout->setContentsMargins(24, 0, 0, 0);
-    QLabel *fontLabel = new QLabel("Message font:");
-    fontLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
-    fontLabel->setFixedWidth(150);
+    m_combatMessageFontLabel = new QLabel("Message font:");
+    m_combatMessageFontLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_combatMessageFontLabel->setFixedWidth(150);
     
     m_combatMessageFontButton = new QPushButton("Select Font...");
     m_combatMessageFontButton->setStyleSheet(StyleSheet::getSecondaryButtonStyleSheet());
@@ -1600,7 +1628,7 @@ void ConfigDialog::createDataSourcesPage()
         }
     });
     
-    fontLayout->addWidget(fontLabel);
+    fontLayout->addWidget(m_combatMessageFontLabel);
     fontLayout->addWidget(m_combatMessageFontButton);
     fontLayout->addStretch();
     combatSectionLayout->addLayout(fontLayout);
@@ -1632,6 +1660,7 @@ void ConfigDialog::createDataSourcesPage()
         
         QLabel *durationLabel = new QLabel("Duration:");
         durationLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+        m_eventDurationLabels[eventType] = durationLabel;
         rowLayout->addWidget(durationLabel);
         
         QSpinBox *durationSpin = new QSpinBox();
@@ -1668,11 +1697,39 @@ void ConfigDialog::createDataSourcesPage()
     createEventRow("mining_started", "Mining started", m_combatEventMiningStartCheck);
     createEventRow("mining_stopped", "Mining stopped", m_combatEventMiningStopCheck);
     
+    // Connect individual event checkboxes to enable/disable their row controls
+    auto connectEventCheckbox = [this](const QString& eventType, QCheckBox* checkbox) {
+        connect(checkbox, &QCheckBox::toggled, this, [this, eventType](bool checked) {
+            // Only enable if both the event checkbox is checked AND combat messages are enabled
+            bool enable = checked && m_showCombatMessagesCheck->isChecked();
+            
+            if (m_eventColorButtons.contains(eventType)) {
+                m_eventColorButtons[eventType]->setEnabled(enable);
+            }
+            if (m_eventDurationSpins.contains(eventType)) {
+                m_eventDurationSpins[eventType]->setEnabled(enable);
+            }
+            if (m_eventDurationLabels.contains(eventType)) {
+                m_eventDurationLabels[eventType]->setEnabled(enable);
+            }
+            if (m_eventBorderCheckBoxes.contains(eventType)) {
+                m_eventBorderCheckBoxes[eventType]->setEnabled(enable);
+            }
+        });
+    };
+    
+    connectEventCheckbox("fleet_invite", m_combatEventFleetInviteCheck);
+    connectEventCheckbox("follow_warp", m_combatEventFollowWarpCheck);
+    connectEventCheckbox("regroup", m_combatEventRegroupCheck);
+    connectEventCheckbox("compression", m_combatEventCompressionCheck);
+    connectEventCheckbox("mining_started", m_combatEventMiningStartCheck);
+    connectEventCheckbox("mining_stopped", m_combatEventMiningStopCheck);
+    
     QHBoxLayout *miningTimeoutLayout = new QHBoxLayout();
     miningTimeoutLayout->setContentsMargins(24, 0, 0, 0);
-    QLabel *miningTimeoutLabel = new QLabel("Mining timeout:");
-    miningTimeoutLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
-    miningTimeoutLabel->setFixedWidth(150);
+    m_miningTimeoutLabel = new QLabel("Mining timeout:");
+    m_miningTimeoutLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+    m_miningTimeoutLabel->setFixedWidth(150);
     
     m_miningTimeoutSpin = new QSpinBox();
     m_miningTimeoutSpin->setStyleSheet(StyleSheet::getSpinBoxStyleSheet());
@@ -1681,10 +1738,65 @@ void ConfigDialog::createDataSourcesPage()
     m_miningTimeoutSpin->setSuffix(" sec");
     m_miningTimeoutSpin->setFixedWidth(120);
     
-    miningTimeoutLayout->addWidget(miningTimeoutLabel);
+    miningTimeoutLayout->addWidget(m_miningTimeoutLabel);
     miningTimeoutLayout->addWidget(m_miningTimeoutSpin);
     miningTimeoutLayout->addStretch();
     combatSectionLayout->addLayout(miningTimeoutLayout);
+    
+    // Connect mining_stopped checkbox to also control mining timeout
+    connect(m_combatEventMiningStopCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        // Only enable if both the mining_stopped checkbox is checked AND combat messages are enabled
+        bool enable = checked && m_showCombatMessagesCheck->isChecked();
+        m_miningTimeoutSpin->setEnabled(enable);
+        m_miningTimeoutLabel->setEnabled(enable);
+    });
+    
+    // Connect show combat messages checkbox to enable/disable combat message controls
+    connect(m_showCombatMessagesCheck, &QCheckBox::toggled, this, [this](bool checked) {
+        m_combatMessagePositionCombo->setEnabled(checked);
+        m_combatMessagePositionLabel->setEnabled(checked);
+        m_combatMessageFontButton->setEnabled(checked);
+        m_combatMessageFontLabel->setEnabled(checked);
+        m_combatEventFleetInviteCheck->setEnabled(checked);
+        m_combatEventFollowWarpCheck->setEnabled(checked);
+        m_combatEventRegroupCheck->setEnabled(checked);
+        m_combatEventCompressionCheck->setEnabled(checked);
+        m_combatEventMiningStartCheck->setEnabled(checked);
+        m_combatEventMiningStopCheck->setEnabled(checked);
+        
+        // Mining timeout depends on both combat messages AND mining_stopped being enabled
+        bool miningStopChecked = m_combatEventMiningStopCheck->isChecked();
+        m_miningTimeoutSpin->setEnabled(checked && miningStopChecked);
+        m_miningTimeoutLabel->setEnabled(checked && miningStopChecked);
+        
+        // Enable/disable event-specific controls based on both combat messages AND individual event checkbox
+        QMap<QString, QCheckBox*> eventCheckboxes = {
+            {"fleet_invite", m_combatEventFleetInviteCheck},
+            {"follow_warp", m_combatEventFollowWarpCheck},
+            {"regroup", m_combatEventRegroupCheck},
+            {"compression", m_combatEventCompressionCheck},
+            {"mining_started", m_combatEventMiningStartCheck},
+            {"mining_stopped", m_combatEventMiningStopCheck}
+        };
+        
+        for (auto it = eventCheckboxes.constBegin(); it != eventCheckboxes.constEnd(); ++it) {
+            QString eventType = it.key();
+            bool eventEnabled = checked && it.value()->isChecked();
+            
+            if (m_eventColorButtons.contains(eventType)) {
+                m_eventColorButtons[eventType]->setEnabled(eventEnabled);
+            }
+            if (m_eventDurationSpins.contains(eventType)) {
+                m_eventDurationSpins[eventType]->setEnabled(eventEnabled);
+            }
+            if (m_eventDurationLabels.contains(eventType)) {
+                m_eventDurationLabels[eventType]->setEnabled(eventEnabled);
+            }
+            if (m_eventBorderCheckBoxes.contains(eventType)) {
+                m_eventBorderCheckBoxes[eventType]->setEnabled(eventEnabled);
+            }
+        }
+    });
     
     layout->addWidget(combatSection);
     
@@ -1868,7 +1980,8 @@ void ConfigDialog::createAboutPage()
         "Kondo Rio Sotken",
         "Zack Power",
         "Langanmyer Nor",
-        "ham Norris"
+        "ham Norris",
+        "Groot Brustir"
     };
     
     int row = 0;
@@ -2460,21 +2573,98 @@ void ConfigDialog::loadSettings()
         borderCheck->setChecked(config.combatEventBorderHighlight(eventType));
     }
     
+    m_snapDistanceLabel->setEnabled(config.enableSnapping());
     m_snapDistanceSpin->setEnabled(config.enableSnapping());
+    m_minimizeDelayLabel->setEnabled(config.minimizeInactiveClients());
     m_minimizeDelaySpin->setEnabled(config.minimizeInactiveClients());
+    m_highlightColorLabel->setEnabled(config.highlightActiveWindow());
     m_highlightColorButton->setEnabled(config.highlightActiveWindow());
+    m_highlightBorderWidthLabel->setEnabled(config.highlightActiveWindow());
     m_highlightBorderWidthSpin->setEnabled(config.highlightActiveWindow());
+    m_characterNameColorLabel->setEnabled(config.showCharacterName());
     m_characterNameColorButton->setEnabled(config.showCharacterName());
+    m_characterNamePositionLabel->setEnabled(config.showCharacterName());
     m_characterNamePositionCombo->setEnabled(config.showCharacterName());
+    m_characterNameFontLabel->setEnabled(config.showCharacterName());
     m_characterNameFontButton->setEnabled(config.showCharacterName());
+    m_systemNameColorLabel->setEnabled(config.showSystemName());
     m_systemNameColorButton->setEnabled(config.showSystemName());
+    m_systemNamePositionLabel->setEnabled(config.showSystemName());
     m_systemNamePositionCombo->setEnabled(config.showSystemName());
+    m_systemNameFontLabel->setEnabled(config.showSystemName());
     m_systemNameFontButton->setEnabled(config.showSystemName());
+    m_backgroundColorLabel->setEnabled(config.showOverlayBackground());
+    m_backgroundOpacityLabel->setEnabled(config.showOverlayBackground());
     
     m_neverMinimizeTable->setEnabled(config.minimizeInactiveClients());
     m_addNeverMinimizeButton->setEnabled(config.minimizeInactiveClients());
     m_populateNeverMinimizeButton->setEnabled(config.minimizeInactiveClients());
+    m_setClientLocationsLabel->setEnabled(config.saveClientLocation());
     m_setClientLocationsButton->setEnabled(config.saveClientLocation());
+    
+    bool notLoggedInEnabled = config.showNotLoggedInClients();
+    m_notLoggedInPositionLabel->setEnabled(notLoggedInEnabled);
+    m_setNotLoggedInPositionButton->setEnabled(notLoggedInEnabled);
+    m_notLoggedInStackModeLabel->setEnabled(notLoggedInEnabled);
+    m_notLoggedInStackModeCombo->setEnabled(notLoggedInEnabled);
+    m_showNotLoggedInOverlayCheck->setEnabled(notLoggedInEnabled);
+    
+    // Set initial state for Data Sources tab controls
+    bool chatLogEnabled = config.enableChatLogMonitoring();
+    m_chatLogDirectoryLabel->setEnabled(chatLogEnabled);
+    m_chatLogDirectoryEdit->setEnabled(chatLogEnabled);
+    m_chatLogBrowseButton->setEnabled(chatLogEnabled);
+    
+    bool gameLogEnabled = config.enableGameLogMonitoring();
+    m_gameLogDirectoryLabel->setEnabled(gameLogEnabled);
+    m_gameLogDirectoryEdit->setEnabled(gameLogEnabled);
+    m_gameLogBrowseButton->setEnabled(gameLogEnabled);
+    m_fileChangeDebounceSpin->setEnabled(gameLogEnabled);
+    
+    bool combatMessagesEnabled = config.showCombatMessages();
+    m_combatMessagePositionCombo->setEnabled(combatMessagesEnabled);
+    m_combatMessagePositionLabel->setEnabled(combatMessagesEnabled);
+    m_combatMessageFontButton->setEnabled(combatMessagesEnabled);
+    m_combatMessageFontLabel->setEnabled(combatMessagesEnabled);
+    m_combatEventFleetInviteCheck->setEnabled(combatMessagesEnabled);
+    m_combatEventFollowWarpCheck->setEnabled(combatMessagesEnabled);
+    m_combatEventRegroupCheck->setEnabled(combatMessagesEnabled);
+    m_combatEventCompressionCheck->setEnabled(combatMessagesEnabled);
+    m_combatEventMiningStartCheck->setEnabled(combatMessagesEnabled);
+    m_combatEventMiningStopCheck->setEnabled(combatMessagesEnabled);
+    
+    // Mining timeout depends on both combat messages AND mining_stopped
+    bool miningStopChecked = m_combatEventMiningStopCheck->isChecked();
+    m_miningTimeoutSpin->setEnabled(combatMessagesEnabled && miningStopChecked);
+    m_miningTimeoutLabel->setEnabled(combatMessagesEnabled && miningStopChecked);
+    
+    // Set initial state for event-specific controls based on individual event checkboxes
+    QMap<QString, QCheckBox*> eventCheckboxes = {
+        {"fleet_invite", m_combatEventFleetInviteCheck},
+        {"follow_warp", m_combatEventFollowWarpCheck},
+        {"regroup", m_combatEventRegroupCheck},
+        {"compression", m_combatEventCompressionCheck},
+        {"mining_started", m_combatEventMiningStartCheck},
+        {"mining_stopped", m_combatEventMiningStopCheck}
+    };
+    
+    for (auto it = eventCheckboxes.constBegin(); it != eventCheckboxes.constEnd(); ++it) {
+        QString eventType = it.key();
+        bool eventEnabled = combatMessagesEnabled && it.value()->isChecked();
+        
+        if (m_eventColorButtons.contains(eventType)) {
+            m_eventColorButtons[eventType]->setEnabled(eventEnabled);
+        }
+        if (m_eventDurationSpins.contains(eventType)) {
+            m_eventDurationSpins[eventType]->setEnabled(eventEnabled);
+        }
+        if (m_eventDurationLabels.contains(eventType)) {
+            m_eventDurationLabels[eventType]->setEnabled(eventEnabled);
+        }
+        if (m_eventBorderCheckBoxes.contains(eventType)) {
+            m_eventBorderCheckBoxes[eventType]->setEnabled(eventEnabled);
+        }
+    }
 
 }
 

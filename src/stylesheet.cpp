@@ -235,6 +235,11 @@ QString StyleSheet::getButtonStyleSheet()
         "QPushButton:pressed {"
         "   background-color: %4;"
         "}"
+        "QPushButton:disabled {"
+        "   background-color: #1a1a1a;"
+        "   color: #666666;"
+        "   border: 1px solid #333333;"
+        "}"
     ).arg(colorTextPrimary())
      .arg(colorBorder())
      .arg(colorAccent())
@@ -306,7 +311,15 @@ QString StyleSheet::getTitleLabelStyleSheet()
 
 QString StyleSheet::getLabelStyleSheet()
 {
-    return QString("color: %1; padding-left: 4px;").arg(colorTextPrimary());
+    return QString(
+        "QLabel {"
+        "   color: %1;"
+        "   padding-left: 4px;"
+        "}"
+        "QLabel:disabled {"
+        "   color: #666666;"
+        "}"
+    ).arg(colorTextPrimary());
 }
 
 QString StyleSheet::getInfoLabelStyleSheet()
@@ -320,8 +333,37 @@ QString StyleSheet::getInfoLabelStyleSheet()
 
 QString StyleSheet::getCheckBoxStyleSheet()
 {
-    return QString("color: %1; font-size: 13px;")
-        .arg(colorTextPrimary());
+    return QString(
+        "QCheckBox {"
+        "   color: %1;"
+        "   font-size: 13px;"
+        "}"
+        "QCheckBox:disabled {"
+        "   color: #666666;"
+        "}"
+        "QCheckBox::indicator {"
+        "   width: 18px;"
+        "   height: 18px;"
+        "   border: 2px solid %2;"
+        "   border-radius: 3px;"
+        "   background-color: %3;"
+        "}"
+        "QCheckBox::indicator:disabled {"
+        "   background-color: #1a1a1a;"
+        "   border-color: #333333;"
+        "}"
+        "QCheckBox::indicator:checked {"
+        "   background-color: %4;"
+        "   border-color: %4;"
+        "}"
+        "QCheckBox::indicator:checked:disabled {"
+        "   background-color: #555555;"
+        "   border-color: #555555;"
+        "}"
+    ).arg(colorTextPrimary())
+     .arg(colorBorder())
+     .arg(colorBackgroundLight())
+     .arg(colorAccent());
 }
 
 QString StyleSheet::getSpinBoxStyleSheet()
@@ -337,6 +379,63 @@ QString StyleSheet::getSpinBoxStyleSheet()
         "}"
         "QSpinBox:focus, QDoubleSpinBox:focus {"
         "   border: 1px solid %4;"
+        "}"
+        "QSpinBox:disabled, QDoubleSpinBox:disabled {"
+        "   background-color: #1a1a1a;"
+        "   color: #666666;"
+        "   border: 1px solid #333333;"
+        "}"
+        "QSpinBox::up-button, QDoubleSpinBox::up-button {"
+        "   background-color: #404040;"
+        "   border: none;"
+        "   border-left: 1px solid %3;"
+        "   border-top-right-radius: 4px;"
+        "   width: 16px;"
+        "}"
+        "QSpinBox::up-button:disabled, QDoubleSpinBox::up-button:disabled {"
+        "   background-color: #1a1a1a;"
+        "   border-left: 1px solid #333333;"
+        "}"
+        "QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover {"
+        "   background-color: %4;"
+        "}"
+        "QSpinBox::down-button, QDoubleSpinBox::down-button {"
+        "   background-color: #404040;"
+        "   border: none;"
+        "   border-left: 1px solid %3;"
+        "   border-bottom-right-radius: 4px;"
+        "   width: 16px;"
+        "}"
+        "QSpinBox::down-button:disabled, QDoubleSpinBox::down-button:disabled {"
+        "   background-color: #1a1a1a;"
+        "   border-left: 1px solid #333333;"
+        "}"
+        "QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {"
+        "   background-color: %4;"
+        "}"
+        "QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {"
+        "   image: none;"
+        "   border: 2px solid %2;"
+        "   border-bottom: none;"
+        "   border-left: none;"
+        "   width: 4px;"
+        "   height: 4px;"
+        "   margin: 0px 6px 2px 0px;"
+        "}"
+        "QSpinBox::up-arrow:disabled, QDoubleSpinBox::up-arrow:disabled {"
+        "   border-color: #666666;"
+        "}"
+        "QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {"
+        "   image: none;"
+        "   border: 2px solid %2;"
+        "   border-top: none;"
+        "   border-right: none;"
+        "   width: 4px;"
+        "   height: 4px;"
+        "   margin: 2px 6px 0px 0px;"
+        "}"
+        "QSpinBox::down-arrow:disabled, QDoubleSpinBox::down-arrow:disabled {"
+        "   border-color: #666666;"
         "}"
     ).arg(colorBackgroundLight())
      .arg(colorTextPrimary())
@@ -358,6 +457,11 @@ QString StyleSheet::getComboBoxStyleSheet()
         "QComboBox:focus {"
         "   border: 1px solid %4;"
         "}"
+        "QComboBox:disabled {"
+        "   background-color: #1a1a1a;"
+        "   color: #666666;"
+        "   border: 1px solid #333333;"
+        "}"
         "QComboBox::drop-down {"
         "   subcontrol-origin: padding;"
         "   subcontrol-position: top right;"
@@ -367,6 +471,10 @@ QString StyleSheet::getComboBoxStyleSheet()
         "   border-top-right-radius: 4px;"
         "   border-bottom-right-radius: 4px;"
         "}"
+        "QComboBox::drop-down:disabled {"
+        "   background-color: #1a1a1a;"
+        "   border-left: 1px solid #333333;"
+        "}"
         "QComboBox::down-arrow {"
         "   image: none;"
         "   border-left: 4px solid transparent;"
@@ -375,6 +483,9 @@ QString StyleSheet::getComboBoxStyleSheet()
         "   width: 0px;"
         "   height: 0px;"
         "   margin-right: 5px;"
+        "}"
+        "QComboBox::down-arrow:disabled {"
+        "   border-top: 6px solid #666666;"
         "}"
         "QComboBox::down-arrow:hover {"
         "   border-top: 6px solid %4;"
@@ -865,6 +976,11 @@ QString StyleSheet::getDialogLineEditStyleSheet()
         "   border: 1px solid %4;"
         "   outline: none;"
         "}"
+        "QLineEdit:disabled {"
+        "   background-color: #1a1a1a;"
+        "   color: #666666;"
+        "   border: 1px solid #333333;"
+        "}"
     ).arg(colorBackgroundLight())
      .arg(colorTextPrimary())
      .arg(colorBorder())
@@ -988,6 +1104,11 @@ QString StyleSheet::getColorButtonStyleSheet(const QString& backgroundColor, con
         "}"
         "QPushButton:pressed {"
         "   border: 1px solid %5;"
+        "}"
+        "QPushButton:disabled {"
+        "   background-color: #1a1a1a;"
+        "   color: #666666;"
+        "   border: 1px solid #333333;"
         "}"
     ).arg(backgroundColor)
      .arg(textColor)
