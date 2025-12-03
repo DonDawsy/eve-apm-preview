@@ -2448,7 +2448,8 @@ void ConfigDialog::saveSettings()
     Config::instance().setChatLogDirectory(m_chatLogDirectoryEdit->text().trimmed());
     
     Config::instance().setGameLogDirectory(m_gameLogDirectoryEdit->text().trimmed());
-
+    
+    Config::instance().save();
 }
 
 void ConfigDialog::onApplyClicked()
@@ -5328,6 +5329,12 @@ void ConfigDialog::copyLegacySettings(const QString& category, const QVariantMap
             connect(charactersButton, &QPushButton::clicked, this, &ConfigDialog::onEditCycleGroupCharacters);
             m_cycleGroupsTable->setCellWidget(row, 1, charactersButton);
             
+            // Forward hotkey with container (needed for binding to find child)
+            QWidget *forwardHotkeyWidget = new QWidget();
+            QHBoxLayout *forwardLayout = new QHBoxLayout(forwardHotkeyWidget);
+            forwardLayout->setContentsMargins(0, 0, 0, 0);
+            forwardLayout->setSpacing(4);
+            
             HotkeyCapture *forwardCapture = new HotkeyCapture();
             if (!forwardHotkey.isEmpty() && forwardHotkey != "") {
                 int vkCode = legacyKeyToVirtualKey(forwardHotkey);
@@ -5335,7 +5342,42 @@ void ConfigDialog::copyLegacySettings(const QString& category, const QVariantMap
                     forwardCapture->setHotkey(vkCode, false, false, false);
                 }
             }
-            m_cycleGroupsTable->setCellWidget(row, 2, forwardCapture);
+            
+            QPushButton *clearForwardButton = new QPushButton("×");
+            clearForwardButton->setFixedSize(24, 24);
+            clearForwardButton->setStyleSheet(
+                "QPushButton {"
+                "    background-color: #3a3a3a;"
+                "    color: #a0a0a0;"
+                "    border: 1px solid #555555;"
+                "    border-radius: 3px;"
+                "    font-size: 16px;"
+                "    font-weight: bold;"
+                "    padding: 0px;"
+                "}"
+                "QPushButton:hover {"
+                "    background-color: #4a4a4a;"
+                "    color: #ffffff;"
+                "    border: 1px solid #666666;"
+                "}"
+                "QPushButton:pressed {"
+                "    background-color: #2a2a2a;"
+                "}"
+            );
+            clearForwardButton->setToolTip("Clear hotkey");
+            connect(clearForwardButton, &QPushButton::clicked, [forwardCapture]() {
+                forwardCapture->clearHotkey();
+            });
+            
+            forwardLayout->addWidget(forwardCapture, 1);
+            forwardLayout->addWidget(clearForwardButton, 0);
+            m_cycleGroupsTable->setCellWidget(row, 2, forwardHotkeyWidget);
+            
+            // Backward hotkey with container (needed for binding to find child)
+            QWidget *backwardHotkeyWidget = new QWidget();
+            QHBoxLayout *backwardLayout = new QHBoxLayout(backwardHotkeyWidget);
+            backwardLayout->setContentsMargins(0, 0, 0, 0);
+            backwardLayout->setSpacing(4);
             
             HotkeyCapture *backwardCapture = new HotkeyCapture();
             if (!backwardHotkey.isEmpty() && backwardHotkey != "") {
@@ -5344,9 +5386,40 @@ void ConfigDialog::copyLegacySettings(const QString& category, const QVariantMap
                     backwardCapture->setHotkey(vkCode, false, false, false);
                 }
             }
-            m_cycleGroupsTable->setCellWidget(row, 3, backwardCapture);
             
+            QPushButton *clearBackwardButton = new QPushButton("×");
+            clearBackwardButton->setFixedSize(24, 24);
+            clearBackwardButton->setStyleSheet(
+                "QPushButton {"
+                "    background-color: #3a3a3a;"
+                "    color: #a0a0a0;"
+                "    border: 1px solid #555555;"
+                "    border-radius: 3px;"
+                "    font-size: 16px;"
+                "    font-weight: bold;"
+                "    padding: 0px;"
+                "}"
+                "QPushButton:hover {"
+                "    background-color: #4a4a4a;"
+                "    color: #ffffff;"
+                "    border: 1px solid #666666;"
+                "}"
+                "QPushButton:pressed {"
+                "    background-color: #2a2a2a;"
+                "}"
+            );
+            clearBackwardButton->setToolTip("Clear hotkey");
+            connect(clearBackwardButton, &QPushButton::clicked, [backwardCapture]() {
+                backwardCapture->clearHotkey();
+            });
+            
+            backwardLayout->addWidget(backwardCapture, 1);
+            backwardLayout->addWidget(clearBackwardButton, 0);
+            m_cycleGroupsTable->setCellWidget(row, 3, backwardHotkeyWidget);
+            
+            // Include not-logged-in checkbox
             QWidget *checkboxContainer = new QWidget();
+            checkboxContainer->setStyleSheet("QWidget { background-color: transparent; }");
             QHBoxLayout *checkboxLayout = new QHBoxLayout(checkboxContainer);
             checkboxLayout->setContentsMargins(0, 0, 0, 0);
             checkboxLayout->setAlignment(Qt::AlignCenter);
@@ -5358,6 +5431,21 @@ void ConfigDialog::copyLegacySettings(const QString& category, const QVariantMap
             
             checkboxLayout->addWidget(includeNotLoggedInCheck);
             m_cycleGroupsTable->setCellWidget(row, 4, checkboxContainer);
+            
+            // No-loop checkbox
+            QWidget *noLoopContainer = new QWidget();
+            noLoopContainer->setStyleSheet("QWidget { background-color: transparent; }");
+            QHBoxLayout *noLoopLayout = new QHBoxLayout(noLoopContainer);
+            noLoopLayout->setContentsMargins(0, 0, 0, 0);
+            noLoopLayout->setAlignment(Qt::AlignCenter);
+            
+            QCheckBox *noLoopCheck = new QCheckBox();
+            noLoopCheck->setChecked(false);
+            noLoopCheck->setToolTip("Do not loop back to the first character when reaching the end");
+            noLoopCheck->setStyleSheet(StyleSheet::getDialogCheckBoxStyleSheet());
+            
+            noLoopLayout->addWidget(noLoopCheck);
+            m_cycleGroupsTable->setCellWidget(row, 5, noLoopContainer);
         }
         
         if (settings.contains("ClientHotkey")) {
@@ -5393,9 +5481,88 @@ void ConfigDialog::copyLegacySettings(const QString& category, const QVariantMap
                         nameEdit->setStyleSheet(cellStyle);
                         m_characterHotkeysTable->setCellWidget(row, 0, nameEdit);
                         
+                        // Hotkey with container (needed for binding to find child)
+                        QWidget *hotkeyWidget = new QWidget();
+                        QHBoxLayout *hotkeyLayout = new QHBoxLayout(hotkeyWidget);
+                        hotkeyLayout->setContentsMargins(0, 0, 4, 0);
+                        hotkeyLayout->setSpacing(4);
+                        
                         HotkeyCapture *hotkeyCapture = new HotkeyCapture();
                         hotkeyCapture->setHotkey(vkCode, false, false, false);
-                        m_characterHotkeysTable->setCellWidget(row, 1, hotkeyCapture);
+                        
+                        QPushButton *clearButton = new QPushButton("×");
+                        clearButton->setFixedSize(24, 24);
+                        clearButton->setStyleSheet(
+                            "QPushButton {"
+                            "    background-color: #3a3a3a;"
+                            "    color: #a0a0a0;"
+                            "    border: 1px solid #555555;"
+                            "    border-radius: 3px;"
+                            "    font-size: 16px;"
+                            "    font-weight: bold;"
+                            "    padding: 0px;"
+                            "}"
+                            "QPushButton:hover {"
+                            "    background-color: #4a4a4a;"
+                            "    color: #ffffff;"
+                            "    border: 1px solid #666666;"
+                            "}"
+                            "QPushButton:pressed {"
+                            "    background-color: #2a2a2a;"
+                            "}"
+                        );
+                        clearButton->setToolTip("Clear hotkey");
+                        connect(clearButton, &QPushButton::clicked, [hotkeyCapture]() {
+                            hotkeyCapture->clearHotkey();
+                        });
+                        
+                        hotkeyLayout->addWidget(hotkeyCapture, 1);
+                        hotkeyLayout->addWidget(clearButton, 0);
+                        m_characterHotkeysTable->setCellWidget(row, 1, hotkeyWidget);
+                        
+                        // Delete button
+                        QWidget *deleteContainer = new QWidget();
+                        deleteContainer->setStyleSheet("QWidget { background-color: transparent; }");
+                        QHBoxLayout *deleteLayout = new QHBoxLayout(deleteContainer);
+                        deleteLayout->setContentsMargins(0, 0, 0, 0);
+                        deleteLayout->setAlignment(Qt::AlignCenter);
+                        
+                        QPushButton *deleteButton = new QPushButton("×");
+                        deleteButton->setFixedSize(24, 24);
+                        deleteButton->setStyleSheet(
+                            "QPushButton {"
+                            "    background-color: #3a3a3a;"
+                            "    color: #e74c3c;"
+                            "    border: 1px solid #555555;"
+                            "    border-radius: 3px;"
+                            "    font-size: 16px;"
+                            "    font-weight: bold;"
+                            "    padding: 0px;"
+                            "}"
+                            "QPushButton:hover {"
+                            "    background-color: #e74c3c;"
+                            "    color: #ffffff;"
+                            "    border: 1px solid #e74c3c;"
+                            "}"
+                            "QPushButton:pressed {"
+                            "    background-color: #c0392b;"
+                            "}"
+                        );
+                        deleteButton->setToolTip("Delete this character hotkey");
+                        deleteButton->setCursor(Qt::PointingHandCursor);
+                        
+                        connect(deleteButton, &QPushButton::clicked, [this, deleteButton]() {
+                            for (int i = 0; i < m_characterHotkeysTable->rowCount(); ++i) {
+                                QWidget *widget = m_characterHotkeysTable->cellWidget(i, 2);
+                                if (widget && widget->findChild<QPushButton*>() == deleteButton) {
+                                    m_characterHotkeysTable->removeRow(i);
+                                    break;
+                                }
+                            }
+                        });
+                        
+                        deleteLayout->addWidget(deleteButton);
+                        m_characterHotkeysTable->setCellWidget(row, 2, deleteContainer);
                     }
                 }
             }
