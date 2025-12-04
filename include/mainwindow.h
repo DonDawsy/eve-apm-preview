@@ -8,6 +8,7 @@
 #include <QPoint>
 #include <QSystemTrayIcon>
 #include <QMenu>
+#include <QPointer>
 #include <memory>
 #include <Windows.h>
 
@@ -98,7 +99,7 @@ private:
     
     QHash<quintptr, QPoint> m_groupDragInitialPositions;
     
-    static MainWindow* s_instance;
+    static QPointer<MainWindow> s_instance;
     static void CALLBACK WinEventProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd, 
                                       LONG idObject, LONG idChild, DWORD dwEventThread, DWORD dwmsEventTime);
     static void CALLBACK WindowEventProc(HWINEVENTHOOK hWinEventHook, DWORD event, HWND hwnd,

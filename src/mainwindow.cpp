@@ -24,7 +24,7 @@ static const QString EXIT_TEXT = QStringLiteral("Exit");
 static const QString EVEO_PREVIEW_TEXT = QStringLiteral("EVE-APM Preview");
 static const QString EVE_TEXT = QStringLiteral("EVE");
 
-MainWindow* MainWindow::s_instance = nullptr;
+QPointer<MainWindow> MainWindow::s_instance;
 
 MainWindow::MainWindow(QObject *parent)
     : QObject(parent)
@@ -195,7 +195,7 @@ MainWindow::MainWindow(QObject *parent)
 
 MainWindow::~MainWindow()
 {
-    s_instance = nullptr;
+    s_instance.clear();
     
     if (m_chatLogReader) {
         m_chatLogReader->stop();
@@ -237,7 +237,7 @@ void CALLBACK MainWindow::WinEventProc(HWINEVENTHOOK hWinEventHook, DWORD event,
     Q_UNUSED(dwEventThread);
     Q_UNUSED(dwmsEventTime);
     
-    if (s_instance) {
+    if (!s_instance.isNull()) {
         QMetaObject::invokeMethod(s_instance, "updateActiveWindow", Qt::QueuedConnection);
     }
 }
@@ -253,15 +253,15 @@ void CALLBACK MainWindow::WindowEventProc(HWINEVENTHOOK hWinEventHook, DWORD eve
         return;
     }
     
-    if (s_instance) {
+    if (!s_instance.isNull()) {
         if (event == EVENT_OBJECT_CREATE || event == EVENT_OBJECT_DESTROY) {
             s_instance->m_needsEnumeration = true;
         }
         else if (event == EVENT_OBJECT_NAMECHANGE) {
             // Only process if this is a tracked window
             if (s_instance->thumbnails.contains(hwnd)) {
-                QMetaObject::invokeMethod(s_instance, [hwnd]() {
-                    if (s_instance) {
+                QMetaObject::invokeMethod(s_instance.data(), [hwnd]() {
+                    if (!s_instance.isNull()) {
                         s_instance->handleWindowTitleChange(hwnd);
                     }
                 }, Qt::QueuedConnection);
@@ -269,8 +269,8 @@ void CALLBACK MainWindow::WindowEventProc(HWINEVENTHOOK hWinEventHook, DWORD eve
         }
         else if (event == EVENT_OBJECT_SHOW) {
             if (hwnd == s_instance->m_hwndPendingRefresh) {
-                QMetaObject::invokeMethod(s_instance, [hwnd]() {
-                    if (s_instance) {
+                QMetaObject::invokeMethod(s_instance.data(), [hwnd]() {
+                    if (!s_instance.isNull()) {
                         s_instance->refreshSingleThumbnail(hwnd);
                         s_instance->m_hwndPendingRefresh = nullptr;
                     }

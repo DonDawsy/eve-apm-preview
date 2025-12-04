@@ -5,7 +5,7 @@
 #include <QSettings>
 #include <Psapi.h>
 
-HotkeyManager* HotkeyManager::s_instance = nullptr;
+QPointer<HotkeyManager> HotkeyManager::s_instance;
 
 HotkeyManager::HotkeyManager(QObject *parent)
     : QObject(parent)
@@ -25,7 +25,7 @@ HotkeyManager::HotkeyManager(QObject *parent)
 HotkeyManager::~HotkeyManager()
 {
     unregisterHotkeys();
-    s_instance = nullptr;
+    s_instance.clear();
 }
 
 bool HotkeyManager::registerHotkey(const HotkeyBinding& binding, int& outHotkeyId)
@@ -403,7 +403,7 @@ static bool isForegroundWindowEVEClient()
 
 bool HotkeyManager::nativeEventFilter(void* message, long* result)
 {
-    if (!s_instance)
+    if (s_instance.isNull())
         return false;
         
     MSG* msg = static_cast<MSG*>(message);

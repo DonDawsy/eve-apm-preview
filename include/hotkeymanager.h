@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QVector>
 #include <QString>
+#include <QPointer>
 #include <Windows.h>
 
 struct HotkeyBinding
@@ -80,7 +81,7 @@ public:
     explicit HotkeyManager(QObject *parent = nullptr);
     ~HotkeyManager();
     
-    static HotkeyManager* instance() { return s_instance; }
+    static HotkeyManager* instance() { return s_instance.data(); }
     
     bool registerHotkeys();
     void unregisterHotkeys();
@@ -184,7 +185,7 @@ private:
     
     int m_nextHotkeyId;
     
-    static HotkeyManager* s_instance;
+    static QPointer<HotkeyManager> s_instance;
     
     int generateHotkeyId();
     
