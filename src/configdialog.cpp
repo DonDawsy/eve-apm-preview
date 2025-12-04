@@ -1292,6 +1292,10 @@ void ConfigDialog::createBehaviorPage()
     
     layout->addWidget(notLoggedInSection);
     
+    m_showNonEVEOverlayCheck = new QCheckBox("Show overlay text on non-EVE thumbnails");
+    m_showNonEVEOverlayCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
+    clientFilterSectionLayout->addWidget(m_showNonEVEOverlayCheck);
+
     QLabel *extraPreviewsSubHeader = new QLabel("Additional Applications:");
     extraPreviewsSubHeader->setStyleSheet(StyleSheet::getSubLabelStyleSheet());
     clientFilterSectionLayout->addWidget(extraPreviewsSubHeader);
@@ -1332,11 +1336,7 @@ void ConfigDialog::createBehaviorPage()
     
     connect(m_addProcessNameButton, &QPushButton::clicked, this, &ConfigDialog::onAddProcessName);
     connect(m_populateProcessNamesButton, &QPushButton::clicked, this, &ConfigDialog::onPopulateProcessNames);
-    
-    m_showNonEVEOverlayCheck = new QCheckBox("Show overlay text on non-EVE thumbnails");
-    m_showNonEVEOverlayCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
-    clientFilterSectionLayout->addWidget(m_showNonEVEOverlayCheck);
-    
+       
     layout->addWidget(clientFilterSection);
     
     QHBoxLayout *resetLayout = new QHBoxLayout();
