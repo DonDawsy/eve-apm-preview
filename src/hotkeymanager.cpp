@@ -33,7 +33,7 @@ bool HotkeyManager::registerHotkey(const HotkeyBinding& binding, int& outHotkeyI
     if (!binding.enabled)
         return false;
 
-    UINT modifiers = MOD_NOREPEAT;  
+    UINT modifiers = 0;
     if (binding.ctrl) modifiers |= MOD_CONTROL;
     if (binding.alt) modifiers |= MOD_ALT;
     if (binding.shift) modifiers |= MOD_SHIFT;
@@ -438,7 +438,7 @@ bool HotkeyManager::nativeEventFilter(void* message, long* result)
         {
             QString characterName = s_instance->m_hotkeyIdToCharacter.value(hotkeyId);
             emit s_instance->characterHotkeyPressed(characterName);
-            return true;
+            return false;  // Allow message to continue, preserving keyboard state
         }
         
         if (s_instance->m_hotkeyIdToCycleGroup.contains(hotkeyId))
@@ -451,44 +451,44 @@ bool HotkeyManager::nativeEventFilter(void* message, long* result)
             else
                 emit s_instance->namedCycleBackwardPressed(groupName);
             
-            return true;
+            return false;
         }
         
         if (hotkeyId == s_instance->m_notLoggedInForwardHotkeyId)
         {
             emit s_instance->notLoggedInCycleForwardPressed();
-            return true;
+            return false;
         }
         
         if (hotkeyId == s_instance->m_notLoggedInBackwardHotkeyId)
         {
             emit s_instance->notLoggedInCycleBackwardPressed();
-            return true;
+            return false;
         }
         
         if (hotkeyId == s_instance->m_nonEVEForwardHotkeyId)
         {
             emit s_instance->nonEVECycleForwardPressed();
-            return true;
+            return false;
         }
         
         if (hotkeyId == s_instance->m_nonEVEBackwardHotkeyId)
         {
             emit s_instance->nonEVECycleBackwardPressed();
-            return true;
+            return false;
         }
         
         if (hotkeyId == s_instance->m_closeAllClientsHotkeyId)
         {
             emit s_instance->closeAllClientsRequested();
-            return true;
+            return false;
         }
         
         if (s_instance->m_hotkeyIdToProfile.contains(hotkeyId))
         {
             QString profileName = s_instance->m_hotkeyIdToProfile.value(hotkeyId);
             emit s_instance->profileSwitchRequested(profileName);
-            return true;
+            return false;
         }
     }
     
