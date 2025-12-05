@@ -2655,6 +2655,9 @@ void ConfigDialog::saveSettings()
     
     Config::instance().setGameLogDirectory(m_gameLogDirectoryEdit->text().trimmed());
     
+    qDebug() << "ConfigDialog::saveSettings() - enableGameLogMonitoring:" << Config::instance().enableGameLogMonitoring();
+    qDebug() << "ConfigDialog::saveSettings() - checkbox state:" << m_enableGameLogMonitoringCheck->isChecked();
+    
     Config::instance().save();
 }
 

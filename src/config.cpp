@@ -48,6 +48,7 @@ Config& Config::instance()
 
 void Config::loadCacheFromSettings()
 {
+    qDebug() << "Config::loadCacheFromSettings() - START";
     // Load all settings into cache
     // Called once in constructor and when switching profiles
     
@@ -109,6 +110,7 @@ void Config::loadCacheFromSettings()
     m_cachedEnableChatLogMonitoring = m_settings->value(KEY_CHATLOG_ENABLE_MONITORING, DEFAULT_CHATLOG_ENABLE_MONITORING).toBool();
     m_cachedChatLogDirectory = m_settings->value(KEY_CHATLOG_DIRECTORY, getDefaultChatLogDirectory()).toString();
     m_cachedEnableGameLogMonitoring = m_settings->value(KEY_GAMELOG_ENABLE_MONITORING, DEFAULT_GAMELOG_ENABLE_MONITORING).toBool();
+    qDebug() << "Config::loadCacheFromSettings() - Loaded enableGameLogMonitoring from disk:" << m_cachedEnableGameLogMonitoring;
     m_cachedGameLogDirectory = m_settings->value(KEY_GAMELOG_DIRECTORY, getDefaultGameLogDirectory()).toString();
     m_cachedFileChangeDebounceMs = m_settings->value(KEY_CHATLOG_FILEDEBOUNCE_MS, DEFAULT_CHATLOG_FILEDEBOUNCE_MS).toInt();
     
@@ -1273,8 +1275,10 @@ bool Config::enableGameLogMonitoring() const
 
 void Config::setEnableGameLogMonitoring(bool enabled)
 {
+    qDebug() << "Config::setEnableGameLogMonitoring called with:" << enabled;
     m_settings->setValue(KEY_GAMELOG_ENABLE_MONITORING, enabled);
     m_cachedEnableGameLogMonitoring = enabled;
+    qDebug() << "Config::setEnableGameLogMonitoring - cached value now:" << m_cachedEnableGameLogMonitoring;
 }
 
 bool Config::showCombatMessages() const

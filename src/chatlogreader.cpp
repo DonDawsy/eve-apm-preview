@@ -540,22 +540,45 @@ QString ChatLogWorker::extractCharacterFromLogFile(const QString& filePath)
     QTextStream in(&file);
     in.setAutoDetectUnicode(true);
     
-    // Character name is always on line 9 with format "Listener: <character_name>"
     static QRegularExpression listenerPattern(R"(Listener:\s+(.+))");
     
-    // Skip to line 9 (read and discard lines 1-8)
-    for (int i = 1; i <= 8 && !in.atEnd(); ++i) {
-        in.readLine();
-    }
+    // Optimization: Chat logs (Local_*.txt) have "Listener:" on line 9
+    // Game logs have "Listener:" on line 3
+    QFileInfo fileInfo(filePath);
+    QString fileName = fileInfo.fileName();
+    bool isChatLog = fileName.startsWith("Local_", Qt::CaseInsensitive);
     
-    // Read line 9
-    if (!in.atEnd()) {
-        QString line = in.readLine();
-        QRegularExpressionMatch match = listenerPattern.match(line);
-        if (match.hasMatch()) {
-            QString characterName = match.captured(1).trimmed();
-            file.close();
-            return characterName;
+    if (isChatLog) {
+        // Chat log: skip directly to line 9
+        for (int i = 1; i <= 8 && !in.atEnd(); ++i) {
+            in.readLine();
+        }
+        
+        // Read line 9
+        if (!in.atEnd()) {
+            QString line = in.readLine();
+            QRegularExpressionMatch match = listenerPattern.match(line);
+            if (match.hasMatch()) {
+                QString characterName = match.captured(1).trimmed();
+                file.close();
+                return characterName;
+            }
+        }
+    } else {
+        // Game log: skip directly to line 3
+        for (int i = 1; i <= 2 && !in.atEnd(); ++i) {
+            in.readLine();
+        }
+        
+        // Read line 3
+        if (!in.atEnd()) {
+            QString line = in.readLine();
+            QRegularExpressionMatch match = listenerPattern.match(line);
+            if (match.hasMatch()) {
+                QString characterName = match.captured(1).trimmed();
+                file.close();
+                return characterName;
+            }
         }
     }
     
