@@ -75,6 +75,7 @@ private slots:
   void onSetClientLocations();
   void onCheckForUpdates();
   void onDownloadUpdate();
+  void onBugReportClicked();
 
   void onProfileChanged(int index);
   void onNewProfile();
@@ -125,6 +126,7 @@ private:
   QPushButton *m_cancelButton;
   QPushButton *m_applyButton;
   QPushButton *m_testOverlaysButton;
+  QPushButton *m_bugReportButton;
   QLineEdit *m_globalSearchBox;
 
   ThumbnailWidget *m_testThumbnail;

@@ -146,7 +146,14 @@ void ConfigDialog::setupUI() {
   connect(m_testOverlaysButton, &QPushButton::clicked, this,
           &ConfigDialog::onTestOverlays);
 
+  m_bugReportButton = new QPushButton("Report Bug");
+  m_bugReportButton->setStyleSheet(StyleSheet::getButtonStyleSheet());
+  m_bugReportButton->setAutoDefault(false);
+  connect(m_bugReportButton, &QPushButton::clicked, this,
+          &ConfigDialog::onBugReportClicked);
+
   buttonLayout->addWidget(m_testOverlaysButton);
+  buttonLayout->addWidget(m_bugReportButton);
   buttonLayout->addStretch();
 
   m_okButton = new QPushButton("OK");
@@ -2881,6 +2888,45 @@ void ConfigDialog::onTestOverlays() {
     m_testThumbnail->raise();
     m_testThumbnail->activateWindow();
   }
+}
+
+void ConfigDialog::onBugReportClicked() {
+  if (!m_bugReportButton) {
+    return;
+  }
+
+  m_bugReportButton->setEnabled(false);
+
+  QGraphicsOpacityEffect *opacityEffect =
+      new QGraphicsOpacityEffect(m_bugReportButton);
+  m_bugReportButton->setGraphicsEffect(opacityEffect);
+
+  QPropertyAnimation *opacityAnim =
+      new QPropertyAnimation(opacityEffect, "opacity");
+  opacityAnim->setDuration(1500);
+  opacityAnim->setStartValue(1.0);
+  opacityAnim->setEndValue(0.0);
+  opacityAnim->setEasingCurve(QEasingCurve::InCubic);
+
+  QPropertyAnimation *scaleAnim =
+      new QPropertyAnimation(m_bugReportButton, "geometry");
+  scaleAnim->setDuration(1500);
+  QRect startGeometry = m_bugReportButton->geometry();
+  QRect endGeometry = startGeometry;
+  endGeometry.setHeight(5);
+  endGeometry.moveTop(startGeometry.bottom() - 5);
+  scaleAnim->setStartValue(startGeometry);
+  scaleAnim->setEndValue(endGeometry);
+  scaleAnim->setEasingCurve(QEasingCurve::InQuad);
+
+  connect(opacityAnim, &QPropertyAnimation::finished, [this]() {
+    if (m_bugReportButton) {
+      m_bugReportButton->hide();
+    }
+  });
+
+  opacityAnim->start(QAbstractAnimation::DeleteWhenStopped);
+  scaleAnim->start(QAbstractAnimation::DeleteWhenStopped);
 }
 
 void ConfigDialog::onSetNotLoggedInPosition() {
