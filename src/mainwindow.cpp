@@ -799,8 +799,22 @@ void MainWindow::updateActiveWindow()
     bool hideActive = cfg.hideActiveClientThumbnail();
     bool highlightActive = cfg.highlightActiveWindow();
     
-    for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
-        bool isActive = (it.key() == activeWindow);
+    // Early return if active window hasn't changed and no visibility update needed
+    if (activeWindow == m_lastActiveWindow && !hideActive) {
+        return;
+    }
+    
+    HWND previousActiveWindow = m_lastActiveWindow;
+    m_lastActiveWindow = activeWindow;
+    
+    // Update only the windows that changed state (previous and current active)
+    auto updateWindow = [&](HWND hwnd) {
+        auto it = thumbnails.find(hwnd);
+        if (it == thumbnails.end()) {
+            return;
+        }
+        
+        bool isActive = (hwnd == activeWindow);
         
         if (highlightActive) {
             it.value()->setActive(isActive);
@@ -822,6 +836,16 @@ void MainWindow::updateActiveWindow()
         } else {
             it.value()->show();
         }
+    };
+    
+    // Update the previous active window (if it exists and changed)
+    if (previousActiveWindow != nullptr && previousActiveWindow != activeWindow) {
+        updateWindow(previousActiveWindow);
+    }
+    
+    // Update the current active window
+    if (activeWindow != nullptr) {
+        updateWindow(activeWindow);
     }
 }
 

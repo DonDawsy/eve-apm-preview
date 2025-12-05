@@ -720,6 +720,9 @@ void OverlayWidget::setOverlays(const QVector<OverlayElement>& overlays)
 
 void OverlayWidget::setActiveState(bool active)
 {
+    if (m_isActive == active) {
+        return;  // Skip update if state unchanged
+    }
     m_isActive = active;
     update();
 }
