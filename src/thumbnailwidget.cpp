@@ -564,18 +564,14 @@ void ThumbnailWidget::updateDwmThumbnail() {
     return;
   }
 
-  // Query the actual thumbnail source size from DWM
-  // This gives us the size in the coordinate space DWM is using
   SIZE sourceSize;
   HRESULT hr = DwmQueryThumbnailSourceSize(m_dwmThumbnail, &sourceSize);
   if (FAILED(hr) || sourceSize.cx <= 0 || sourceSize.cy <= 0) {
     return;
   }
 
-  // Get the device pixel ratio for this widget (accounts for DPI scaling)
   qreal dpr = devicePixelRatio();
 
-  // Convert widget dimensions from logical to physical pixels
   int physicalWidth = static_cast<int>(width() * dpr);
   int physicalHeight = static_cast<int>(height() * dpr);
 
@@ -587,13 +583,11 @@ void ThumbnailWidget::updateDwmThumbnail() {
   props.opacity = 255;
   props.fSourceClientAreaOnly = TRUE;
 
-  // Use the actual source size reported by DWM (in physical pixels)
   props.rcSource.left = 0;
   props.rcSource.top = 0;
   props.rcSource.right = sourceSize.cx;
   props.rcSource.bottom = sourceSize.cy;
 
-  // Destination in physical pixels
   props.rcDestination.left = 0;
   props.rcDestination.top = 0;
   props.rcDestination.right = physicalWidth;
@@ -626,18 +620,15 @@ bool ThumbnailWidget::nativeEvent(const QByteArray &eventType, void *message,
 
   MSG *msg = static_cast<MSG *>(message);
 
-  // Handle DPI change messages
   if (msg->message == WM_DPICHANGED) {
-    // When DPI changes, update the thumbnail to match the new DPI
     updateDwmThumbnail();
 
-    // Also update overlay widget if it exists
     if (m_overlayWidget) {
       m_overlayWidget->invalidateCache();
     }
   }
 
-  return false; // Let Qt handle the event normally
+  return false; 
 }
 
 void ThumbnailWidget::showEvent(QShowEvent *event) {

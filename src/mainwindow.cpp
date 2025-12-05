@@ -482,7 +482,6 @@ void MainWindow::refreshWindows() {
     ThumbnailWidget *thumbWidget = thumbnails.value(window.handle, nullptr);
 
     if (!thumbWidget) {
-      // Determine thumbnail size (custom or default)
       int actualThumbWidth = thumbWidth;
       int actualThumbHeight = thumbHeight;
 
@@ -801,7 +800,6 @@ void MainWindow::handleWindowTitleChange(HWND hwnd) {
 
     tryRestoreClientLocation(hwnd, newCharacterName);
 
-    // Apply custom size if exists
     if (cfg.hasCustomThumbnailSize(newCharacterName)) {
       QSize customSize = cfg.getThumbnailSize(newCharacterName);
       thumbWidget->setFixedSize(customSize);
@@ -811,7 +809,6 @@ void MainWindow::handleWindowTitleChange(HWND hwnd) {
     if (cfg.rememberPositions()) {
       QPoint savedPos = cfg.getThumbnailPosition(newCharacterName);
       if (savedPos != QPoint(-1, -1)) {
-        // Use custom size if available, otherwise use global default
         QSize thumbSize;
         if (cfg.hasCustomThumbnailSize(newCharacterName)) {
           thumbSize = cfg.getThumbnailSize(newCharacterName);
@@ -956,7 +953,6 @@ void MainWindow::onThumbnailClicked(quintptr windowId) {
   HWND hwnd = reinterpret_cast<HWND>(windowId);
   activateWindow(hwnd);
 
-  // Update cycle indices for all groups containing this window
   QHash<QString, CycleGroup> allGroups = hotkeyManager->getAllCycleGroups();
   for (auto it = allGroups.begin(); it != allGroups.end(); ++it) {
     const QString &groupName = it.key();
@@ -966,19 +962,16 @@ void MainWindow::onThumbnailClicked(quintptr windowId) {
 
     int index = windowsToCycle.indexOf(hwnd);
     if (index != -1) {
-      // Only update if window is actually in the current cycle list
       m_cycleIndexByGroup[groupName] = index;
       m_lastActivatedWindowByGroup[groupName] = hwnd;
     }
   }
 
-  // Update not-logged-in cycle index
   int notLoggedInIndex = m_notLoggedInWindows.indexOf(hwnd);
   if (notLoggedInIndex != -1) {
     m_notLoggedInCycleIndex = notLoggedInIndex;
   }
 
-  // Update non-EVE cycle index
   int nonEVEIndex = m_nonEVEWindows.indexOf(hwnd);
   if (nonEVEIndex != -1) {
     m_nonEVECycleIndex = nonEVEIndex;
@@ -1022,12 +1015,11 @@ void MainWindow::handleNamedCycleForward(const QString &groupName) {
   }
 
   if (currentIndex == -1) {
-    // Fallback to stored index, but validate it's in range
     int storedIndex = m_cycleIndexByGroup.value(groupName, -1);
     if (storedIndex >= 0 && storedIndex < windowsToCycle.size()) {
       currentIndex = storedIndex;
     } else {
-      currentIndex = -1; // Start from beginning
+      currentIndex = -1; 
     }
   }
 
@@ -1063,12 +1055,11 @@ void MainWindow::handleNamedCycleBackward(const QString &groupName) {
   }
 
   if (currentIndex == -1) {
-    // Fallback to stored index, but validate it's in range
     int storedIndex = m_cycleIndexByGroup.value(groupName, 0);
     if (storedIndex >= 0 && storedIndex < windowsToCycle.size()) {
       currentIndex = storedIndex;
     } else {
-      currentIndex = 0; // Start from first window
+      currentIndex = 0; 
     }
   }
 
@@ -1102,7 +1093,6 @@ void MainWindow::handleNotLoggedInCycleForward() {
     return;
   }
 
-  // Validate current index before incrementing
   if (m_notLoggedInCycleIndex >= m_notLoggedInWindows.size()) {
     m_notLoggedInCycleIndex = -1;
   }
@@ -1130,7 +1120,6 @@ void MainWindow::handleNotLoggedInCycleBackward() {
     return;
   }
 
-  // Validate current index before decrementing
   if (m_notLoggedInCycleIndex >= m_notLoggedInWindows.size()) {
     m_notLoggedInCycleIndex = m_notLoggedInWindows.size();
   }
@@ -1158,7 +1147,6 @@ void MainWindow::handleNonEVECycleForward() {
     return;
   }
 
-  // Validate current index before incrementing
   if (m_nonEVECycleIndex >= m_nonEVEWindows.size()) {
     m_nonEVECycleIndex = -1;
   }
@@ -1186,7 +1174,6 @@ void MainWindow::handleNonEVECycleBackward() {
     return;
   }
 
-  // Validate current index before decrementing
   if (m_nonEVECycleIndex >= m_nonEVEWindows.size()) {
     m_nonEVECycleIndex = m_nonEVEWindows.size();
   }
@@ -1205,7 +1192,6 @@ void MainWindow::activateCharacter(const QString &characterName) {
   if (hwnd) {
     activateWindow(hwnd);
 
-    // Update cycle indices for all groups containing this window
     QHash<QString, CycleGroup> allGroups = hotkeyManager->getAllCycleGroups();
     for (auto it = allGroups.begin(); it != allGroups.end(); ++it) {
       const QString &groupName = it.key();
@@ -1215,7 +1201,6 @@ void MainWindow::activateCharacter(const QString &characterName) {
 
       int index = windowsToCycle.indexOf(hwnd);
       if (index != -1) {
-        // Only update if window is actually in the current cycle list
         m_cycleIndexByGroup[groupName] = index;
         m_lastActivatedWindowByGroup[groupName] = hwnd;
       }
@@ -1466,7 +1451,6 @@ void MainWindow::applySettings() {
     bool isEVEClient =
         processName.compare("exefile.exe", Qt::CaseInsensitive) == 0;
 
-    // Determine size (custom or default)
     QSize newSize(thumbWidth, thumbHeight);
     if (isEVEClient) {
       QString characterName = m_windowToCharacter.value(hwnd);
@@ -1772,15 +1756,12 @@ void MainWindow::scheduleLocationRefresh(HWND hwnd) {
 }
 
 void MainWindow::invalidateCycleIndicesForWindow(HWND hwnd) {
-  // Invalidate last activated window references if they point to removed window
   QHash<QString, CycleGroup> allGroups = hotkeyManager->getAllCycleGroups();
   for (auto it = allGroups.begin(); it != allGroups.end(); ++it) {
     const QString &groupName = it.key();
     HWND lastActivated = m_lastActivatedWindowByGroup.value(groupName, nullptr);
     if (lastActivated == hwnd) {
       m_lastActivatedWindowByGroup.remove(groupName);
-      // Don't remove the index - it might still be useful as a starting point
-      // The cycle handlers now validate indices properly
     }
   }
 }

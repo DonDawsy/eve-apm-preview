@@ -298,7 +298,6 @@ void ConfigDialog::createAppearancePage() {
 
   layout->addWidget(sizeSection);
 
-  // Per-Character Thumbnail Sizes section
   QWidget *thumbnailSizesSection = new QWidget();
   thumbnailSizesSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
   QVBoxLayout *thumbnailSizesSectionLayout =
@@ -2004,10 +2003,20 @@ void ConfigDialog::createLegacySettingsPage() {
   m_copyAllLegacyButton->setFixedWidth(120);
   m_copyAllLegacyButton->setMaximumHeight(32);
   m_copyAllLegacyButton->setVisible(false);
-  m_copyAllLegacyButton->setToolTip(
-      "Copy all legacy settings to current profile");
+  m_copyAllLegacyButton->setToolTip("Copy all profiles and settings (EVE-X) or "
+                                    "all settings to current profile (EVE-O)");
   connect(m_copyAllLegacyButton, &QPushButton::clicked, this,
           &ConfigDialog::onCopyAllLegacySettings);
+
+  m_importEVEXButton = new QPushButton("Copy Profile");
+  m_importEVEXButton->setStyleSheet(StyleSheet::getButtonStyleSheet());
+  m_importEVEXButton->setFixedWidth(200);
+  m_importEVEXButton->setMaximumHeight(32);
+  m_importEVEXButton->setVisible(false);
+  m_importEVEXButton->setToolTip(
+      "Copy the selected EVE-X profile into your current profile");
+  connect(m_importEVEXButton, &QPushButton::clicked, this,
+          &ConfigDialog::onImportEVEXAsProfile);
 
   browseLayout->addWidget(m_browseLegacyButton);
   browseLayout->addWidget(m_legacyFilePathLabel, 1);
@@ -2689,7 +2698,6 @@ void ConfigDialog::loadSettings() {
     }
   }
 
-  // Load per-character thumbnail sizes
   m_thumbnailSizesTable->setRowCount(0);
   QHash<QString, QSize> customSizes = config.getAllCustomThumbnailSizes();
   for (auto it = customSizes.constBegin(); it != customSizes.constEnd(); ++it) {
@@ -2771,16 +2779,13 @@ void ConfigDialog::saveSettings() {
   qDebug() << "ConfigDialog::saveSettings() - checkbox state:"
            << m_enableGameLogMonitoringCheck->isChecked();
 
-  // Save per-character thumbnail sizes
   Config &cfg = Config::instance();
 
-  // First, clear existing custom sizes
   QHash<QString, QSize> existingSizes = cfg.getAllCustomThumbnailSizes();
   for (const QString &charName : existingSizes.keys()) {
     cfg.removeThumbnailSize(charName);
   }
 
-  // Then save current table values
   for (int row = 0; row < m_thumbnailSizesTable->rowCount(); ++row) {
     QLineEdit *nameEdit =
         qobject_cast<QLineEdit *>(m_thumbnailSizesTable->cellWidget(row, 0));
@@ -3057,7 +3062,6 @@ void ConfigDialog::onAddCharacterHotkey() {
   deleteLayout->addWidget(deleteButton);
   m_characterHotkeysTable->setCellWidget(row, 2, deleteContainer);
 
-  // Scroll to the newly added row
   m_characterHotkeysTable->scrollToBottom();
 }
 
@@ -3435,7 +3439,6 @@ void ConfigDialog::onAddCycleGroup() {
   deleteLayout->addWidget(deleteButton);
   m_cycleGroupsTable->setCellWidget(row, 6, deleteContainer);
 
-  // Scroll to the newly added row
   m_cycleGroupsTable->scrollToBottom();
 }
 
@@ -3667,7 +3670,6 @@ void ConfigDialog::onAddNeverMinimizeCharacter() {
 
   m_neverMinimizeTable->editItem(nameItem);
 
-  // Scroll to the newly added row
   m_neverMinimizeTable->scrollToBottom();
 }
 
@@ -3843,7 +3845,6 @@ void ConfigDialog::onAddCharacterColor() {
   deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
   m_characterColorsTable->setCellWidget(row, 2, deleteButtonContainer);
 
-  // Scroll to the newly added row
   m_characterColorsTable->scrollToBottom();
 }
 
@@ -4113,7 +4114,6 @@ void ConfigDialog::onAddThumbnailSize() {
                               "}");
 
   connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
-    // Find which row this button is in
     for (int r = 0; r < m_thumbnailSizesTable->rowCount(); ++r) {
       QWidget *container = m_thumbnailSizesTable->cellWidget(r, 3);
       if (container && container->findChild<QPushButton *>() == deleteButton) {
@@ -4126,7 +4126,6 @@ void ConfigDialog::onAddThumbnailSize() {
   deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
   m_thumbnailSizesTable->setCellWidget(row, 3, deleteButtonContainer);
 
-  // Scroll to the newly added row
   m_thumbnailSizesTable->scrollToBottom();
 }
 
@@ -4140,7 +4139,6 @@ void ConfigDialog::onPopulateThumbnailSizes() {
     return;
   }
 
-  // Filter to only logged-in characters
   QStringList characterNames;
   for (const auto &window : windows) {
     QString characterName = window.title;
@@ -4215,7 +4213,6 @@ void ConfigDialog::onPopulateThumbnailSizes() {
     nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
     m_thumbnailSizesTable->setCellWidget(row, 0, nameEdit);
 
-    // Check if character has custom size, otherwise use defaults
     int width, height;
     if (cfg.hasCustomThumbnailSize(characterName)) {
       QSize customSize = cfg.getThumbnailSize(characterName);
@@ -4274,7 +4271,6 @@ void ConfigDialog::onPopulateThumbnailSizes() {
                                 "}");
 
     connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
-      // Find which row this button is in
       for (int r = 0; r < m_thumbnailSizesTable->rowCount(); ++r) {
         QWidget *container = m_thumbnailSizesTable->cellWidget(r, 3);
         if (container &&
@@ -4848,6 +4844,273 @@ void ConfigDialog::onBrowseLegacySettings() {
 }
 
 void ConfigDialog::onCopyAllLegacySettings() {
+  if (!m_evexProfiles.isEmpty()) {
+    QStringList profileNames = m_evexProfiles.keys();
+    int importedCount = 0;
+    QStringList importedProfileNames;
+
+    for (const QString &profileName : profileNames) {
+      m_currentEVEXProfileName = profileName;
+
+      QVariantMap profile = m_evexProfiles[profileName].toMap();
+      m_legacySettings.clear();
+
+      if (profile.contains("Thumbnail Settings")) {
+        QVariantMap thumbSettings = profile["Thumbnail Settings"].toMap();
+        if (thumbSettings.contains("ShowThumbnailsAlwaysOnTop")) {
+          m_legacySettings["ShowThumbnailsAlwaysOnTop"] =
+              thumbSettings["ShowThumbnailsAlwaysOnTop"];
+        }
+        if (thumbSettings.contains("ShowClientHighlightBorder")) {
+          m_legacySettings["EnableActiveClientHighlight"] =
+              thumbSettings["ShowClientHighlightBorder"];
+        }
+        if (thumbSettings.contains("ClientHighligtColor")) {
+          m_legacySettings["ActiveClientHighlightColor"] =
+              thumbSettings["ClientHighligtColor"];
+        }
+        if (thumbSettings.contains("ClientHighligtBorderthickness")) {
+          m_legacySettings["ActiveClientHighlightThickness"] =
+              thumbSettings["ClientHighligtBorderthickness"];
+        }
+        if (thumbSettings.contains("ShowThumbnailTextOverlay")) {
+          m_legacySettings["ShowThumbnailOverlays"] =
+              thumbSettings["ShowThumbnailTextOverlay"];
+        }
+        if (thumbSettings.contains("ThumbnailTextColor")) {
+          m_legacySettings["OverlayLabelColor"] =
+              thumbSettings["ThumbnailTextColor"];
+        }
+        if (thumbSettings.contains("ThumbnailOpacity")) {
+          int opacity = thumbSettings["ThumbnailOpacity"].toInt();
+          m_legacySettings["ThumbnailsOpacity"] = opacity / 100.0;
+        }
+        if (thumbSettings.contains("HideThumbnailsOnLostFocus")) {
+          m_legacySettings["HideThumbnailsOnLostFocus"] =
+              thumbSettings["HideThumbnailsOnLostFocus"];
+        }
+      }
+
+      if (profile.contains("Client Settings")) {
+        QVariantMap clientSettings = profile["Client Settings"].toMap();
+        if (clientSettings.contains("MinimizeInactiveClients")) {
+          m_legacySettings["MinimizeInactiveClients"] =
+              clientSettings["MinimizeInactiveClients"];
+        }
+      }
+
+      if (profile.contains("Thumbnail Positions")) {
+        QVariantMap positions = profile["Thumbnail Positions"].toMap();
+        QVariantMap flatLayout;
+        for (auto it = positions.constBegin(); it != positions.constEnd();
+             ++it) {
+          QString charName = it.key();
+          QVariantMap pos = it.value().toMap();
+          if (pos.contains("x") && pos.contains("y")) {
+            int x = pos["x"].toInt();
+            int y = pos["y"].toInt();
+            if (x >= 0 && y >= 0) {
+              flatLayout[charName] = QString("%1, %2").arg(x).arg(y);
+            }
+          }
+        }
+        if (!flatLayout.isEmpty()) {
+          m_legacySettings["FlatLayout"] = flatLayout;
+        }
+      }
+
+      if (profile.contains("Hotkey Groups")) {
+        QVariantMap hotkeyGroups = profile["Hotkey Groups"].toMap();
+        int groupIndex = 1;
+        for (auto it = hotkeyGroups.constBegin(); it != hotkeyGroups.constEnd();
+             ++it) {
+          if (groupIndex > 5)
+            break;
+          QString groupName = it.key();
+          QVariantMap group = it.value().toMap();
+          if (group.contains("ForwardsHotkey")) {
+            QString hotkey = group["ForwardsHotkey"].toString();
+            if (!hotkey.isEmpty()) {
+              m_legacySettings[QString("CycleGroup%1ForwardHotkeys")
+                                   .arg(groupIndex)] = QVariantList() << hotkey;
+            }
+          }
+          if (group.contains("BackwardsHotkey")) {
+            QString hotkey = group["BackwardsHotkey"].toString();
+            if (!hotkey.isEmpty()) {
+              m_legacySettings[QString("CycleGroup%1BackwardHotkeys")
+                                   .arg(groupIndex)] = QVariantList() << hotkey;
+            }
+          }
+          if (group.contains("Characters")) {
+            QVariantList characters = group["Characters"].toList();
+            QVariantMap clientsOrder;
+            for (int i = 0; i < characters.size(); ++i) {
+              QString charName = characters[i].toString();
+              clientsOrder[charName] = i + 1;
+            }
+            if (!clientsOrder.isEmpty()) {
+              m_legacySettings[QString("CycleGroup%1ClientsOrder")
+                                   .arg(groupIndex)] = clientsOrder;
+            }
+          }
+          groupIndex++;
+        }
+      }
+
+      if (m_evexGlobalSettings.contains("ThumbnailSnap")) {
+        m_legacySettings["EnableThumbnailSnap"] =
+            m_evexGlobalSettings["ThumbnailSnap"];
+      }
+      if (m_evexGlobalSettings.contains("ThumbnailSnap_Distance")) {
+        int distance = m_evexGlobalSettings["ThumbnailSnap_Distance"].toInt();
+        m_legacySettings["ThumbnailSnapToGridSizeX"] = distance;
+        m_legacySettings["ThumbnailSnapToGridSizeY"] = distance;
+      }
+
+      QString sanitizedName = profileName;
+      sanitizedName.replace('/', '_');
+      sanitizedName.replace('\\', '_');
+      sanitizedName.replace('.', '_');
+
+      if (Config::instance().createProfile(sanitizedName, true)) {
+        QString previousProfile = Config::instance().getCurrentProfileName();
+
+        if (Config::instance().loadProfile(sanitizedName)) {
+          QStringList categories = {
+              "Thumbnail Settings",  "Window Behavior",
+              "Overlay Settings",    "Highlight Settings",
+              "Position & Snapping", "Hotkeys & Cycle Groups"};
+
+          for (const QString &category : categories) {
+            QVariantMap categorySettings;
+
+            if (category == "Thumbnail Settings") {
+              if (m_legacySettings.contains("ThumbnailSize")) {
+                categorySettings["ThumbnailSize"] =
+                    m_legacySettings["ThumbnailSize"];
+              }
+              if (m_legacySettings.contains("ThumbnailsOpacity")) {
+                categorySettings["ThumbnailsOpacity"] =
+                    m_legacySettings["ThumbnailsOpacity"];
+              }
+              if (m_legacySettings.contains("ThumbnailRefreshPeriod")) {
+                categorySettings["ThumbnailRefreshPeriod"] =
+                    m_legacySettings["ThumbnailRefreshPeriod"];
+              }
+            } else if (category == "Window Behavior") {
+              if (m_legacySettings.contains("ShowThumbnailsAlwaysOnTop")) {
+                categorySettings["ShowThumbnailsAlwaysOnTop"] =
+                    m_legacySettings["ShowThumbnailsAlwaysOnTop"];
+              }
+              if (m_legacySettings.contains("MinimizeInactiveClients")) {
+                categorySettings["MinimizeInactiveClients"] =
+                    m_legacySettings["MinimizeInactiveClients"];
+              }
+              if (m_legacySettings.contains("HideActiveClientThumbnail")) {
+                categorySettings["HideActiveClientThumbnail"] =
+                    m_legacySettings["HideActiveClientThumbnail"];
+              }
+              if (m_legacySettings.contains("HideLoginClientThumbnail")) {
+                categorySettings["HideLoginClientThumbnail"] =
+                    m_legacySettings["HideLoginClientThumbnail"];
+              }
+            } else if (category == "Overlay Settings") {
+              if (m_legacySettings.contains("ShowThumbnailOverlays")) {
+                categorySettings["ShowThumbnailOverlays"] =
+                    m_legacySettings["ShowThumbnailOverlays"];
+              }
+              if (m_legacySettings.contains("OverlayLabelColor")) {
+                categorySettings["OverlayLabelColor"] =
+                    m_legacySettings["OverlayLabelColor"];
+              }
+              if (m_legacySettings.contains("OverlayLabelAnchor")) {
+                categorySettings["OverlayLabelAnchor"] =
+                    m_legacySettings["OverlayLabelAnchor"];
+              }
+            } else if (category == "Highlight Settings") {
+              if (m_legacySettings.contains("EnableActiveClientHighlight")) {
+                categorySettings["EnableActiveClientHighlight"] =
+                    m_legacySettings["EnableActiveClientHighlight"];
+              }
+              if (m_legacySettings.contains("ActiveClientHighlightColor")) {
+                categorySettings["ActiveClientHighlightColor"] =
+                    m_legacySettings["ActiveClientHighlightColor"];
+              }
+              if (m_legacySettings.contains("ActiveClientHighlightThickness")) {
+                categorySettings["ActiveClientHighlightThickness"] =
+                    m_legacySettings["ActiveClientHighlightThickness"];
+              }
+            } else if (category == "Position & Snapping") {
+              if (m_legacySettings.contains("EnableThumbnailSnap")) {
+                categorySettings["EnableThumbnailSnap"] =
+                    m_legacySettings["EnableThumbnailSnap"];
+              }
+              if (m_legacySettings.contains("LockThumbnailLocation")) {
+                categorySettings["LockThumbnailLocation"] =
+                    m_legacySettings["LockThumbnailLocation"];
+              }
+              if (m_legacySettings.contains("ThumbnailSnapToGridSizeX")) {
+                categorySettings["ThumbnailSnapToGridSizeX"] =
+                    m_legacySettings["ThumbnailSnapToGridSizeX"];
+              }
+              if (m_legacySettings.contains("ThumbnailSnapToGridSizeY")) {
+                categorySettings["ThumbnailSnapToGridSizeY"] =
+                    m_legacySettings["ThumbnailSnapToGridSizeY"];
+              }
+              if (m_legacySettings.contains("FlatLayout")) {
+                categorySettings["FlatLayout"] = m_legacySettings["FlatLayout"];
+              }
+            } else if (category == "Hotkeys & Cycle Groups") {
+              for (int i = 1; i <= 5; ++i) {
+                QString forwardKey =
+                    QString("CycleGroup%1ForwardHotkeys").arg(i);
+                QString backwardKey =
+                    QString("CycleGroup%1BackwardHotkeys").arg(i);
+                QString clientsKey = QString("CycleGroup%1ClientsOrder").arg(i);
+                if (m_legacySettings.contains(forwardKey)) {
+                  categorySettings[forwardKey] = m_legacySettings[forwardKey];
+                }
+                if (m_legacySettings.contains(backwardKey)) {
+                  categorySettings[backwardKey] = m_legacySettings[backwardKey];
+                }
+                if (m_legacySettings.contains(clientsKey)) {
+                  categorySettings[clientsKey] = m_legacySettings[clientsKey];
+                }
+              }
+              if (m_legacySettings.contains("ClientHotkey")) {
+                categorySettings["ClientHotkey"] =
+                    m_legacySettings["ClientHotkey"];
+              }
+            }
+
+            if (!categorySettings.isEmpty()) {
+              copyLegacySettings(category, categorySettings);
+            }
+          }
+
+          saveSettings();
+
+          Config::instance().loadProfile(previousProfile);
+          importedCount++;
+          importedProfileNames << sanitizedName;
+        }
+      }
+    }
+
+    updateProfileDropdown();
+
+    m_copyAllLegacyButton->setText("All Imported!");
+    m_copyAllLegacyButton->setEnabled(false);
+
+    QMessageBox::information(
+        this, "Success",
+        QString("Successfully imported %1 EVE-X profile(s):\n\n%2")
+            .arg(importedCount)
+            .arg(importedProfileNames.join("\n")));
+    return;
+  }
+
   if (m_legacySettings.isEmpty()) {
     return;
   }
@@ -5041,6 +5304,200 @@ void ConfigDialog::onCopyAllLegacySettings() {
           .arg(copiedCount == 1 ? "y" : "ies"));
 }
 
+void ConfigDialog::onImportEVEXAsProfile() {
+  if (m_evexProfiles.isEmpty() || m_currentEVEXProfileName.isEmpty()) {
+    QMessageBox::warning(this, "Error", "No EVE-X profile selected.");
+    return;
+  }
+
+  QTimer::singleShot(0, this, [this]() {
+    bool ok;
+    QString suggestedName = m_currentEVEXProfileName;
+
+    suggestedName.replace('/', '_');
+    suggestedName.replace('\\', '_');
+    suggestedName.replace('.', '_');
+
+    QString profileName = QInputDialog::getText(
+        this, "Import EVE-X Profile",
+        QString("Enter name for the new profile:\n(importing from: %1)")
+            .arg(m_currentEVEXProfileName),
+        QLineEdit::Normal, suggestedName, &ok);
+
+    if (!ok || profileName.isEmpty()) {
+      return;
+    }
+
+    if (profileName.contains('/') || profileName.contains('\\') ||
+        profileName.contains('.')) {
+      QMessageBox::warning(this, "Invalid Name",
+                           "Profile name cannot contain slashes or dots.");
+      return;
+    }
+
+    if (Config::instance().profileExists(profileName)) {
+      QMessageBox::warning(
+          this, "Profile Exists",
+          QString("Profile \"%1\" already exists.").arg(profileName));
+      return;
+    }
+
+    bool success = Config::instance().createProfile(profileName, true);
+
+    if (!success) {
+      QMessageBox::critical(
+          this, "Import Failed",
+          QString("Failed to create profile: %1").arg(profileName));
+      return;
+    }
+
+    QString previousProfile = Config::instance().getCurrentProfileName();
+    if (!Config::instance().loadProfile(profileName)) {
+      QMessageBox::critical(this, "Import Failed",
+                            "Failed to load the newly created profile.");
+      Config::instance().deleteProfile(profileName);
+      return;
+    }
+
+    QStringList categoriesToImport = {
+        "Thumbnail Settings", "Window Behavior",     "Overlay Settings",
+        "Highlight Settings", "Position & Snapping", "Hotkeys & Cycle Groups"};
+
+    int importedCount = 0;
+    for (const QString &category : categoriesToImport) {
+      QVariantMap categorySettings;
+
+      if (category == "Thumbnail Settings") {
+        if (m_legacySettings.contains("ThumbnailSize")) {
+          categorySettings["ThumbnailSize"] = m_legacySettings["ThumbnailSize"];
+        }
+        if (m_legacySettings.contains("ThumbnailsOpacity")) {
+          categorySettings["ThumbnailsOpacity"] =
+              m_legacySettings["ThumbnailsOpacity"];
+        }
+        if (m_legacySettings.contains("ThumbnailRefreshPeriod")) {
+          categorySettings["ThumbnailRefreshPeriod"] =
+              m_legacySettings["ThumbnailRefreshPeriod"];
+        }
+      } else if (category == "Window Behavior") {
+        if (m_legacySettings.contains("ShowThumbnailsAlwaysOnTop")) {
+          categorySettings["ShowThumbnailsAlwaysOnTop"] =
+              m_legacySettings["ShowThumbnailsAlwaysOnTop"];
+        }
+        if (m_legacySettings.contains("MinimizeInactiveClients")) {
+          categorySettings["MinimizeInactiveClients"] =
+              m_legacySettings["MinimizeInactiveClients"];
+        }
+        if (m_legacySettings.contains("HideActiveClientThumbnail")) {
+          categorySettings["HideActiveClientThumbnail"] =
+              m_legacySettings["HideActiveClientThumbnail"];
+        }
+        if (m_legacySettings.contains("HideLoginClientThumbnail")) {
+          categorySettings["HideLoginClientThumbnail"] =
+              m_legacySettings["HideLoginClientThumbnail"];
+        }
+      } else if (category == "Overlay Settings") {
+        if (m_legacySettings.contains("ShowThumbnailOverlays")) {
+          categorySettings["ShowThumbnailOverlays"] =
+              m_legacySettings["ShowThumbnailOverlays"];
+        }
+        if (m_legacySettings.contains("OverlayLabelColor")) {
+          categorySettings["OverlayLabelColor"] =
+              m_legacySettings["OverlayLabelColor"];
+        }
+        if (m_legacySettings.contains("OverlayLabelAnchor")) {
+          categorySettings["OverlayLabelAnchor"] =
+              m_legacySettings["OverlayLabelAnchor"];
+        }
+      } else if (category == "Highlight Settings") {
+        if (m_legacySettings.contains("EnableActiveClientHighlight")) {
+          categorySettings["EnableActiveClientHighlight"] =
+              m_legacySettings["EnableActiveClientHighlight"];
+        }
+        if (m_legacySettings.contains("ActiveClientHighlightColor")) {
+          categorySettings["ActiveClientHighlightColor"] =
+              m_legacySettings["ActiveClientHighlightColor"];
+        }
+        if (m_legacySettings.contains("ActiveClientHighlightThickness")) {
+          categorySettings["ActiveClientHighlightThickness"] =
+              m_legacySettings["ActiveClientHighlightThickness"];
+        }
+      } else if (category == "Position & Snapping") {
+        if (m_legacySettings.contains("EnableThumbnailSnap")) {
+          categorySettings["EnableThumbnailSnap"] =
+              m_legacySettings["EnableThumbnailSnap"];
+        }
+        if (m_legacySettings.contains("LockThumbnailLocation")) {
+          categorySettings["LockThumbnailLocation"] =
+              m_legacySettings["LockThumbnailLocation"];
+        }
+        if (m_legacySettings.contains("ThumbnailSnapToGridSizeX")) {
+          categorySettings["ThumbnailSnapToGridSizeX"] =
+              m_legacySettings["ThumbnailSnapToGridSizeX"];
+        }
+        if (m_legacySettings.contains("ThumbnailSnapToGridSizeY")) {
+          categorySettings["ThumbnailSnapToGridSizeY"] =
+              m_legacySettings["ThumbnailSnapToGridSizeY"];
+        }
+        if (m_legacySettings.contains("FlatLayout")) {
+          categorySettings["FlatLayout"] = m_legacySettings["FlatLayout"];
+        }
+      } else if (category == "Hotkeys & Cycle Groups") {
+        for (int i = 1; i <= 5; ++i) {
+          QString forwardKey = QString("CycleGroup%1ForwardHotkeys").arg(i);
+          QString backwardKey = QString("CycleGroup%1BackwardHotkeys").arg(i);
+          QString clientsKey = QString("CycleGroup%1ClientsOrder").arg(i);
+
+          if (m_legacySettings.contains(forwardKey)) {
+            categorySettings[forwardKey] = m_legacySettings[forwardKey];
+          }
+          if (m_legacySettings.contains(backwardKey)) {
+            categorySettings[backwardKey] = m_legacySettings[backwardKey];
+          }
+          if (m_legacySettings.contains(clientsKey)) {
+            categorySettings[clientsKey] = m_legacySettings[clientsKey];
+          }
+        }
+        if (m_legacySettings.contains("ClientHotkey")) {
+          categorySettings["ClientHotkey"] = m_legacySettings["ClientHotkey"];
+        }
+      }
+
+      if (!categorySettings.isEmpty()) {
+        copyLegacySettings(category, categorySettings);
+        importedCount++;
+      }
+    }
+
+    saveSettings();
+
+    Config::instance().loadProfile(previousProfile);
+
+    updateProfileDropdown();
+
+    m_importEVEXButton->setText("Imported!");
+    m_importEVEXButton->setEnabled(false);
+
+    QMessageBox::StandardButton switchNow = QMessageBox::question(
+        this, "Import Complete",
+        QString("Successfully imported EVE-X profile as \"%1\".\n\n"
+                "Switch to it now?")
+            .arg(profileName),
+        QMessageBox::Yes | QMessageBox::No);
+
+    if (switchNow == QMessageBox::Yes) {
+      int index = m_profileCombo->findText(profileName);
+      if (index >= 0) {
+        m_skipProfileSwitchConfirmation = true;
+        m_profileCombo->setCurrentIndex(index);
+        m_skipProfileSwitchConfirmation = false;
+      }
+    } else {
+      loadSettings();
+    }
+  });
+}
+
 void ConfigDialog::onBrowseChatLogDirectory() {
   QString currentPath = m_chatLogDirectoryEdit->text().trimmed();
   if (currentPath.isEmpty()) {
@@ -5191,7 +5648,13 @@ void ConfigDialog::parseEVEXPreviewFile(const QVariantMap &rootMap) {
                               "    border: 1px solid #555555;"
                               "}");
   selectorLayout->addWidget(profileCombo);
+
   selectorLayout->addStretch();
+
+  m_importEVEXButton->setVisible(true);
+  m_importEVEXButton->setEnabled(true);
+  m_importEVEXButton->setText("Copy Profile");
+  selectorLayout->addWidget(m_importEVEXButton);
 
   headerLayout->addWidget(selectorWidget);
 
@@ -5209,6 +5672,8 @@ void ConfigDialog::parseEVEXPreviewFile(const QVariantMap &rootMap) {
             QString selectedProfile = profileCombo->currentText();
             if (!selectedProfile.isEmpty()) {
               displayEVEXProfile(selectedProfile, settingsContainer);
+              m_importEVEXButton->setText("Copy Profile");
+              m_importEVEXButton->setEnabled(true);
             }
           });
 
@@ -5233,6 +5698,8 @@ void ConfigDialog::displayEVEXProfile(const QString &profileName,
   if (!m_evexProfiles.contains(profileName)) {
     return;
   }
+
+  m_currentEVEXProfileName = profileName;
 
   QLayout *layout = container->layout();
   if (layout) {
@@ -5923,6 +6390,10 @@ void ConfigDialog::copyLegacySettings(const QString &category,
     auto legacyKeyToVirtualKey = [](const QString &keyName) -> int {
       QString key = keyName.trimmed().toUpper();
 
+      if (key.startsWith("*")) {
+        key = key.mid(1).trimmed();
+      }
+
       if (key.startsWith("F")) {
         bool ok;
         int num = key.mid(1).toInt(&ok);
@@ -6173,6 +6644,38 @@ void ConfigDialog::copyLegacySettings(const QString &category,
 
       noLoopLayout->addWidget(noLoopCheck);
       m_cycleGroupsTable->setCellWidget(row, 5, noLoopContainer);
+    }
+
+    bool hasWildcard = false;
+    for (int i = 1; i <= 5; ++i) {
+      QString forwardKey = QString("CycleGroup%1ForwardHotkeys").arg(i);
+      QString backwardKey = QString("CycleGroup%1BackwardHotkeys").arg(i);
+
+      if (settings.contains(forwardKey)) {
+        QVariantList forwardList = settings[forwardKey].toList();
+        if (!forwardList.isEmpty()) {
+          QString hotkey = forwardList[0].toString();
+          if (hotkey.trimmed().startsWith("*")) {
+            hasWildcard = true;
+            break;
+          }
+        }
+      }
+
+      if (settings.contains(backwardKey)) {
+        QVariantList backwardList = settings[backwardKey].toList();
+        if (!backwardList.isEmpty()) {
+          QString hotkey = backwardList[0].toString();
+          if (hotkey.trimmed().startsWith("*")) {
+            hasWildcard = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (hasWildcard) {
+      m_wildcardHotkeysCheck->setChecked(true);
     }
 
     if (settings.contains("ClientHotkey")) {

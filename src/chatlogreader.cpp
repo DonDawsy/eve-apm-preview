@@ -27,10 +27,6 @@ ChatLogWorker::ChatLogWorker(QObject *parent)
 
 static QString normalizeLogLine(const QString &line) {
   static const QRegularExpression controlCharsPattern(R"([\x00-\x1F\x7F])");
-  // Pattern to match zero-width and invisible Unicode characters
-  // U+FEFF (Zero Width No-Break Space), U+200B (Zero Width Space),
-  // U+200C (Zero Width Non-Joiner), U+200D (Zero Width Joiner), U+2060 (Word
-  // Joiner)
   static const QRegularExpression zeroWidthPattern(
       QString::fromUtf8("[\uFEFF\u200B\u200C\u200D\u2060]"),
       QRegularExpression::UseUnicodePropertiesOption);

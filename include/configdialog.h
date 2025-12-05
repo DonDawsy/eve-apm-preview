@@ -65,6 +65,7 @@ private slots:
   void onResetThumbnailSizesToDefault();
   void onBrowseLegacySettings();
   void onCopyAllLegacySettings();
+  void onImportEVEXAsProfile();
   void onCopyLegacyCategory(const QString &category);
   void onAddProcessName();
   void onPopulateProcessNames();
@@ -219,6 +220,7 @@ private:
 
   QPushButton *m_browseLegacyButton;
   QPushButton *m_copyAllLegacyButton;
+  QPushButton *m_importEVEXButton;
   QLabel *m_legacyFilePathLabel;
   QWidget *m_legacySettingsContainer;
   QVBoxLayout *m_legacySettingsLayout;
@@ -256,6 +258,7 @@ private:
   QVariantMap m_legacySettings;
   QVariantMap m_evexProfiles;
   QVariantMap m_evexGlobalSettings;
+  QString m_currentEVEXProfileName;
 
   QTableWidget *m_characterHotkeysTable;
   QPushButton *m_addCharacterButton;
