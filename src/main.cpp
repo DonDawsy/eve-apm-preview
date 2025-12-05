@@ -11,7 +11,7 @@
 
 class HotkeyEventFilter : public QAbstractNativeEventFilter {
 public:
-  bool nativeEventFilter(const QByteArray & , void *message,
+  bool nativeEventFilter(const QByteArray &, void *message,
                          qintptr *result) override {
     return HotkeyManager::nativeEventFilter(message,
                                             reinterpret_cast<long *>(result));
@@ -27,8 +27,6 @@ int main(int argc, char *argv[]) {
     }
     return 0;
   }
-
-  SetProcessDPIAware();
 
   BOOL compositionEnabled = FALSE;
   if (FAILED(DwmIsCompositionEnabled(&compositionEnabled)) ||

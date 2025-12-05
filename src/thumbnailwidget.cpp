@@ -29,7 +29,7 @@ ThumbnailWidget::ThumbnailWidget(quintptr windowId, const QString &title,
   connect(m_updateTimer, &QTimer::timeout, this,
           &ThumbnailWidget::updateDwmThumbnail);
 
-  m_updateTimer->start(60000); 
+  m_updateTimer->start(60000);
 
   m_combatMessageTimer = new QTimer(this);
   m_combatMessageTimer->setSingleShot(true);
@@ -314,7 +314,7 @@ QPoint ThumbnailWidget::snapPosition(
   return snappedPos;
 }
 
-void ThumbnailWidget::paintEvent(QPaintEvent * ) {
+void ThumbnailWidget::paintEvent(QPaintEvent *) {
   if (m_windowId == 0) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
@@ -474,7 +474,7 @@ void ThumbnailWidget::mouseReleaseEvent(QMouseEvent *event) {
       emit positionChanged(m_windowId, pos());
 
       if (!m_updateTimer->isActive()) {
-        m_updateTimer->start(60000); 
+        m_updateTimer->start(60000);
         updateDwmThumbnail();
       }
 
@@ -491,7 +491,7 @@ void ThumbnailWidget::mouseReleaseEvent(QMouseEvent *event) {
       emit positionChanged(m_windowId, pos());
 
       if (!m_updateTimer->isActive()) {
-        m_updateTimer->start(60000); 
+        m_updateTimer->start(60000);
         updateDwmThumbnail();
       }
 
@@ -564,18 +564,20 @@ void ThumbnailWidget::updateDwmThumbnail() {
     return;
   }
 
-  HWND sourceWindow = reinterpret_cast<HWND>(m_windowId);
-  RECT sourceRect;
-  if (!GetClientRect(sourceWindow, &sourceRect)) {
+  // Query the actual thumbnail source size from DWM
+  // This gives us the size in the coordinate space DWM is using
+  SIZE sourceSize;
+  HRESULT hr = DwmQueryThumbnailSourceSize(m_dwmThumbnail, &sourceSize);
+  if (FAILED(hr) || sourceSize.cx <= 0 || sourceSize.cy <= 0) {
     return;
   }
 
-  int sourceWidth = sourceRect.right - sourceRect.left;
-  int sourceHeight = sourceRect.bottom - sourceRect.top;
+  // Get the device pixel ratio for this widget (accounts for DPI scaling)
+  qreal dpr = devicePixelRatio();
 
-  if (sourceWidth <= 0 || sourceHeight <= 0) {
-    return;
-  }
+  // Convert widget dimensions from logical to physical pixels
+  int physicalWidth = static_cast<int>(width() * dpr);
+  int physicalHeight = static_cast<int>(height() * dpr);
 
   DWM_THUMBNAIL_PROPERTIES props = {};
   props.dwFlags = DWM_TNP_RECTSOURCE | DWM_TNP_RECTDESTINATION |
@@ -585,15 +587,17 @@ void ThumbnailWidget::updateDwmThumbnail() {
   props.opacity = 255;
   props.fSourceClientAreaOnly = TRUE;
 
+  // Use the actual source size reported by DWM (in physical pixels)
   props.rcSource.left = 0;
   props.rcSource.top = 0;
-  props.rcSource.right = sourceWidth;
-  props.rcSource.bottom = sourceHeight;
+  props.rcSource.right = sourceSize.cx;
+  props.rcSource.bottom = sourceSize.cy;
 
+  // Destination in physical pixels
   props.rcDestination.left = 0;
   props.rcDestination.top = 0;
-  props.rcDestination.right = width();
-  props.rcDestination.bottom = height();
+  props.rcDestination.right = physicalWidth;
+  props.rcDestination.bottom = physicalHeight;
 
   DwmUpdateThumbnailProperties(m_dwmThumbnail, &props);
 }
@@ -613,6 +617,27 @@ void ThumbnailWidget::moveEvent(QMoveEvent *event) {
   if (m_overlayWidget && !m_isDragging && m_overlayWidget->isVisible()) {
     m_overlayWidget->move(pos());
   }
+}
+
+bool ThumbnailWidget::nativeEvent(const QByteArray &eventType, void *message,
+                                  qintptr *result) {
+  Q_UNUSED(eventType);
+  Q_UNUSED(result);
+
+  MSG *msg = static_cast<MSG *>(message);
+
+  // Handle DPI change messages
+  if (msg->message == WM_DPICHANGED) {
+    // When DPI changes, update the thumbnail to match the new DPI
+    updateDwmThumbnail();
+
+    // Also update overlay widget if it exists
+    if (m_overlayWidget) {
+      m_overlayWidget->invalidateCache();
+    }
+  }
+
+  return false; // Let Qt handle the event normally
 }
 
 void ThumbnailWidget::showEvent(QShowEvent *event) {
@@ -679,7 +704,7 @@ void OverlayWidget::setOverlays(const QVector<OverlayElement> &overlays) {
 
 void OverlayWidget::setActiveState(bool active) {
   if (m_isActive == active) {
-    return; 
+    return;
   }
   m_isActive = active;
   update();
@@ -741,7 +766,7 @@ void OverlayWidget::invalidateCache() {
   update();
 }
 
-void OverlayWidget::paintEvent(QPaintEvent * ) {
+void OverlayWidget::paintEvent(QPaintEvent *) {
 
   QPainter painter(this);
   painter.setRenderHint(QPainter::Antialiasing);
