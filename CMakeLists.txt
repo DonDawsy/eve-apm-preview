@@ -78,6 +78,13 @@ if(WIN32)
     target_link_libraries(${PROJECT_NAME} dwmapi user32 gdi32)
 endif()
 
+# Disable debug output in release builds
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    $<$<CONFIG:Release>:QT_NO_DEBUG_OUTPUT>
+    $<$<CONFIG:MinSizeRel>:QT_NO_DEBUG_OUTPUT>
+    $<$<CONFIG:RelWithDebInfo>:QT_NO_DEBUG_OUTPUT>
+)
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
