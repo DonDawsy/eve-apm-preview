@@ -3056,6 +3056,9 @@ void ConfigDialog::onAddCharacterHotkey() {
 
   deleteLayout->addWidget(deleteButton);
   m_characterHotkeysTable->setCellWidget(row, 2, deleteContainer);
+
+  // Scroll to the newly added row
+  m_characterHotkeysTable->scrollToBottom();
 }
 
 void ConfigDialog::onPopulateFromOpenWindows() {
@@ -3431,6 +3434,9 @@ void ConfigDialog::onAddCycleGroup() {
 
   deleteLayout->addWidget(deleteButton);
   m_cycleGroupsTable->setCellWidget(row, 6, deleteContainer);
+
+  // Scroll to the newly added row
+  m_cycleGroupsTable->scrollToBottom();
 }
 
 void ConfigDialog::onEditCycleGroupCharacters() {
@@ -3660,6 +3666,9 @@ void ConfigDialog::onAddNeverMinimizeCharacter() {
   m_neverMinimizeTable->setCellWidget(row, 1, buttonContainer);
 
   m_neverMinimizeTable->editItem(nameItem);
+
+  // Scroll to the newly added row
+  m_neverMinimizeTable->scrollToBottom();
 }
 
 void ConfigDialog::onPopulateNeverMinimize() {
@@ -3833,6 +3842,9 @@ void ConfigDialog::onAddCharacterColor() {
 
   deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
   m_characterColorsTable->setCellWidget(row, 2, deleteButtonContainer);
+
+  // Scroll to the newly added row
+  m_characterColorsTable->scrollToBottom();
 }
 
 void ConfigDialog::onPopulateCharacterColors() {
