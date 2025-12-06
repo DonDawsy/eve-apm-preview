@@ -421,8 +421,7 @@ void ConfigDialog::createAppearancePage() {
   m_highlightBorderWidthSpin->setRange(1, 10);
   m_highlightBorderWidthSpin->setSuffix(" px");
   m_highlightBorderWidthSpin->setFixedWidth(150);
-  m_highlightBorderWidthSpin->setStyleSheet(
-      StyleSheet::getSpinBoxWithDisabledStyleSheet());
+  m_highlightBorderWidthSpin->setStyleSheet(StyleSheet::getSpinBoxStyleSheet());
 
   highlightGrid->addWidget(m_highlightColorLabel, 0, 0, Qt::AlignLeft);
   highlightGrid->addWidget(m_highlightColorButton, 0, 1);
@@ -714,8 +713,7 @@ void ConfigDialog::createAppearancePage() {
   m_backgroundOpacitySpin->setSingleStep(5);
   m_backgroundOpacitySpin->setSuffix(" %");
   m_backgroundOpacitySpin->setFixedWidth(150);
-  m_backgroundOpacitySpin->setStyleSheet(
-      StyleSheet::getSpinBoxWithDisabledStyleSheet());
+  m_backgroundOpacitySpin->setStyleSheet(StyleSheet::getSpinBoxStyleSheet());
 
   bgGrid->addWidget(m_backgroundColorLabel, 0, 0, Qt::AlignLeft);
   bgGrid->addWidget(m_backgroundColorButton, 0, 1);
@@ -1272,8 +1270,7 @@ void ConfigDialog::createBehaviorPage() {
   m_minimizeDelaySpin->setRange(0, 1000);
   m_minimizeDelaySpin->setSuffix(" ms");
   m_minimizeDelaySpin->setFixedWidth(150);
-  m_minimizeDelaySpin->setStyleSheet(
-      StyleSheet::getSpinBoxWithDisabledStyleSheet());
+  m_minimizeDelaySpin->setStyleSheet(StyleSheet::getSpinBoxStyleSheet());
 
   minimizeGrid->addWidget(m_minimizeDelayLabel, 0, 0, Qt::AlignLeft);
   minimizeGrid->addWidget(m_minimizeDelaySpin, 0, 1);
@@ -1378,8 +1375,7 @@ void ConfigDialog::createBehaviorPage() {
   m_snapDistanceSpin->setRange(5, 100);
   m_snapDistanceSpin->setSuffix(" px");
   m_snapDistanceSpin->setFixedWidth(150);
-  m_snapDistanceSpin->setStyleSheet(
-      StyleSheet::getSpinBoxWithDisabledStyleSheet());
+  m_snapDistanceSpin->setStyleSheet(StyleSheet::getSpinBoxStyleSheet());
 
   snapGrid->addWidget(m_snapDistanceLabel, 0, 0, Qt::AlignLeft);
   snapGrid->addWidget(m_snapDistanceSpin, 0, 1);
@@ -1781,7 +1777,7 @@ void ConfigDialog::createDataSourcesPage() {
     rowLayout->addWidget(checkbox);
 
     QPushButton *colorBtn = new QPushButton();
-    colorBtn->setFixedSize(80, 30);
+    colorBtn->setFixedSize(80, 32);
     colorBtn->setCursor(Qt::PointingHandCursor);
     updateColorButton(colorBtn, Qt::white);
     connect(
@@ -3314,7 +3310,7 @@ void ConfigDialog::onAddCycleGroup() {
   nameEdit->setStyleSheet(cellStyle);
   m_cycleGroupsTable->setCellWidget(row, 0, nameEdit);
 
-  QPushButton *charactersButton = new QPushButton("(No characters)");
+  QPushButton *charactersButton = new QPushButton("No characters");
   charactersButton->setStyleSheet(StyleSheet::getTableCellButtonStyleSheet());
   charactersButton->setCursor(Qt::PointingHandCursor);
   charactersButton->setProperty("characterList", QStringList());
