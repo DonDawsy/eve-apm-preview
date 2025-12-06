@@ -548,7 +548,7 @@ void ConfigDialog::createAppearancePage() {
   overlaysSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
   QVBoxLayout *overlaysSectionLayout = new QVBoxLayout(overlaysSection);
   overlaysSectionLayout->setContentsMargins(16, 12, 16, 12);
-  overlaysSectionLayout->setSpacing(16);
+  overlaysSectionLayout->setSpacing(10);
 
   tagWidget(overlaysSection,
             {"overlay", "character", "name", "system", "font", "background",
@@ -763,7 +763,7 @@ void ConfigDialog::createHotkeysPage() {
 
   QWidget *scrollWidget = new QWidget();
   QVBoxLayout *layout = new QVBoxLayout(scrollWidget);
-  layout->setSpacing(20);
+  layout->setSpacing(10);
   layout->setContentsMargins(0, 0, 5, 0);
 
   QString hotkeyButtonStyle = StyleSheet::getHotkeyButtonStyleSheet();
@@ -1196,7 +1196,7 @@ void ConfigDialog::createBehaviorPage() {
 
   QWidget *scrollWidget = new QWidget();
   QVBoxLayout *layout = new QVBoxLayout(scrollWidget);
-  layout->setSpacing(20);
+  layout->setSpacing(10);
   layout->setContentsMargins(0, 0, 5, 0);
 
   QWidget *windowSection = new QWidget();
@@ -1580,7 +1580,7 @@ void ConfigDialog::createDataSourcesPage() {
 
   QWidget *scrollWidget = new QWidget();
   QVBoxLayout *layout = new QVBoxLayout(scrollWidget);
-  layout->setSpacing(20);
+  layout->setSpacing(10);
   layout->setContentsMargins(0, 0, 5, 0);
 
   QWidget *logMonitoringSection = new QWidget();
@@ -1972,7 +1972,7 @@ void ConfigDialog::createLegacySettingsPage() {
 
   QWidget *scrollWidget = new QWidget();
   QVBoxLayout *layout = new QVBoxLayout(scrollWidget);
-  layout->setSpacing(20);
+  layout->setSpacing(10);
   layout->setContentsMargins(0, 0, 5, 0);
 
   QWidget *browseSection = new QWidget();
@@ -2034,7 +2034,7 @@ void ConfigDialog::createLegacySettingsPage() {
 
   m_legacySettingsContainer = new QWidget();
   m_legacySettingsLayout = new QVBoxLayout(m_legacySettingsContainer);
-  m_legacySettingsLayout->setSpacing(15);
+  m_legacySettingsLayout->setSpacing(10);
   m_legacySettingsLayout->setContentsMargins(0, 0, 0, 0);
 
   layout->addWidget(m_legacySettingsContainer);
@@ -2047,9 +2047,15 @@ void ConfigDialog::createLegacySettingsPage() {
 
 void ConfigDialog::createAboutPage() {
   QWidget *page = new QWidget();
-  QVBoxLayout *layout = new QVBoxLayout(page);
-  layout->setContentsMargins(20, 20, 20, 20);
-  layout->setSpacing(20);
+  QScrollArea *scrollArea = new QScrollArea();
+  scrollArea->setWidgetResizable(true);
+  scrollArea->setFrameShape(QFrame::NoFrame);
+  scrollArea->setStyleSheet(StyleSheet::getScrollAreaStyleSheet());
+
+  QWidget *scrollWidget = new QWidget();
+  QVBoxLayout *layout = new QVBoxLayout(scrollWidget);
+  layout->setContentsMargins(0, 0, 5, 0);
+  layout->setSpacing(10);
 
   QLabel *iconLabel = new QLabel();
   QPixmap icon(":/bee.png");
@@ -2070,13 +2076,13 @@ void ConfigDialog::createAboutPage() {
   versionLabel->setAlignment(Qt::AlignCenter);
   layout->addWidget(versionLabel);
 
-  layout->addSpacing(15);
+  layout->addSpacing(10);
 
   QWidget *updateSection = new QWidget();
   updateSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
   QVBoxLayout *updateSectionLayout = new QVBoxLayout(updateSection);
   updateSectionLayout->setContentsMargins(16, 12, 16, 12);
-  updateSectionLayout->setSpacing(8);
+  updateSectionLayout->setSpacing(10);
 
   QLabel *updateHeader = new QLabel("Update Check");
   updateHeader->setStyleSheet(StyleSheet::getSubsectionHeaderStyleSheet());
@@ -2108,20 +2114,18 @@ void ConfigDialog::createAboutPage() {
 
   layout->addWidget(updateSection);
 
-  layout->addSpacing(15);
-
   QWidget *thanksSection = new QWidget();
   thanksSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
   QVBoxLayout *thanksSectionLayout = new QVBoxLayout(thanksSection);
   thanksSectionLayout->setContentsMargins(16, 12, 16, 12);
-  thanksSectionLayout->setSpacing(8);
+  thanksSectionLayout->setSpacing(10);
 
   QLabel *thanksHeader = new QLabel("Thanks");
   thanksHeader->setStyleSheet(StyleSheet::getSubsectionHeaderStyleSheet());
   thanksSectionLayout->addWidget(thanksHeader);
 
   QGridLayout *thanksGridLayout = new QGridLayout();
-  thanksGridLayout->setSpacing(8);
+  thanksGridLayout->setSpacing(10);
 
   QStringList thanksList = {
       "The Aggressor",  "Exie",       "Hyperion Iwaira",  "Zintage Enaka",
@@ -2155,6 +2159,12 @@ void ConfigDialog::createAboutPage() {
   copyrightLabel->setStyleSheet(StyleSheet::getCopyrightLabelStyleSheet());
   copyrightLabel->setAlignment(Qt::AlignCenter);
   layout->addWidget(copyrightLabel);
+
+  scrollArea->setWidget(scrollWidget);
+
+  QVBoxLayout *pageLayout = new QVBoxLayout(page);
+  pageLayout->setContentsMargins(0, 0, 0, 0);
+  pageLayout->addWidget(scrollArea);
 
   m_stackedWidget->addWidget(page);
 }
