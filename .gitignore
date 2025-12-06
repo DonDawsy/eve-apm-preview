@@ -12,6 +12,7 @@ tools/
 build.ps1
 build_static_app.ps1
 build_qt_static.ps1
+bump_version.ps1
 build_mingw/
 build_static/
 dist_static/
