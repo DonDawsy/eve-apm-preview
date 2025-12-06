@@ -936,7 +936,7 @@ void ConfigDialog::createHotkeysPage() {
 
   m_cycleGroupsTable = new QTableWidget(0, 7);
   m_cycleGroupsTable->setHorizontalHeaderLabels(
-      {"Group Name", "Characters", "Forward Key", "Backward Key",
+      {"Group Name", "Characters", "Backward Key", "Forward Key",
        "Inc. Not Logged In", "Don't Loop", ""});
   m_cycleGroupsTable->horizontalHeader()->setSectionResizeMode(
       0, QHeaderView::Interactive);
@@ -3317,39 +3317,6 @@ void ConfigDialog::onAddCycleGroup() {
           &ConfigDialog::onEditCycleGroupCharacters);
   m_cycleGroupsTable->setCellWidget(row, 1, charactersButton);
 
-  QWidget *forwardHotkeyWidget = new QWidget();
-  QHBoxLayout *forwardLayout = new QHBoxLayout(forwardHotkeyWidget);
-  forwardLayout->setContentsMargins(0, 0, 0, 0);
-  forwardLayout->setSpacing(4);
-
-  HotkeyCapture *forwardCapture = new HotkeyCapture();
-  QPushButton *clearForwardButton = new QPushButton("×");
-  clearForwardButton->setFixedSize(24, 24);
-  clearForwardButton->setStyleSheet("QPushButton {"
-                                    "    background-color: #3a3a3a;"
-                                    "    color: #a0a0a0;"
-                                    "    border: 1px solid #555555;"
-                                    "    border-radius: 3px;"
-                                    "    font-size: 16px;"
-                                    "    font-weight: bold;"
-                                    "    padding: 0px;"
-                                    "}"
-                                    "QPushButton:hover {"
-                                    "    background-color: #4a4a4a;"
-                                    "    color: #ffffff;"
-                                    "    border: 1px solid #666666;"
-                                    "}"
-                                    "QPushButton:pressed {"
-                                    "    background-color: #2a2a2a;"
-                                    "}");
-  clearForwardButton->setToolTip("Clear hotkey");
-  connect(clearForwardButton, &QPushButton::clicked,
-          [forwardCapture]() { forwardCapture->clearHotkey(); });
-
-  forwardLayout->addWidget(forwardCapture, 1);
-  forwardLayout->addWidget(clearForwardButton, 0);
-  m_cycleGroupsTable->setCellWidget(row, 2, forwardHotkeyWidget);
-
   QWidget *backwardHotkeyWidget = new QWidget();
   QHBoxLayout *backwardLayout = new QHBoxLayout(backwardHotkeyWidget);
   backwardLayout->setContentsMargins(0, 0, 0, 0);
@@ -3381,7 +3348,40 @@ void ConfigDialog::onAddCycleGroup() {
 
   backwardLayout->addWidget(backwardCapture, 1);
   backwardLayout->addWidget(clearBackwardButton, 0);
-  m_cycleGroupsTable->setCellWidget(row, 3, backwardHotkeyWidget);
+  m_cycleGroupsTable->setCellWidget(row, 2, backwardHotkeyWidget);
+
+  QWidget *forwardHotkeyWidget = new QWidget();
+  QHBoxLayout *forwardLayout = new QHBoxLayout(forwardHotkeyWidget);
+  forwardLayout->setContentsMargins(0, 0, 0, 0);
+  forwardLayout->setSpacing(4);
+
+  HotkeyCapture *forwardCapture = new HotkeyCapture();
+  QPushButton *clearForwardButton = new QPushButton("×");
+  clearForwardButton->setFixedSize(24, 24);
+  clearForwardButton->setStyleSheet("QPushButton {"
+                                    "    background-color: #3a3a3a;"
+                                    "    color: #a0a0a0;"
+                                    "    border: 1px solid #555555;"
+                                    "    border-radius: 3px;"
+                                    "    font-size: 16px;"
+                                    "    font-weight: bold;"
+                                    "    padding: 0px;"
+                                    "}"
+                                    "QPushButton:hover {"
+                                    "    background-color: #4a4a4a;"
+                                    "    color: #ffffff;"
+                                    "    border: 1px solid #666666;"
+                                    "}"
+                                    "QPushButton:pressed {"
+                                    "    background-color: #2a2a2a;"
+                                    "}");
+  clearForwardButton->setToolTip("Clear hotkey");
+  connect(clearForwardButton, &QPushButton::clicked,
+          [forwardCapture]() { forwardCapture->clearHotkey(); });
+
+  forwardLayout->addWidget(forwardCapture, 1);
+  forwardLayout->addWidget(clearForwardButton, 0);
+  m_cycleGroupsTable->setCellWidget(row, 3, forwardHotkeyWidget);
 
   QWidget *checkboxContainer = new QWidget();
   checkboxContainer->setStyleSheet(
