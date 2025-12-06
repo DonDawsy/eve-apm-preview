@@ -124,7 +124,7 @@ void ConfigDialog::setupUI() {
   QWidget *rightPanel = new QWidget();
   rightPanel->setStyleSheet(StyleSheet::getRightPanelStyleSheet());
   QVBoxLayout *rightLayout = new QVBoxLayout(rightPanel);
-  rightLayout->setContentsMargins(10, 15, 8, 10);
+  rightLayout->setContentsMargins(10, 10, 10, 10);
 
   m_stackedWidget = new QStackedWidget();
   m_stackedWidget->setStyleSheet(StyleSheet::getStackedWidgetStyleSheet());
@@ -441,40 +441,6 @@ void ConfigDialog::createAppearancePage() {
             m_highlightBorderWidthSpin->setEnabled(checked);
           });
 
-  QWidget *thumbnailVisibilitySection = new QWidget();
-  thumbnailVisibilitySection->setStyleSheet(StyleSheet::getSectionStyleSheet());
-  QVBoxLayout *thumbnailVisibilitySectionLayout =
-      new QVBoxLayout(thumbnailVisibilitySection);
-  thumbnailVisibilitySectionLayout->setContentsMargins(16, 12, 16, 12);
-  thumbnailVisibilitySectionLayout->setSpacing(10);
-
-  tagWidget(thumbnailVisibilitySection,
-            {"hide", "active", "thumbnail", "visibility", "focus", "focused",
-             "client", "window", "always", "top", "preview"});
-
-  QLabel *thumbnailVisibilityHeader = new QLabel("Thumbnail Visibility");
-  thumbnailVisibilityHeader->setStyleSheet(
-      StyleSheet::getSectionHeaderStyleSheet());
-  thumbnailVisibilitySectionLayout->addWidget(thumbnailVisibilityHeader);
-
-  QLabel *thumbnailVisibilityInfoLabel =
-      new QLabel("Control the visibility and behavior of thumbnail windows.");
-  thumbnailVisibilityInfoLabel->setStyleSheet(
-      StyleSheet::getInfoLabelStyleSheet());
-  thumbnailVisibilitySectionLayout->addWidget(thumbnailVisibilityInfoLabel);
-
-  m_alwaysOnTopCheck = new QCheckBox("Always on top");
-  m_alwaysOnTopCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
-  thumbnailVisibilitySectionLayout->addWidget(m_alwaysOnTopCheck);
-
-  m_hideActiveClientThumbnailCheck =
-      new QCheckBox("Hide active client thumbnail");
-  m_hideActiveClientThumbnailCheck->setStyleSheet(
-      StyleSheet::getCheckBoxStyleSheet());
-  thumbnailVisibilitySectionLayout->addWidget(m_hideActiveClientThumbnailCheck);
-
-  layout->addWidget(thumbnailVisibilitySection);
-
   QWidget *charColorsSection = new QWidget();
   charColorsSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
   QVBoxLayout *charColorsSectionLayout = new QVBoxLayout(charColorsSection);
@@ -543,6 +509,40 @@ void ConfigDialog::createAppearancePage() {
   charColorsSectionLayout->addLayout(charColorsButtonLayout);
 
   layout->addWidget(charColorsSection);
+
+  QWidget *thumbnailVisibilitySection = new QWidget();
+  thumbnailVisibilitySection->setStyleSheet(StyleSheet::getSectionStyleSheet());
+  QVBoxLayout *thumbnailVisibilitySectionLayout =
+      new QVBoxLayout(thumbnailVisibilitySection);
+  thumbnailVisibilitySectionLayout->setContentsMargins(16, 12, 16, 12);
+  thumbnailVisibilitySectionLayout->setSpacing(10);
+
+  tagWidget(thumbnailVisibilitySection,
+            {"hide", "active", "thumbnail", "visibility", "focus", "focused",
+             "client", "window", "always", "top", "preview"});
+
+  QLabel *thumbnailVisibilityHeader = new QLabel("Thumbnail Visibility");
+  thumbnailVisibilityHeader->setStyleSheet(
+      StyleSheet::getSectionHeaderStyleSheet());
+  thumbnailVisibilitySectionLayout->addWidget(thumbnailVisibilityHeader);
+
+  QLabel *thumbnailVisibilityInfoLabel =
+      new QLabel("Control the visibility and behavior of thumbnail windows.");
+  thumbnailVisibilityInfoLabel->setStyleSheet(
+      StyleSheet::getInfoLabelStyleSheet());
+  thumbnailVisibilitySectionLayout->addWidget(thumbnailVisibilityInfoLabel);
+
+  m_alwaysOnTopCheck = new QCheckBox("Always on top");
+  m_alwaysOnTopCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
+  thumbnailVisibilitySectionLayout->addWidget(m_alwaysOnTopCheck);
+
+  m_hideActiveClientThumbnailCheck =
+      new QCheckBox("Hide active client thumbnail");
+  m_hideActiveClientThumbnailCheck->setStyleSheet(
+      StyleSheet::getCheckBoxStyleSheet());
+  thumbnailVisibilitySectionLayout->addWidget(m_hideActiveClientThumbnailCheck);
+
+  layout->addWidget(thumbnailVisibilitySection);
 
   QWidget *overlaysSection = new QWidget();
   overlaysSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
