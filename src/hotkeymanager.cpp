@@ -905,12 +905,6 @@ void HotkeyManager::registerProfileHotkeys() {
     binding.shift = (modifiers & Qt::ShiftModifier) != 0;
     binding.enabled = true;
 
-    QString conflict = findHotkeyConflict(binding, profileName);
-    if (!conflict.isEmpty()) {
-      qWarning() << "Profile hotkey for" << profileName << "conflicts with"
-                 << conflict;
-    }
-
     int hotkeyId;
     if (registerHotkey(binding, hotkeyId)) {
       m_hotkeyIdToProfile.insert(hotkeyId, profileName);
@@ -928,78 +922,4 @@ void HotkeyManager::unregisterProfileHotkeys() {
     unregisterHotkey(hotkeyId);
   }
   m_hotkeyIdToProfile.clear();
-}
-
-QString HotkeyManager::findHotkeyConflict(const HotkeyBinding &binding,
-                                          const QString &excludeProfile) const {
-  if (!binding.enabled)
-    return QString();
-
-  if (m_suspendHotkey.enabled && m_suspendHotkey == binding) {
-    return "Suspend/Resume Hotkey";
-  }
-
-  for (auto it = m_characterHotkeys.constBegin();
-       it != m_characterHotkeys.constEnd(); ++it) {
-    if (it.value() == binding) {
-      return QString("Character: %1").arg(it.key());
-    }
-  }
-
-  for (auto it = m_cycleGroups.constBegin(); it != m_cycleGroups.constEnd();
-       ++it) {
-    if (it.value().forwardBinding == binding) {
-      return QString("Cycle Group '%1' (Forward)").arg(it.key());
-    }
-    if (it.value().backwardBinding == binding) {
-      return QString("Cycle Group '%1' (Backward)").arg(it.key());
-    }
-  }
-
-  if (m_notLoggedInForwardHotkey.enabled &&
-      m_notLoggedInForwardHotkey == binding) {
-    return "Not Logged In Cycle (Forward)";
-  }
-  if (m_notLoggedInBackwardHotkey.enabled &&
-      m_notLoggedInBackwardHotkey == binding) {
-    return "Not Logged In Cycle (Backward)";
-  }
-
-  if (m_nonEVEForwardHotkey.enabled && m_nonEVEForwardHotkey == binding) {
-    return "Non-EVE Cycle (Forward)";
-  }
-  if (m_nonEVEBackwardHotkey.enabled && m_nonEVEBackwardHotkey == binding) {
-    return "Non-EVE Cycle (Backward)";
-  }
-
-  QMap<QString, QPair<int, int>> profileHotkeys =
-      Config::instance().getAllProfileHotkeys();
-  for (auto it = profileHotkeys.constBegin(); it != profileHotkeys.constEnd();
-       ++it) {
-    const QString &profileName = it.key();
-
-    if (!excludeProfile.isEmpty() && profileName == excludeProfile)
-      continue;
-
-    int key = it.value().first;
-    int modifiers = it.value().second;
-
-    HotkeyBinding profileBinding;
-    profileBinding.keyCode = key;
-    profileBinding.ctrl = (modifiers & Qt::ControlModifier) != 0;
-    profileBinding.alt = (modifiers & Qt::AltModifier) != 0;
-    profileBinding.shift = (modifiers & Qt::ShiftModifier) != 0;
-    profileBinding.enabled = true;
-
-    if (profileBinding == binding) {
-      return QString("Profile: %1").arg(profileName);
-    }
-  }
-
-  return QString();
-}
-
-bool HotkeyManager::hasHotkeyConflict(const HotkeyBinding &binding,
-                                      const QString &excludeProfile) const {
-  return !findHotkeyConflict(binding, excludeProfile).isEmpty();
 }

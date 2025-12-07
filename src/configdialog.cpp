@@ -6969,46 +6969,35 @@ void ConfigDialog::createProfileToolbar() {
   m_profileHotkeyCapture->setFixedWidth(150);
   m_profileHotkeyCapture->setStyleSheet(
       StyleSheet::getHotkeyCaptureStandaloneStyleSheet());
-  connect(
-      m_profileHotkeyCapture, &HotkeyCapture::hotkeyChanged, this, [this]() {
-        QString currentProfile = Config::instance().getCurrentProfileName();
-        int key = m_profileHotkeyCapture->getKeyCode();
+  connect(m_profileHotkeyCapture, &HotkeyCapture::hotkeyChanged, this,
+          [this]() {
+            QString currentProfile = Config::instance().getCurrentProfileName();
+            int key = m_profileHotkeyCapture->getKeyCode();
 
-        if (key == 0) {
-          Config::instance().clearProfileHotkey(currentProfile);
-          return;
-        }
+            if (key == 0) {
+              Config::instance().clearProfileHotkey(currentProfile);
+              return;
+            }
 
-        int modifiers = 0;
-        if (m_profileHotkeyCapture->getCtrl())
-          modifiers |= Qt::ControlModifier;
-        if (m_profileHotkeyCapture->getAlt())
-          modifiers |= Qt::AltModifier;
-        if (m_profileHotkeyCapture->getShift())
-          modifiers |= Qt::ShiftModifier;
+            int modifiers = 0;
+            if (m_profileHotkeyCapture->getCtrl())
+              modifiers |= Qt::ControlModifier;
+            if (m_profileHotkeyCapture->getAlt())
+              modifiers |= Qt::AltModifier;
+            if (m_profileHotkeyCapture->getShift())
+              modifiers |= Qt::ShiftModifier;
 
-        HotkeyBinding binding;
-        binding.keyCode = key;
-        binding.ctrl = (modifiers & Qt::ControlModifier) != 0;
-        binding.alt = (modifiers & Qt::AltModifier) != 0;
-        binding.shift = (modifiers & Qt::ShiftModifier) != 0;
-        binding.enabled = true;
+            HotkeyBinding binding;
+            binding.keyCode = key;
+            binding.ctrl = (modifiers & Qt::ControlModifier) != 0;
+            binding.alt = (modifiers & Qt::AltModifier) != 0;
+            binding.shift = (modifiers & Qt::ShiftModifier) != 0;
+            binding.enabled = true;
 
-        QString conflict = HotkeyManager::instance()->findHotkeyConflict(
-            binding, currentProfile);
-        if (!conflict.isEmpty()) {
-          QMessageBox::warning(
-              this, "Hotkey Conflict",
-              QString(
-                  "This hotkey is already assigned to:\n\n%1\n\nPlease choose "
-                  "a different hotkey or remove the existing assignment first.")
-                  .arg(conflict));
-          m_profileHotkeyCapture->clearHotkey();
-          return;
-        }
+            // TODO: Add conflict detection here
 
-        Config::instance().setProfileHotkey(currentProfile, key, modifiers);
-      });
+            Config::instance().setProfileHotkey(currentProfile, key, modifiers);
+          });
   toolbarLayout->addWidget(m_profileHotkeyCapture);
 
   m_clearProfileHotkeyButton = new QPushButton("Clear");

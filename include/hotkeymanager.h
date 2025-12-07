@@ -140,11 +140,6 @@ public:
   void registerProfileHotkeys();
   void unregisterProfileHotkeys();
 
-  QString findHotkeyConflict(const HotkeyBinding &binding,
-                             const QString &excludeProfile = QString()) const;
-  bool hasHotkeyConflict(const HotkeyBinding &binding,
-                         const QString &excludeProfile = QString()) const;
-
   void loadFromConfig();
   void saveToConfig();
 
