@@ -225,10 +225,6 @@ void Config::loadCacheFromSettings() {
   m_cachedGameLogDirectory =
       m_settings->value(KEY_GAMELOG_DIRECTORY, getDefaultGameLogDirectory())
           .toString();
-  m_cachedFileChangeDebounceMs =
-      m_settings
-          ->value(KEY_CHATLOG_FILEDEBOUNCE_MS, DEFAULT_CHATLOG_FILEDEBOUNCE_MS)
-          .toInt();
 
   m_cachedShowCombatMessages =
       m_settings->value(KEY_COMBAT_ENABLED, DEFAULT_COMBAT_MESSAGES_ENABLED)
@@ -314,15 +310,6 @@ void Config::loadCacheFromSettings() {
     }
   }
   m_settings->endGroup();
-}
-
-int Config::fileChangeDebounceMs() const {
-  return m_cachedFileChangeDebounceMs;
-}
-
-void Config::setFileChangeDebounceMs(int milliseconds) {
-  m_settings->setValue(KEY_CHATLOG_FILEDEBOUNCE_MS, milliseconds);
-  m_cachedFileChangeDebounceMs = milliseconds;
 }
 
 bool Config::highlightActiveWindow() const { return m_cachedHighlightActive; }

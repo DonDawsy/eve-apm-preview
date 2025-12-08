@@ -257,7 +257,6 @@ private:
   QLineEdit *m_chatLogDirectoryEdit;
   QPushButton *m_chatLogBrowseButton;
   QLabel *m_chatLogDirectoryLabel;
-  QSpinBox *m_fileChangeDebounceSpin;
   QCheckBox *m_enableGameLogMonitoringCheck;
   QLineEdit *m_gameLogDirectoryEdit;
   QPushButton *m_gameLogBrowseButton;

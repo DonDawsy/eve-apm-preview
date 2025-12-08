@@ -1746,30 +1746,11 @@ void ConfigDialog::createDataSourcesPage() {
   gameDirLayout->addWidget(m_gameLogBrowseButton);
   logSectionLayout->addLayout(gameDirLayout);
 
-  QHBoxLayout *debounceLayout = new QHBoxLayout();
-  debounceLayout->setContentsMargins(24, 0, 0, 0);
-  QLabel *debounceLabel = new QLabel("File change debounce:");
-  debounceLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
-  debounceLabel->setFixedWidth(150);
-
-  m_fileChangeDebounceSpin = new QSpinBox();
-  m_fileChangeDebounceSpin->setRange(10, 5000);
-  m_fileChangeDebounceSpin->setSingleStep(10);
-  m_fileChangeDebounceSpin->setSuffix(" ms");
-  m_fileChangeDebounceSpin->setStyleSheet(StyleSheet::getSpinBoxStyleSheet());
-  m_fileChangeDebounceSpin->setFixedWidth(120);
-
-  debounceLayout->addWidget(debounceLabel);
-  debounceLayout->addWidget(m_fileChangeDebounceSpin);
-  debounceLayout->addStretch();
-  logSectionLayout->addLayout(debounceLayout);
-
   connect(m_enableGameLogMonitoringCheck, &QCheckBox::toggled, this,
           [this](bool checked) {
             m_gameLogDirectoryLabel->setEnabled(checked);
             m_gameLogDirectoryEdit->setEnabled(checked);
             m_gameLogBrowseButton->setEnabled(checked);
-            m_fileChangeDebounceSpin->setEnabled(checked);
           });
 
   layout->addWidget(logMonitoringSection);
@@ -2567,11 +2548,6 @@ void ConfigDialog::setupBindings() {
       [&config]() { return config.showCombatMessages(); },
       [&config](bool value) { config.setShowCombatMessages(value); }, true));
 
-  m_bindingManager.addBinding(BindingHelpers::bindSpinBox(
-      m_fileChangeDebounceSpin,
-      [&config]() { return config.fileChangeDebounceMs(); },
-      [&config](int value) { config.setFileChangeDebounceMs(value); }, 200));
-
   m_bindingManager.addBinding(BindingHelpers::bindComboBox(
       m_combatMessagePositionCombo,
       [&config]() { return config.combatMessagePosition(); },
@@ -2752,7 +2728,6 @@ void ConfigDialog::loadSettings() {
   m_gameLogDirectoryLabel->setEnabled(gameLogEnabled);
   m_gameLogDirectoryEdit->setEnabled(gameLogEnabled);
   m_gameLogBrowseButton->setEnabled(gameLogEnabled);
-  m_fileChangeDebounceSpin->setEnabled(gameLogEnabled);
 
   bool combatMessagesEnabled = config.showCombatMessages();
   m_combatMessagePositionCombo->setEnabled(combatMessagesEnabled);

@@ -200,9 +200,6 @@ public:
   int miningTimeoutSeconds() const;
   void setMiningTimeoutSeconds(int seconds);
 
-  int fileChangeDebounceMs() const;
-  void setFileChangeDebounceMs(int milliseconds);
-
   QString configFilePath() const;
 
   void save();
@@ -276,7 +273,6 @@ public:
   static constexpr int OPACITY_MAX = 100;
 
   static constexpr bool DEFAULT_CHATLOG_ENABLE_MONITORING = false;
-  static constexpr int DEFAULT_CHATLOG_FILEDEBOUNCE_MS = 200;
   static constexpr bool DEFAULT_GAMELOG_ENABLE_MONITORING = false;
 
   static constexpr bool DEFAULT_COMBAT_MESSAGES_ENABLED = false;
@@ -346,7 +342,6 @@ private:
   mutable QString m_cachedChatLogDirectory;
   mutable bool m_cachedEnableGameLogMonitoring;
   mutable QString m_cachedGameLogDirectory;
-  mutable int m_cachedFileChangeDebounceMs;
 
   mutable bool m_cachedShowCombatMessages;
   mutable int m_cachedCombatMessagePosition;
@@ -458,8 +453,6 @@ private:
   static constexpr const char *KEY_CHATLOG_ENABLE_MONITORING =
       "chatlog/enableMonitoring";
   static constexpr const char *KEY_CHATLOG_DIRECTORY = "chatlog/directory";
-  static constexpr const char *KEY_CHATLOG_FILEDEBOUNCE_MS =
-      "chatlog/fileDebounceMs";
 
   static constexpr const char *KEY_GAMELOG_ENABLE_MONITORING =
       "gamelog/enableMonitoring";
