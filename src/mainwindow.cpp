@@ -86,7 +86,7 @@ MainWindow::MainWindow(QObject *parent)
 
   QAction *restartAction = new QAction("Reload", this);
   connect(restartAction, &QAction::triggered, this,
-          &MainWindow::restartApplication);
+          &MainWindow::reloadThumbnails);
   m_trayMenu->addAction(restartAction);
 
   QAction *exitAction = new QAction(EXIT_TEXT, this);
@@ -1775,6 +1775,57 @@ void MainWindow::applySettings() {
 void MainWindow::restartApplication() {
   emit requestRestart();
   QCoreApplication::exit(1000);
+}
+
+/// Reload all thumbnails to a fresh state without restarting the application
+void MainWindow::reloadThumbnails() {
+  qDebug() << "MainWindow: Reloading thumbnails to fresh state";
+
+  // Clear all existing thumbnails
+  qDeleteAll(thumbnails);
+  thumbnails.clear();
+
+  // Clear all state mappings
+  m_characterToWindow.clear();
+  m_windowToCharacter.clear();
+  m_characterSystems.clear();
+  m_cycleIndexByGroup.clear();
+  m_lastActivatedWindowByGroup.clear();
+  m_windowCreationTimes.clear();
+  m_characterHotkeyCycleIndex.clear();
+  m_lastActivatedCharacterHotkeyWindow.clear();
+  m_clientLocationMoveAttempted.clear();
+  m_lastKnownTitles.clear();
+  m_windowProcessNames.clear();
+  m_windowsBeingMoved.clear();
+  m_cachedThumbnailList.clear();
+  m_groupDragInitialPositions.clear();
+
+  // Clear cycle indices
+  m_notLoggedInWindows.clear();
+  m_notLoggedInCycleIndex = -1;
+  m_nonEVEWindows.clear();
+  m_nonEVECycleIndex = -1;
+
+  // Reset window handles
+  m_hwndToActivate = nullptr;
+  m_hwndPendingRefresh = nullptr;
+  m_lastActiveWindow = nullptr;
+
+  // Reset flags
+  m_needsEnumeration = true;
+  m_needsMappingUpdate = false;
+  m_lastThumbnailListSize = 0;
+
+  // Clear caches
+  if (windowCapture) {
+    windowCapture->clearCache();
+  }
+  OverlayInfo::clearCache();
+
+  // Refresh to rebuild all thumbnails
+  qDebug() << "MainWindow: Refreshing windows after reload";
+  refreshWindows();
 }
 
 void MainWindow::exitApplication() { QCoreApplication::quit(); }

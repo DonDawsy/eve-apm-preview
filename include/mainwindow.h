@@ -43,6 +43,7 @@ private slots:
   void minimizeInactiveWindows();
   void showSettings();
   void restartApplication();
+  void reloadThumbnails();
   void exitApplication();
   void activateProfile();
   void onCharacterSystemChanged(const QString &characterName,

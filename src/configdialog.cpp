@@ -2203,11 +2203,11 @@ void ConfigDialog::createAboutPage() {
   thanksGridLayout->setSpacing(10);
 
   QStringList thanksList = {
-      "The Aggressor",   "Exie",       "Hyperion Iwaira",  "Zintage Enaka",
-      "snipereagle1",    "degeva",     "Killer 641",       "Aulis",
-      "Cyanide",         "Oebrun",     "Kondo Rio Sotken", "Zack Power",
-      "Langanmyer Nor",  "ham Norris", "Groot Brustir",    "The Llama",
-      "Rhazien Shardani"};
+      "The Aggressor",    "Exie",        "Hyperion Iwaira",  "Zintage Enaka",
+      "snipereagle1",     "degeva",      "Killer 641",       "Aulis",
+      "Cyanide",          "Oebrun",      "Kondo Rio Sotken", "Zack Power",
+      "Langanmyer Nor",   "ham Norris",  "Groot Brustir",    "The Llama",
+      "Rhazien Shardani", "Anthony Mong"};
 
   int row = 0;
   int col = 0;
