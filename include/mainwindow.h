@@ -30,6 +30,7 @@ public:
 
 signals:
   void profileSwitchedExternally(const QString &profileName);
+  void requestRestart();
 
 private slots:
   void refreshWindows();
@@ -41,6 +42,7 @@ private slots:
   void onGroupDragEnded(quintptr windowId);
   void minimizeInactiveWindows();
   void showSettings();
+  void restartApplication();
   void exitApplication();
   void activateProfile();
   void onCharacterSystemChanged(const QString &characterName,

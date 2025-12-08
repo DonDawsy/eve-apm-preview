@@ -14,6 +14,7 @@
 #include <QIcon>
 #include <QPainter>
 #include <QPixmap>
+#include <QProcess>
 #include <QScreen>
 #include <QSet>
 #include <algorithm>
@@ -82,6 +83,11 @@ MainWindow::MainWindow(QObject *parent)
   m_trayMenu->addAction(m_suspendHotkeysAction);
 
   m_trayMenu->addSeparator();
+
+  QAction *restartAction = new QAction("Reload", this);
+  connect(restartAction, &QAction::triggered, this,
+          &MainWindow::restartApplication);
+  m_trayMenu->addAction(restartAction);
 
   QAction *exitAction = new QAction(EXIT_TEXT, this);
   connect(exitAction, &QAction::triggered, this, &MainWindow::exitApplication);
@@ -658,7 +664,7 @@ void MainWindow::refreshWindows() {
         } else {
           thumbWidget->setCharacterName(showNonEVEOverlay ? window.title : "");
         }
-      } 
+      }
 
       if (isEVEClient && characterName.isEmpty()) {
         QString newDisplayName =
@@ -1764,6 +1770,11 @@ void MainWindow::applySettings() {
   updateActiveWindow();
 
   refreshWindows();
+}
+
+void MainWindow::restartApplication() {
+  emit requestRestart();
+  QCoreApplication::exit(1000);
 }
 
 void MainWindow::exitApplication() { QCoreApplication::quit(); }
