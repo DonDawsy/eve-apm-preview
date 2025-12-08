@@ -21,6 +21,7 @@ class HotkeyCapture;
 class QVBoxLayout;
 class ThumbnailWidget;
 class QNetworkAccessManager;
+class QScrollArea;
 
 class ConfigDialog : public QDialog {
   Q_OBJECT
@@ -108,6 +109,28 @@ private:
   void updateColorButton(QPushButton *button, const QColor &color);
   void performGlobalSearch(const QString &searchText);
   void tagWidget(QWidget *widget, const QStringList &keywords);
+  QWidget *createThumbnailSizeFormRow(const QString &characterName = "",
+                                      int width = 0, int height = 0);
+  void updateThumbnailSizesScrollHeight();
+  QWidget *createCharacterHotkeyFormRow(const QString &characterName = "",
+                                        int vkCode = 0, int modifiers = 0);
+  void updateCharacterHotkeysScrollHeight();
+  QWidget *createCycleGroupFormRow(const QString &groupName = "",
+                                   int backwardKey = 0, int backwardMods = 0,
+                                   int forwardKey = 0, int forwardMods = 0,
+                                   const QString &characters = "",
+                                   bool includeNotLoggedIn = false,
+                                   bool noLoop = false);
+  void updateCycleGroupsScrollHeight();
+  QWidget *createCharacterColorFormRow(const QString &characterName = "",
+                                       const QColor &color = QColor("#00FFFF"));
+  void updateCharacterColorsScrollHeight();
+  QWidget *createNeverMinimizeFormRow(const QString &characterName = "");
+  void updateNeverMinimizeScrollHeight();
+  QWidget *createHiddenCharactersFormRow(const QString &characterName = "");
+  void updateHiddenCharactersScrollHeight();
+  QWidget *createProcessNamesFormRow(const QString &processName = "");
+  void updateProcessNamesScrollHeight();
 
   void parseLegacySettingsFile(const QString &filePath);
   void parseEVEXPreviewFile(const QVariantMap &rootMap);
@@ -187,17 +210,24 @@ private:
 
   QCheckBox *m_showNonEVEOverlayCheck;
 
-  QTableWidget *m_processNamesTable;
+  QScrollArea *m_processNamesScrollArea;
+  QWidget *m_processNamesContainer;
+  QVBoxLayout *m_processNamesLayout;
   QPushButton *m_addProcessNameButton;
   QPushButton *m_populateProcessNamesButton;
 
   QCheckBox *m_minimizeInactiveCheck;
   QSpinBox *m_minimizeDelaySpin;
   QLabel *m_minimizeDelayLabel;
-  QTableWidget *m_neverMinimizeTable;
+  QLabel *m_neverMinimizeLabel;
+  QScrollArea *m_neverMinimizeScrollArea;
+  QWidget *m_neverMinimizeContainer;
+  QVBoxLayout *m_neverMinimizeLayout;
   QPushButton *m_addNeverMinimizeButton;
   QPushButton *m_populateNeverMinimizeButton;
-  QTableWidget *m_hiddenCharactersTable;
+  QScrollArea *m_hiddenCharactersScrollArea;
+  QWidget *m_hiddenCharactersContainer;
+  QVBoxLayout *m_hiddenCharactersLayout;
   QPushButton *m_addHiddenCharacterButton;
   QPushButton *m_populateHiddenCharactersButton;
   QCheckBox *m_saveClientLocationCheck;
@@ -210,12 +240,16 @@ private:
   QSpinBox *m_highlightBorderWidthSpin;
   QLabel *m_highlightBorderWidthLabel;
   QColor m_highlightColor;
-  QTableWidget *m_characterColorsTable;
+  QScrollArea *m_characterColorsScrollArea;
+  QWidget *m_characterColorsContainer;
+  QVBoxLayout *m_characterColorsLayout;
   QPushButton *m_addCharacterColorButton;
   QPushButton *m_populateCharacterColorsButton;
   QPushButton *m_assignUniqueColorsButton;
 
-  QTableWidget *m_thumbnailSizesTable;
+  QScrollArea *m_thumbnailSizesScrollArea;
+  QWidget *m_thumbnailSizesContainer;
+  QVBoxLayout *m_thumbnailSizesLayout;
   QPushButton *m_addThumbnailSizeButton;
   QPushButton *m_populateThumbnailSizesButton;
   QPushButton *m_resetThumbnailSizesButton;
@@ -286,10 +320,14 @@ private:
   QVariantMap m_evexGlobalSettings;
   QString m_currentEVEXProfileName;
 
-  QTableWidget *m_characterHotkeysTable;
+  QScrollArea *m_characterHotkeysScrollArea;
+  QWidget *m_characterHotkeysContainer;
+  QVBoxLayout *m_characterHotkeysLayout;
   QPushButton *m_addCharacterButton;
   QPushButton *m_populateCharactersButton;
-  QTableWidget *m_cycleGroupsTable;
+  QScrollArea *m_cycleGroupsScrollArea;
+  QWidget *m_cycleGroupsContainer;
+  QVBoxLayout *m_cycleGroupsLayout;
   QPushButton *m_addGroupButton;
   HotkeyCapture *m_suspendHotkeyCapture;
   HotkeyCapture *m_notLoggedInForwardCapture;

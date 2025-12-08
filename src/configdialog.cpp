@@ -29,6 +29,7 @@
 #include <QPropertyAnimation>
 #include <QRegularExpression>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QSslError>
 #include <QSslSocket>
 #include <QTimer>
@@ -329,30 +330,33 @@ void ConfigDialog::createAppearancePage() {
   thumbnailSizesInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   thumbnailSizesSectionLayout->addWidget(thumbnailSizesInfoLabel);
 
-  m_thumbnailSizesTable = new QTableWidget(0, 4);
-  m_thumbnailSizesTable->setHorizontalHeaderLabels(
-      {"Character Name", "Width (px)", "Height (px)", ""});
-  m_thumbnailSizesTable->horizontalHeader()->setStretchLastSection(false);
-  m_thumbnailSizesTable->horizontalHeader()->setSectionResizeMode(
-      0, QHeaderView::Stretch);
-  m_thumbnailSizesTable->horizontalHeader()->setSectionResizeMode(
-      1, QHeaderView::Fixed);
-  m_thumbnailSizesTable->horizontalHeader()->setSectionResizeMode(
-      2, QHeaderView::Fixed);
-  m_thumbnailSizesTable->horizontalHeader()->setSectionResizeMode(
-      3, QHeaderView::Fixed);
-  m_thumbnailSizesTable->setColumnWidth(1, 100);
-  m_thumbnailSizesTable->setColumnWidth(2, 100);
-  m_thumbnailSizesTable->setColumnWidth(3, 40);
-  m_thumbnailSizesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_thumbnailSizesTable->verticalHeader()->setDefaultSectionSize(44);
-  m_thumbnailSizesTable->setSizeAdjustPolicy(
-      QAbstractScrollArea::AdjustToContents);
-  m_thumbnailSizesTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  m_thumbnailSizesTable->setMaximumHeight(206);
-  m_thumbnailSizesTable->setFocusPolicy(Qt::NoFocus);
-  m_thumbnailSizesTable->setStyleSheet(StyleSheet::getTableStyleSheet());
-  thumbnailSizesSectionLayout->addWidget(m_thumbnailSizesTable);
+  // Create scrollable container for thumbnail size form rows
+  m_thumbnailSizesScrollArea = new QScrollArea();
+  m_thumbnailSizesScrollArea->setWidgetResizable(true);
+  m_thumbnailSizesScrollArea->setFrameShape(QFrame::NoFrame);
+  m_thumbnailSizesScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_thumbnailSizesScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_thumbnailSizesScrollArea->setSizePolicy(QSizePolicy::Preferred,
+                                            QSizePolicy::Preferred);
+  m_thumbnailSizesScrollArea->setMinimumHeight(10); // Minimal height when empty
+  m_thumbnailSizesScrollArea->setMaximumHeight(240); // Max height for ~4 rows
+  m_thumbnailSizesScrollArea->setFixedHeight(10); // Start with minimal height
+  m_thumbnailSizesScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_thumbnailSizesContainer = new QWidget();
+  m_thumbnailSizesContainer->setStyleSheet(
+      "QWidget { background-color: transparent; }");
+  m_thumbnailSizesLayout = new QVBoxLayout(m_thumbnailSizesContainer);
+  m_thumbnailSizesLayout->setContentsMargins(0, 0, 0, 0);
+  m_thumbnailSizesLayout->setSpacing(8);
+  m_thumbnailSizesLayout->addStretch();
+
+  m_thumbnailSizesScrollArea->setWidget(m_thumbnailSizesContainer);
+  thumbnailSizesSectionLayout->addWidget(m_thumbnailSizesScrollArea);
+
+  thumbnailSizesSectionLayout->addSpacing(-8);
 
   QHBoxLayout *thumbnailSizesButtonLayout = new QHBoxLayout();
   m_addThumbnailSizeButton = new QPushButton("Add Character");
@@ -465,27 +469,28 @@ void ConfigDialog::createAppearancePage() {
   charColorsInfoTop->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   charColorsSectionLayout->addWidget(charColorsInfoTop);
 
-  m_characterColorsTable = new QTableWidget(0, 3);
-  m_characterColorsTable->setHorizontalHeaderLabels(
-      {"Character Name", "Highlight Color", ""});
-  m_characterColorsTable->horizontalHeader()->setStretchLastSection(false);
-  m_characterColorsTable->horizontalHeader()->setSectionResizeMode(
-      0, QHeaderView::Stretch);
-  m_characterColorsTable->horizontalHeader()->setSectionResizeMode(
-      1, QHeaderView::Fixed);
-  m_characterColorsTable->horizontalHeader()->setSectionResizeMode(
-      2, QHeaderView::Fixed);
-  m_characterColorsTable->setColumnWidth(1, 160);
-  m_characterColorsTable->setColumnWidth(2, 40);
-  m_characterColorsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_characterColorsTable->verticalHeader()->setDefaultSectionSize(40);
-  m_characterColorsTable->setSizeAdjustPolicy(
-      QAbstractScrollArea::AdjustToContents);
-  m_characterColorsTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  m_characterColorsTable->setMaximumHeight(190);
-  m_characterColorsTable->setFocusPolicy(Qt::NoFocus);
-  m_characterColorsTable->setStyleSheet(StyleSheet::getTableStyleSheet());
-  charColorsSectionLayout->addWidget(m_characterColorsTable);
+  // Character Colors scroll area with inline forms
+  m_characterColorsScrollArea = new QScrollArea();
+  m_characterColorsScrollArea->setWidgetResizable(true);
+  m_characterColorsScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_characterColorsScrollArea->setVerticalScrollBarPolicy(
+      Qt::ScrollBarAsNeeded);
+  m_characterColorsScrollArea->setStyleSheet(
+      "QScrollArea { border: none; background-color: transparent; }");
+
+  m_characterColorsContainer = new QWidget();
+  m_characterColorsLayout = new QVBoxLayout(m_characterColorsContainer);
+  m_characterColorsLayout->setContentsMargins(4, 4, 4, 4);
+  m_characterColorsLayout->setSpacing(6);
+  m_characterColorsLayout->addStretch();
+
+  m_characterColorsScrollArea->setWidget(m_characterColorsContainer);
+  charColorsSectionLayout->addWidget(m_characterColorsScrollArea);
+
+  updateCharacterColorsScrollHeight();
+
+  charColorsSectionLayout->addSpacing(-8);
 
   QHBoxLayout *charColorsButtonLayout = new QHBoxLayout();
   m_addCharacterColorButton = new QPushButton("Add Character");
@@ -546,6 +551,55 @@ void ConfigDialog::createAppearancePage() {
   m_hideActiveClientThumbnailCheck->setStyleSheet(
       StyleSheet::getCheckBoxStyleSheet());
   thumbnailVisibilitySectionLayout->addWidget(m_hideActiveClientThumbnailCheck);
+
+  QLabel *hiddenCharactersLabel = new QLabel("Hidden Characters:");
+  hiddenCharactersLabel->setStyleSheet(StyleSheet::getSubLabelStyleSheet());
+  thumbnailVisibilitySectionLayout->addWidget(hiddenCharactersLabel);
+
+  // Hidden Characters scroll area with inline forms
+  m_hiddenCharactersScrollArea = new QScrollArea();
+  m_hiddenCharactersScrollArea->setWidgetResizable(true);
+  m_hiddenCharactersScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_hiddenCharactersScrollArea->setVerticalScrollBarPolicy(
+      Qt::ScrollBarAsNeeded);
+  m_hiddenCharactersScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_hiddenCharactersContainer = new QWidget();
+  m_hiddenCharactersLayout = new QVBoxLayout(m_hiddenCharactersContainer);
+  m_hiddenCharactersLayout->setContentsMargins(4, 4, 4, 4);
+  m_hiddenCharactersLayout->setSpacing(6);
+  m_hiddenCharactersLayout->addStretch();
+
+  m_hiddenCharactersScrollArea->setWidget(m_hiddenCharactersContainer);
+  thumbnailVisibilitySectionLayout->addWidget(m_hiddenCharactersScrollArea);
+
+  updateHiddenCharactersScrollHeight();
+
+  thumbnailVisibilitySectionLayout->addSpacing(-8);
+
+  QHBoxLayout *hiddenCharactersButtonLayout = new QHBoxLayout();
+  m_addHiddenCharacterButton = new QPushButton("Add Character");
+  m_populateHiddenCharactersButton =
+      new QPushButton("Populate from Open Clients");
+
+  QString hiddenCharactersButtonStyle =
+      StyleSheet::getSecondaryButtonStyleSheet();
+
+  m_addHiddenCharacterButton->setStyleSheet(hiddenCharactersButtonStyle);
+  m_populateHiddenCharactersButton->setStyleSheet(hiddenCharactersButtonStyle);
+
+  connect(m_addHiddenCharacterButton, &QPushButton::clicked, this,
+          &ConfigDialog::onAddHiddenCharacter);
+  connect(m_populateHiddenCharactersButton, &QPushButton::clicked, this,
+          &ConfigDialog::onPopulateHiddenCharacters);
+
+  hiddenCharactersButtonLayout->addWidget(m_addHiddenCharacterButton);
+  hiddenCharactersButtonLayout->addWidget(m_populateHiddenCharactersButton);
+  hiddenCharactersButtonLayout->addStretch();
+
+  thumbnailVisibilitySectionLayout->addLayout(hiddenCharactersButtonLayout);
 
   layout->addWidget(thumbnailVisibilitySection);
 
@@ -808,7 +862,7 @@ void ConfigDialog::createHotkeysPage() {
 
   QPushButton *clearSuspendButton = new QPushButton("Clear");
   clearSuspendButton->setFixedWidth(60);
-  clearSuspendButton->setStyleSheet(hotkeyButtonStyle);
+  clearSuspendButton->setStyleSheet(StyleSheet::getSecondaryButtonStyleSheet());
   connect(clearSuspendButton, &QPushButton::clicked,
           [this]() { m_suspendHotkeyCapture->clearHotkey(); });
 
@@ -856,7 +910,8 @@ void ConfigDialog::createHotkeysPage() {
 
   QPushButton *clearCloseAllButton = new QPushButton("Clear");
   clearCloseAllButton->setFixedWidth(60);
-  clearCloseAllButton->setStyleSheet(hotkeyButtonStyle);
+  clearCloseAllButton->setStyleSheet(
+      StyleSheet::getSecondaryButtonStyleSheet());
   connect(clearCloseAllButton, &QPushButton::clicked,
           [this]() { m_closeAllClientsCapture->clearHotkey(); });
 
@@ -889,26 +944,34 @@ void ConfigDialog::createHotkeysPage() {
   charInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   charHotkeysSectionLayout->addWidget(charInfoLabel);
 
-  m_characterHotkeysTable = new QTableWidget(0, 3);
-  m_characterHotkeysTable->setHorizontalHeaderLabels(
-      {"Character Name", "Hotkey", ""});
-  m_characterHotkeysTable->horizontalHeader()->setSectionResizeMode(
-      0, QHeaderView::Stretch);
-  m_characterHotkeysTable->horizontalHeader()->setSectionResizeMode(
-      1, QHeaderView::Fixed);
-  m_characterHotkeysTable->horizontalHeader()->setSectionResizeMode(
-      2, QHeaderView::Fixed);
-  m_characterHotkeysTable->setColumnWidth(1, 200);
-  m_characterHotkeysTable->setColumnWidth(2, 40);
-  m_characterHotkeysTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_characterHotkeysTable->verticalHeader()->setDefaultSectionSize(40);
-  m_characterHotkeysTable->setSizeAdjustPolicy(
-      QAbstractScrollArea::AdjustToContents);
-  m_characterHotkeysTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  m_characterHotkeysTable->setMaximumHeight(190);
-  m_characterHotkeysTable->setFocusPolicy(Qt::NoFocus);
-  m_characterHotkeysTable->setStyleSheet(StyleSheet::getTableStyleSheet());
-  charHotkeysSectionLayout->addWidget(m_characterHotkeysTable);
+  // Create scrollable container for character hotkey form rows
+  m_characterHotkeysScrollArea = new QScrollArea();
+  m_characterHotkeysScrollArea->setWidgetResizable(true);
+  m_characterHotkeysScrollArea->setFrameShape(QFrame::NoFrame);
+  m_characterHotkeysScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_characterHotkeysScrollArea->setVerticalScrollBarPolicy(
+      Qt::ScrollBarAsNeeded);
+  m_characterHotkeysScrollArea->setSizePolicy(QSizePolicy::Preferred,
+                                              QSizePolicy::Preferred);
+  m_characterHotkeysScrollArea->setMinimumHeight(10);
+  m_characterHotkeysScrollArea->setMaximumHeight(240);
+  m_characterHotkeysScrollArea->setFixedHeight(10);
+  m_characterHotkeysScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_characterHotkeysContainer = new QWidget();
+  m_characterHotkeysContainer->setStyleSheet(
+      "QWidget { background-color: transparent; }");
+  m_characterHotkeysLayout = new QVBoxLayout(m_characterHotkeysContainer);
+  m_characterHotkeysLayout->setContentsMargins(0, 0, 0, 0);
+  m_characterHotkeysLayout->setSpacing(8);
+  m_characterHotkeysLayout->addStretch();
+
+  m_characterHotkeysScrollArea->setWidget(m_characterHotkeysContainer);
+  charHotkeysSectionLayout->addWidget(m_characterHotkeysScrollArea);
+
+  charHotkeysSectionLayout->addSpacing(-8);
 
   QHBoxLayout *charButtonLayout = new QHBoxLayout();
   m_addCharacterButton = new QPushButton("Add Character");
@@ -948,38 +1011,30 @@ void ConfigDialog::createHotkeysPage() {
   cycleInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   cycleGroupsSectionLayout->addWidget(cycleInfoLabel);
 
-  m_cycleGroupsTable = new QTableWidget(0, 7);
-  m_cycleGroupsTable->setHorizontalHeaderLabels(
-      {"Group Name", "Characters", "Backward Key", "Forward Key",
-       "Inc. Not Logged In", "Don't Loop", ""});
-  m_cycleGroupsTable->horizontalHeader()->setSectionResizeMode(
-      0, QHeaderView::Interactive);
-  m_cycleGroupsTable->horizontalHeader()->setSectionResizeMode(
-      1, QHeaderView::Stretch);
-  m_cycleGroupsTable->horizontalHeader()->setSectionResizeMode(
-      2, QHeaderView::Fixed);
-  m_cycleGroupsTable->horizontalHeader()->setSectionResizeMode(
-      3, QHeaderView::Fixed);
-  m_cycleGroupsTable->horizontalHeader()->setSectionResizeMode(
-      4, QHeaderView::Fixed);
-  m_cycleGroupsTable->horizontalHeader()->setSectionResizeMode(
-      5, QHeaderView::Fixed);
-  m_cycleGroupsTable->horizontalHeader()->setSectionResizeMode(
-      6, QHeaderView::Fixed);
-  m_cycleGroupsTable->setColumnWidth(2, 140);
-  m_cycleGroupsTable->setColumnWidth(3, 140);
-  m_cycleGroupsTable->setColumnWidth(4, 120);
-  m_cycleGroupsTable->setColumnWidth(5, 100);
-  m_cycleGroupsTable->setColumnWidth(6, 40);
-  m_cycleGroupsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_cycleGroupsTable->verticalHeader()->setDefaultSectionSize(40);
-  m_cycleGroupsTable->setSizeAdjustPolicy(
-      QAbstractScrollArea::AdjustToContents);
-  m_cycleGroupsTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  m_cycleGroupsTable->setMaximumHeight(190);
-  m_cycleGroupsTable->setFocusPolicy(Qt::NoFocus);
-  m_cycleGroupsTable->setStyleSheet(StyleSheet::getTableStyleSheet());
-  cycleGroupsSectionLayout->addWidget(m_cycleGroupsTable);
+  // Create scroll area for cycle groups
+  m_cycleGroupsScrollArea = new QScrollArea();
+  m_cycleGroupsScrollArea->setWidgetResizable(true);
+  m_cycleGroupsScrollArea->setFrameShape(QFrame::NoFrame);
+  m_cycleGroupsScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  m_cycleGroupsScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_cycleGroupsScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_cycleGroupsContainer = new QWidget();
+  m_cycleGroupsContainer->setStyleSheet(
+      "QWidget { background-color: transparent; }");
+
+  m_cycleGroupsLayout = new QVBoxLayout(m_cycleGroupsContainer);
+  m_cycleGroupsLayout->setContentsMargins(0, 0, 0, 0);
+  m_cycleGroupsLayout->setSpacing(6);
+  m_cycleGroupsLayout->addStretch();
+
+  m_cycleGroupsScrollArea->setWidget(m_cycleGroupsContainer);
+  m_cycleGroupsScrollArea->setFixedHeight(10);
+
+  cycleGroupsSectionLayout->addWidget(m_cycleGroupsScrollArea);
+
+  cycleGroupsSectionLayout->addSpacing(-8);
 
   QHBoxLayout *groupButtonLayout = new QHBoxLayout();
   m_addGroupButton = new QPushButton("Add Group");
@@ -1033,7 +1088,8 @@ void ConfigDialog::createHotkeysPage() {
 
   QPushButton *clearNotLoggedInForwardButton = new QPushButton("Clear");
   clearNotLoggedInForwardButton->setFixedWidth(60);
-  clearNotLoggedInForwardButton->setStyleSheet(hotkeyButtonStyle);
+  clearNotLoggedInForwardButton->setStyleSheet(
+      StyleSheet::getSecondaryButtonStyleSheet());
   connect(clearNotLoggedInForwardButton, &QPushButton::clicked,
           [this]() { m_notLoggedInForwardCapture->clearHotkey(); });
 
@@ -1050,7 +1106,8 @@ void ConfigDialog::createHotkeysPage() {
 
   QPushButton *clearNotLoggedInBackwardButton = new QPushButton("Clear");
   clearNotLoggedInBackwardButton->setFixedWidth(60);
-  clearNotLoggedInBackwardButton->setStyleSheet(hotkeyButtonStyle);
+  clearNotLoggedInBackwardButton->setStyleSheet(
+      StyleSheet::getSecondaryButtonStyleSheet());
   connect(clearNotLoggedInBackwardButton, &QPushButton::clicked,
           [this]() { m_notLoggedInBackwardCapture->clearHotkey(); });
 
@@ -1105,7 +1162,8 @@ void ConfigDialog::createHotkeysPage() {
 
   QPushButton *clearNonEVEForwardButton = new QPushButton("Clear");
   clearNonEVEForwardButton->setFixedWidth(60);
-  clearNonEVEForwardButton->setStyleSheet(hotkeyButtonStyle);
+  clearNonEVEForwardButton->setStyleSheet(
+      StyleSheet::getSecondaryButtonStyleSheet());
   connect(clearNonEVEForwardButton, &QPushButton::clicked,
           [this]() { m_nonEVEForwardCapture->clearHotkey(); });
 
@@ -1122,7 +1180,8 @@ void ConfigDialog::createHotkeysPage() {
 
   QPushButton *clearNonEVEBackwardButton = new QPushButton("Clear");
   clearNonEVEBackwardButton->setFixedWidth(60);
-  clearNonEVEBackwardButton->setStyleSheet(hotkeyButtonStyle);
+  clearNonEVEBackwardButton->setStyleSheet(
+      StyleSheet::getSecondaryButtonStyleSheet());
   connect(clearNonEVEBackwardButton, &QPushButton::clicked,
           [this]() { m_nonEVEBackwardCapture->clearHotkey(); });
 
@@ -1307,27 +1366,32 @@ void ConfigDialog::createBehaviorPage() {
 
   windowSectionLayout->addLayout(minimizeGrid);
 
-  QLabel *neverMinimizeLabel = new QLabel("Never Minimize Characters:");
-  neverMinimizeLabel->setStyleSheet(StyleSheet::getSubLabelStyleSheet());
-  windowSectionLayout->addWidget(neverMinimizeLabel);
+  m_neverMinimizeLabel = new QLabel("Never Minimize Characters:");
+  m_neverMinimizeLabel->setStyleSheet(
+      "color: #ffffff; font-size: 13px; margin-top: 10px;");
+  windowSectionLayout->addWidget(m_neverMinimizeLabel);
 
-  m_neverMinimizeTable = new QTableWidget(0, 2);
-  m_neverMinimizeTable->setObjectName("neverMinimizeTable");
-  m_neverMinimizeTable->setHorizontalHeaderLabels({"Character Name", ""});
-  m_neverMinimizeTable->horizontalHeader()->setSectionResizeMode(
-      0, QHeaderView::Stretch);
-  m_neverMinimizeTable->horizontalHeader()->setSectionResizeMode(
-      1, QHeaderView::Fixed);
-  m_neverMinimizeTable->setColumnWidth(1, 40);
-  m_neverMinimizeTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_neverMinimizeTable->verticalHeader()->setDefaultSectionSize(40);
-  m_neverMinimizeTable->setSizeAdjustPolicy(
-      QAbstractScrollArea::AdjustToContents);
-  m_neverMinimizeTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  m_neverMinimizeTable->setMaximumHeight(190);
-  m_neverMinimizeTable->setFocusPolicy(Qt::NoFocus);
-  m_neverMinimizeTable->setStyleSheet(StyleSheet::getTableStyleSheet());
-  windowSectionLayout->addWidget(m_neverMinimizeTable);
+  // Never Minimize scroll area with inline forms
+  m_neverMinimizeScrollArea = new QScrollArea();
+  m_neverMinimizeScrollArea->setWidgetResizable(true);
+  m_neverMinimizeScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_neverMinimizeScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_neverMinimizeScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_neverMinimizeContainer = new QWidget();
+  m_neverMinimizeLayout = new QVBoxLayout(m_neverMinimizeContainer);
+  m_neverMinimizeLayout->setContentsMargins(4, 4, 4, 4);
+  m_neverMinimizeLayout->setSpacing(6);
+  m_neverMinimizeLayout->addStretch();
+
+  m_neverMinimizeScrollArea->setWidget(m_neverMinimizeContainer);
+  windowSectionLayout->addWidget(m_neverMinimizeScrollArea);
+
+  updateNeverMinimizeScrollHeight();
+
+  windowSectionLayout->addSpacing(-8);
 
   QHBoxLayout *neverMinimizeButtonLayout = new QHBoxLayout();
   m_addNeverMinimizeButton = new QPushButton("Add Character");
@@ -1349,57 +1413,16 @@ void ConfigDialog::createBehaviorPage() {
 
   windowSectionLayout->addLayout(neverMinimizeButtonLayout);
 
-  QLabel *hiddenCharactersLabel = new QLabel("Hidden Characters:");
-  hiddenCharactersLabel->setStyleSheet(StyleSheet::getSubLabelStyleSheet());
-  windowSectionLayout->addWidget(hiddenCharactersLabel);
-
-  m_hiddenCharactersTable = new QTableWidget(0, 2);
-  m_hiddenCharactersTable->setObjectName("hiddenCharactersTable");
-  m_hiddenCharactersTable->setHorizontalHeaderLabels({"Character Name", ""});
-  m_hiddenCharactersTable->horizontalHeader()->setSectionResizeMode(
-      0, QHeaderView::Stretch);
-  m_hiddenCharactersTable->horizontalHeader()->setSectionResizeMode(
-      1, QHeaderView::Fixed);
-  m_hiddenCharactersTable->setColumnWidth(1, 40);
-  m_hiddenCharactersTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_hiddenCharactersTable->verticalHeader()->setDefaultSectionSize(40);
-  m_hiddenCharactersTable->setSizeAdjustPolicy(
-      QAbstractScrollArea::AdjustToContents);
-  m_hiddenCharactersTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  m_hiddenCharactersTable->setMaximumHeight(190);
-  m_hiddenCharactersTable->setFocusPolicy(Qt::NoFocus);
-  m_hiddenCharactersTable->setStyleSheet(StyleSheet::getTableStyleSheet());
-  windowSectionLayout->addWidget(m_hiddenCharactersTable);
-
-  QHBoxLayout *hiddenCharactersButtonLayout = new QHBoxLayout();
-  m_addHiddenCharacterButton = new QPushButton("Add Character");
-  m_populateHiddenCharactersButton =
-      new QPushButton("Populate from Open Clients");
-
-  QString hiddenCharactersButtonStyle =
-      StyleSheet::getSecondaryButtonStyleSheet();
-
-  m_addHiddenCharacterButton->setStyleSheet(hiddenCharactersButtonStyle);
-  m_populateHiddenCharactersButton->setStyleSheet(hiddenCharactersButtonStyle);
-
-  connect(m_addHiddenCharacterButton, &QPushButton::clicked, this,
-          &ConfigDialog::onAddHiddenCharacter);
-  connect(m_populateHiddenCharactersButton, &QPushButton::clicked, this,
-          &ConfigDialog::onPopulateHiddenCharacters);
-
-  hiddenCharactersButtonLayout->addWidget(m_addHiddenCharacterButton);
-  hiddenCharactersButtonLayout->addWidget(m_populateHiddenCharactersButton);
-  hiddenCharactersButtonLayout->addStretch();
-
-  windowSectionLayout->addLayout(hiddenCharactersButtonLayout);
-
   layout->addWidget(windowSection);
 
   connect(m_minimizeInactiveCheck, &QCheckBox::toggled, this,
           [this](bool checked) {
             m_minimizeDelayLabel->setEnabled(checked);
             m_minimizeDelaySpin->setEnabled(checked);
-            m_neverMinimizeTable->setEnabled(checked);
+            m_neverMinimizeLabel->setStyleSheet(
+                QString("color: %1; font-size: 13px; margin-top: 10px;")
+                    .arg(checked ? "#ffffff" : "#666666"));
+            m_neverMinimizeScrollArea->setEnabled(checked);
             m_addNeverMinimizeButton->setEnabled(checked);
             m_populateNeverMinimizeButton->setEnabled(checked);
           });
@@ -1478,7 +1501,7 @@ void ConfigDialog::createBehaviorPage() {
             {"client", "filter", "visibility", "not logged in", "extra",
              "previews", "non-eve", "application"});
 
-  QLabel *clientFilterHeader = new QLabel("Client Filtering & Visibility");
+  QLabel *clientFilterHeader = new QLabel("Non-EVE Thumbnails");
   clientFilterHeader->setStyleSheet(StyleSheet::getSectionHeaderStyleSheet());
   clientFilterSectionLayout->addWidget(clientFilterHeader);
 
@@ -1571,7 +1594,8 @@ void ConfigDialog::createBehaviorPage() {
   clientFilterSectionLayout->addWidget(m_showNonEVEOverlayCheck);
 
   QLabel *extraPreviewsSubHeader = new QLabel("Additional Applications:");
-  extraPreviewsSubHeader->setStyleSheet(StyleSheet::getSubLabelStyleSheet());
+  extraPreviewsSubHeader->setStyleSheet(
+      "color: #ffffff; font-size: 13px; margin-top: 10px;");
   clientFilterSectionLayout->addWidget(extraPreviewsSubHeader);
 
   QLabel *extraPreviewsInfoLabel = new QLabel(
@@ -1581,24 +1605,27 @@ void ConfigDialog::createBehaviorPage() {
   extraPreviewsInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   clientFilterSectionLayout->addWidget(extraPreviewsInfoLabel);
 
-  m_processNamesTable = new QTableWidget(0, 2);
-  m_processNamesTable->setObjectName("processNamesTable");
-  m_processNamesTable->setHorizontalHeaderLabels(
-      {"Additional Executable Names", ""});
-  m_processNamesTable->horizontalHeader()->setSectionResizeMode(
-      0, QHeaderView::Stretch);
-  m_processNamesTable->horizontalHeader()->setSectionResizeMode(
-      1, QHeaderView::Fixed);
-  m_processNamesTable->setColumnWidth(1, 40);
-  m_processNamesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_processNamesTable->verticalHeader()->setDefaultSectionSize(40);
-  m_processNamesTable->setSizeAdjustPolicy(
-      QAbstractScrollArea::AdjustToContents);
-  m_processNamesTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  m_processNamesTable->setMaximumHeight(190);
-  m_processNamesTable->setFocusPolicy(Qt::NoFocus);
-  m_processNamesTable->setStyleSheet(StyleSheet::getTableStyleSheet());
-  clientFilterSectionLayout->addWidget(m_processNamesTable);
+  // Process Names scroll area with inline forms
+  m_processNamesScrollArea = new QScrollArea();
+  m_processNamesScrollArea->setWidgetResizable(true);
+  m_processNamesScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_processNamesScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_processNamesScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_processNamesContainer = new QWidget();
+  m_processNamesLayout = new QVBoxLayout(m_processNamesContainer);
+  m_processNamesLayout->setContentsMargins(4, 4, 4, 4);
+  m_processNamesLayout->setSpacing(6);
+  m_processNamesLayout->addStretch();
+
+  m_processNamesScrollArea->setWidget(m_processNamesContainer);
+  clientFilterSectionLayout->addWidget(m_processNamesScrollArea);
+
+  updateProcessNamesScrollHeight();
+
+  clientFilterSectionLayout->addSpacing(-8);
 
   QHBoxLayout *processFilterButtonLayout = new QHBoxLayout();
   m_addProcessNameButton = new QPushButton("Add Process");
@@ -2398,69 +2425,25 @@ void ConfigDialog::setupBindings() {
       [&config]() { return config.overlayBackgroundOpacity(); },
       [&config](int value) { config.setOverlayBackgroundOpacity(value); }, 70));
 
-  m_bindingManager.addBinding(BindingHelpers::bindStringListTable(
-      m_neverMinimizeTable, 0,
-      [&config]() { return config.neverMinimizeCharacters(); },
-      [&config](const QStringList &list) {
-        config.setNeverMinimizeCharacters(list);
-      },
-      QStringList()));
+  // Never Minimize now uses inline forms - handled manually in
+  // loadSettings/saveSettings (no binding needed)
 
-  m_bindingManager.addBinding(BindingHelpers::bindStringListTable(
-      m_hiddenCharactersTable, 0,
-      [&config]() { return config.hiddenCharacters(); },
-      [&config](const QStringList &list) { config.setHiddenCharacters(list); },
-      QStringList()));
+  // Hidden Characters now uses inline forms - handled manually in
+  // loadSettings/saveSettings (no binding needed)
 
-  m_bindingManager.addBinding(BindingHelpers::bindStringListTable(
-      m_processNamesTable, 0, [&config]() { return config.processNames(); },
-      [&config](const QStringList &list) { config.setProcessNames(list); },
-      QStringList() << "exefile.exe"));
+  // Process Names now uses inline forms - handled manually in
+  // loadSettings/saveSettings (no binding needed)
 
-  m_bindingManager.addBinding(BindingHelpers::bindCharacterColorTable(
-      m_characterColorsTable,
-      [this](QPushButton *btn, const QColor &color) {
-        updateColorButton(btn, color);
-      },
-      [this](QPushButton *button) {
-        connect(button, &QPushButton::clicked, this,
-                &ConfigDialog::onCharacterColorButtonClicked);
-      }));
+  // Character colors now use inline forms - handled manually in
+  // loadSettings/saveSettings (no binding needed)
 
   HotkeyManager *hotkeyMgr = HotkeyManager::instance();
   if (hotkeyMgr) {
-    m_bindingManager.addBinding(BindingHelpers::bindCharacterHotkeyTable(
-        m_characterHotkeysTable,
-        [hotkeyMgr]() { return hotkeyMgr->getAllCharacterHotkeys(); },
-        [hotkeyMgr](const QHash<QString, HotkeyBinding> &hotkeys) {
-          QHash<QString, HotkeyBinding> existing =
-              hotkeyMgr->getAllCharacterHotkeys();
-          for (auto it = existing.constBegin(); it != existing.constEnd();
-               ++it) {
-            hotkeyMgr->removeCharacterHotkey(it.key());
-          }
-          for (auto it = hotkeys.constBegin(); it != hotkeys.constEnd(); ++it) {
-            hotkeyMgr->setCharacterHotkey(it.key(), it.value());
-          }
-        }));
+    // Character hotkeys now use inline forms - handled manually in
+    // loadSettings/saveSettings
 
-    m_bindingManager.addBinding(BindingHelpers::bindCycleGroupTable(
-        m_cycleGroupsTable,
-        [hotkeyMgr]() { return hotkeyMgr->getAllCycleGroups(); },
-        [hotkeyMgr](const QHash<QString, CycleGroup> &groups) {
-          QHash<QString, CycleGroup> existing = hotkeyMgr->getAllCycleGroups();
-          for (auto it = existing.constBegin(); it != existing.constEnd();
-               ++it) {
-            hotkeyMgr->removeCycleGroup(it.key());
-          }
-          for (auto it = groups.constBegin(); it != groups.constEnd(); ++it) {
-            hotkeyMgr->createCycleGroup(it.value());
-          }
-        },
-        [this](QPushButton *button) {
-          connect(button, &QPushButton::clicked, this,
-                  &ConfigDialog::onEditCycleGroupCharacters);
-        }));
+    // Cycle groups now use inline forms - handled manually in
+    // loadSettings/saveSettings
 
     m_bindingManager.addBinding(BindingHelpers::bindHotkeyCapture(
         m_suspendHotkeyCapture,
@@ -2687,6 +2670,9 @@ void ConfigDialog::loadSettings() {
   m_snapDistanceSpin->setEnabled(config.enableSnapping());
   m_minimizeDelayLabel->setEnabled(config.minimizeInactiveClients());
   m_minimizeDelaySpin->setEnabled(config.minimizeInactiveClients());
+  m_neverMinimizeLabel->setStyleSheet(
+      QString("color: %1; font-size: 13px; margin-top: 10px;")
+          .arg(config.minimizeInactiveClients() ? "#ffffff" : "#666666"));
   m_highlightColorLabel->setEnabled(config.highlightActiveWindow());
   m_highlightColorButton->setEnabled(config.highlightActiveWindow());
   m_highlightBorderWidthLabel->setEnabled(config.highlightActiveWindow());
@@ -2706,7 +2692,7 @@ void ConfigDialog::loadSettings() {
   m_backgroundColorLabel->setEnabled(config.showOverlayBackground());
   m_backgroundOpacityLabel->setEnabled(config.showOverlayBackground());
 
-  m_neverMinimizeTable->setEnabled(config.minimizeInactiveClients());
+  m_neverMinimizeScrollArea->setEnabled(config.minimizeInactiveClients());
   m_addNeverMinimizeButton->setEnabled(config.minimizeInactiveClients());
   m_populateNeverMinimizeButton->setEnabled(config.minimizeInactiveClients());
   m_setClientLocationsLabel->setEnabled(config.saveClientLocation());
@@ -2772,77 +2758,109 @@ void ConfigDialog::loadSettings() {
     }
   }
 
-  m_thumbnailSizesTable->setRowCount(0);
-  QHash<QString, QSize> customSizes = config.getAllCustomThumbnailSizes();
-  for (auto it = customSizes.constBegin(); it != customSizes.constEnd(); ++it) {
-    int row = m_thumbnailSizesTable->rowCount();
-    m_thumbnailSizesTable->insertRow(row);
-
-    QLineEdit *nameEdit = new QLineEdit(it.key());
-    nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-    m_thumbnailSizesTable->setCellWidget(row, 0, nameEdit);
-
-    QSpinBox *widthSpin = new QSpinBox();
-    widthSpin->setRange(50, 800);
-    widthSpin->setSuffix(" px");
-    widthSpin->setValue(it.value().width());
-    widthSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-
-    QWidget *widthContainer = new QWidget();
-    QHBoxLayout *widthLayout = new QHBoxLayout(widthContainer);
-    widthLayout->setContentsMargins(3, 3, 3, 3);
-    widthLayout->addWidget(widthSpin);
-    m_thumbnailSizesTable->setCellWidget(row, 1, widthContainer);
-
-    QSpinBox *heightSpin = new QSpinBox();
-    heightSpin->setRange(50, 600);
-    heightSpin->setSuffix(" px");
-    heightSpin->setValue(it.value().height());
-    heightSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-
-    QWidget *heightContainer = new QWidget();
-    QHBoxLayout *heightLayout = new QHBoxLayout(heightContainer);
-    heightLayout->setContentsMargins(3, 3, 3, 3);
-    heightLayout->addWidget(heightSpin);
-    m_thumbnailSizesTable->setCellWidget(row, 2, heightContainer);
-
-    QWidget *deleteButtonContainer = new QWidget();
-    QHBoxLayout *deleteButtonLayout = new QHBoxLayout(deleteButtonContainer);
-    deleteButtonLayout->setContentsMargins(0, 0, 0, 0);
-
-    QPushButton *deleteButton = new QPushButton("×");
-    deleteButton->setFixedSize(24, 24);
-    deleteButton->setStyleSheet("QPushButton {"
-                                "    background-color: #3a3a3a;"
-                                "    color: #ffffff;"
-                                "    border: 1px solid #555555;"
-                                "    border-radius: 4px;"
-                                "    font-size: 16px;"
-                                "    font-weight: bold;"
-                                "    padding: 0px;"
-                                "}"
-                                "QPushButton:hover {"
-                                "    background-color: #e74c3c;"
-                                "    border: 1px solid #c0392b;"
-                                "}"
-                                "QPushButton:pressed {"
-                                "    background-color: #c0392b;"
-                                "}");
-
-    connect(deleteButton, &QPushButton::clicked, this,
-            [this, row]() { m_thumbnailSizesTable->removeRow(row); });
-
-    deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-    m_thumbnailSizesTable->setCellWidget(row, 3, deleteButtonContainer);
+  // Clear existing thumbnail size form rows
+  while (m_thumbnailSizesLayout->count() > 1) {
+    QLayoutItem *item = m_thumbnailSizesLayout->takeAt(0);
+    if (item->widget()) {
+      item->widget()->deleteLater();
+    }
+    delete item;
   }
 
-  updateTableVisibility(m_thumbnailSizesTable);
-  updateTableVisibility(m_characterColorsTable);
-  updateTableVisibility(m_characterHotkeysTable);
-  updateTableVisibility(m_cycleGroupsTable);
-  updateTableVisibility(m_neverMinimizeTable);
-  updateTableVisibility(m_hiddenCharactersTable);
-  updateTableVisibility(m_processNamesTable);
+  // Load custom thumbnail sizes as form rows
+  QHash<QString, QSize> customSizes = config.getAllCustomThumbnailSizes();
+  for (auto it = customSizes.constBegin(); it != customSizes.constEnd(); ++it) {
+    QWidget *formRow = createThumbnailSizeFormRow(it.key(), it.value().width(),
+                                                  it.value().height());
+    int count = m_thumbnailSizesLayout->count();
+    m_thumbnailSizesLayout->insertWidget(count - 1, formRow);
+  }
+
+  // Update scroll area height after loading
+  updateThumbnailSizesScrollHeight();
+
+  // Load character hotkeys as form rows
+  HotkeyManager *hotkeyMgr = HotkeyManager::instance();
+  if (hotkeyMgr) {
+    QHash<QString, HotkeyBinding> characterHotkeys =
+        hotkeyMgr->getAllCharacterHotkeys();
+    for (auto it = characterHotkeys.constBegin();
+         it != characterHotkeys.constEnd(); ++it) {
+      QWidget *formRow = createCharacterHotkeyFormRow(
+          it.key(), it.value().keyCode, it.value().getModifiers());
+      int count = m_characterHotkeysLayout->count();
+      m_characterHotkeysLayout->insertWidget(count - 1, formRow);
+    }
+
+    // Update scroll area height after loading
+    updateCharacterHotkeysScrollHeight();
+  }
+
+  // Load cycle groups as form rows
+  if (hotkeyMgr) {
+    QHash<QString, CycleGroup> cycleGroups = hotkeyMgr->getAllCycleGroups();
+    for (auto it = cycleGroups.constBegin(); it != cycleGroups.constEnd();
+         ++it) {
+      const CycleGroup &group = it.value();
+      QString characters = group.characterNames.join(", ");
+
+      QWidget *formRow = createCycleGroupFormRow(
+          group.groupName, group.backwardBinding.keyCode,
+          group.backwardBinding.getModifiers(), group.forwardBinding.keyCode,
+          group.forwardBinding.getModifiers(), characters,
+          group.includeNotLoggedIn, group.noLoop);
+
+      int count = m_cycleGroupsLayout->count();
+      m_cycleGroupsLayout->insertWidget(count - 1, formRow);
+    }
+
+    // Update scroll area height after loading
+    updateCycleGroupsScrollHeight();
+  }
+
+  // Load character colors from config
+  QHash<QString, QColor> characterColors = config.getAllCharacterBorderColors();
+  for (auto it = characterColors.constBegin(); it != characterColors.constEnd();
+       ++it) {
+    QString charName = it.key();
+    QColor color = it.value();
+
+    QWidget *formRow = createCharacterColorFormRow(charName, color);
+    int count = m_characterColorsLayout->count();
+    m_characterColorsLayout->insertWidget(count - 1, formRow);
+  }
+
+  updateCharacterColorsScrollHeight();
+
+  // Load never minimize characters from config
+  QStringList neverMinimize = config.neverMinimizeCharacters();
+  for (const QString &charName : neverMinimize) {
+    QWidget *formRow = createNeverMinimizeFormRow(charName);
+    int count = m_neverMinimizeLayout->count();
+    m_neverMinimizeLayout->insertWidget(count - 1, formRow);
+  }
+
+  updateNeverMinimizeScrollHeight();
+
+  // Load hidden characters from config
+  QStringList hiddenChars = config.hiddenCharacters();
+  for (const QString &charName : hiddenChars) {
+    QWidget *formRow = createHiddenCharactersFormRow(charName);
+    int count = m_hiddenCharactersLayout->count();
+    m_hiddenCharactersLayout->insertWidget(count - 1, formRow);
+  }
+
+  updateHiddenCharactersScrollHeight();
+
+  // Load process names from config
+  QStringList processNames = config.processNames();
+  for (const QString &processName : processNames) {
+    QWidget *formRow = createProcessNamesFormRow(processName);
+    int count = m_processNamesLayout->count();
+    m_processNamesLayout->insertWidget(count - 1, formRow);
+  }
+
+  updateProcessNamesScrollHeight();
 }
 
 void ConfigDialog::saveSettings() {
@@ -2868,19 +2886,18 @@ void ConfigDialog::saveSettings() {
     cfg.removeThumbnailSize(charName);
   }
 
-  for (int row = 0; row < m_thumbnailSizesTable->rowCount(); ++row) {
-    QLineEdit *nameEdit =
-        qobject_cast<QLineEdit *>(m_thumbnailSizesTable->cellWidget(row, 0));
+  // Save thumbnail sizes from form rows
+  for (int i = 0; i < m_thumbnailSizesLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_thumbnailSizesLayout->itemAt(i)->widget());
+    if (!rowWidget) {
+      continue;
+    }
 
-    QWidget *widthContainer = m_thumbnailSizesTable->cellWidget(row, 1);
-    QSpinBox *widthSpin =
-        widthContainer ? widthContainer->findChild<QSpinBox *>() : nullptr;
+    QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+    QList<QSpinBox *> spinBoxes = rowWidget->findChildren<QSpinBox *>();
 
-    QWidget *heightContainer = m_thumbnailSizesTable->cellWidget(row, 2);
-    QSpinBox *heightSpin =
-        heightContainer ? heightContainer->findChild<QSpinBox *>() : nullptr;
-
-    if (!nameEdit || !widthSpin || !heightSpin) {
+    if (!nameEdit || spinBoxes.size() < 2) {
       continue;
     }
 
@@ -2889,9 +2906,241 @@ void ConfigDialog::saveSettings() {
       continue;
     }
 
+    QSpinBox *widthSpin = spinBoxes[0];
+    QSpinBox *heightSpin = spinBoxes[1];
+
     QSize size(widthSpin->value(), heightSpin->value());
     cfg.setThumbnailSize(charName, size);
   }
+
+  // Save character hotkeys from form rows
+  HotkeyManager *hotkeyMgr = HotkeyManager::instance();
+  if (hotkeyMgr) {
+    // Clear existing character hotkeys
+    QHash<QString, HotkeyBinding> existing =
+        hotkeyMgr->getAllCharacterHotkeys();
+    for (auto it = existing.constBegin(); it != existing.constEnd(); ++it) {
+      hotkeyMgr->removeCharacterHotkey(it.key());
+    }
+
+    // Add hotkeys from form rows
+    for (int i = 0; i < m_characterHotkeysLayout->count() - 1; ++i) {
+      QWidget *rowWidget = qobject_cast<QWidget *>(
+          m_characterHotkeysLayout->itemAt(i)->widget());
+      if (!rowWidget) {
+        continue;
+      }
+
+      QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+      HotkeyCapture *hotkeyCapture = rowWidget->findChild<HotkeyCapture *>();
+
+      if (!nameEdit || !hotkeyCapture) {
+        continue;
+      }
+
+      QString charName = nameEdit->text().trimmed();
+      if (charName.isEmpty()) {
+        continue;
+      }
+
+      int keyCode = hotkeyCapture->getKeyCode();
+      if (keyCode != 0) {
+        HotkeyBinding binding(keyCode, hotkeyCapture->getCtrl(),
+                              hotkeyCapture->getAlt(),
+                              hotkeyCapture->getShift());
+        hotkeyMgr->setCharacterHotkey(charName, binding);
+      }
+    }
+
+    // Save cycle groups from form rows
+    // Clear existing cycle groups
+    QHash<QString, CycleGroup> existingGroups = hotkeyMgr->getAllCycleGroups();
+    for (auto it = existingGroups.constBegin(); it != existingGroups.constEnd();
+         ++it) {
+      hotkeyMgr->removeCycleGroup(it.key());
+    }
+
+    // Add groups from form rows
+    for (int i = 0; i < m_cycleGroupsLayout->count() - 1; ++i) {
+      QWidget *rowWidget =
+          qobject_cast<QWidget *>(m_cycleGroupsLayout->itemAt(i)->widget());
+      if (!rowWidget) {
+        continue;
+      }
+
+      QList<QLineEdit *> lineEdits = rowWidget->findChildren<QLineEdit *>();
+      if (lineEdits.isEmpty()) {
+        continue;
+      }
+
+      QLineEdit *nameEdit = lineEdits[0];
+
+      QList<QPushButton *> buttons = rowWidget->findChildren<QPushButton *>();
+      QPushButton *charactersButton = nullptr;
+      for (QPushButton *btn : buttons) {
+        if (btn->property("characterList").isValid()) {
+          charactersButton = btn;
+          break;
+        }
+      }
+
+      QList<HotkeyCapture *> hotkeyCaptures =
+          rowWidget->findChildren<HotkeyCapture *>();
+      if (hotkeyCaptures.size() < 2) {
+        continue;
+      }
+
+      HotkeyCapture *backwardCapture = hotkeyCaptures[0];
+      HotkeyCapture *forwardCapture = hotkeyCaptures[1];
+
+      QList<QCheckBox *> checkBoxes = rowWidget->findChildren<QCheckBox *>();
+      if (checkBoxes.size() < 2) {
+        continue;
+      }
+
+      QCheckBox *includeNotLoggedInCheck = checkBoxes[0];
+      QCheckBox *noLoopCheck = checkBoxes[1];
+
+      QString groupName = nameEdit->text().trimmed();
+      if (groupName.isEmpty()) {
+        continue;
+      }
+
+      CycleGroup group;
+      group.groupName = groupName;
+
+      // Get character list from button property
+      if (charactersButton) {
+        QStringList charList =
+            charactersButton->property("characterList").toStringList();
+        for (QString &charName : charList) {
+          charName = charName.trimmed();
+          if (!charName.isEmpty()) {
+            group.characterNames.append(charName);
+          }
+        }
+      }
+
+      int backwardKey = backwardCapture->getKeyCode();
+      if (backwardKey != 0) {
+        group.backwardBinding = HotkeyBinding(
+            backwardKey, backwardCapture->getCtrl(), backwardCapture->getAlt(),
+            backwardCapture->getShift());
+      }
+
+      int forwardKey = forwardCapture->getKeyCode();
+      if (forwardKey != 0) {
+        group.forwardBinding =
+            HotkeyBinding(forwardKey, forwardCapture->getCtrl(),
+                          forwardCapture->getAlt(), forwardCapture->getShift());
+      }
+
+      group.includeNotLoggedIn = includeNotLoggedInCheck->isChecked();
+      group.noLoop = noLoopCheck->isChecked();
+
+      hotkeyMgr->createCycleGroup(group);
+    }
+
+    hotkeyMgr->saveToConfig();
+  }
+
+  // Save character colors from form rows
+  Config &config = Config::instance();
+
+  // Clear existing character colors
+  QHash<QString, QColor> existingColors = config.getAllCharacterBorderColors();
+  for (auto it = existingColors.constBegin(); it != existingColors.constEnd();
+       ++it) {
+    config.removeCharacterBorderColor(it.key());
+  }
+
+  // Add colors from form rows
+  for (int i = 0; i < m_characterColorsLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_characterColorsLayout->itemAt(i)->widget());
+    if (!rowWidget)
+      continue;
+
+    QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+    if (!nameEdit)
+      continue;
+
+    QString charName = nameEdit->text().trimmed();
+    if (charName.isEmpty())
+      continue;
+
+    // Find color button
+    QPushButton *colorButton = nullptr;
+    QList<QPushButton *> buttons = rowWidget->findChildren<QPushButton *>();
+    for (QPushButton *btn : buttons) {
+      if (btn->property("color").isValid()) {
+        colorButton = btn;
+        break;
+      }
+    }
+
+    if (colorButton) {
+      QColor color = colorButton->property("color").value<QColor>();
+      config.setCharacterBorderColor(charName, color);
+    }
+  }
+
+  // Save never minimize characters from form rows
+  QStringList neverMinimize;
+  for (int i = 0; i < m_neverMinimizeLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_neverMinimizeLayout->itemAt(i)->widget());
+    if (!rowWidget)
+      continue;
+
+    QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+    if (!nameEdit)
+      continue;
+
+    QString charName = nameEdit->text().trimmed();
+    if (!charName.isEmpty()) {
+      neverMinimize.append(charName);
+    }
+  }
+  config.setNeverMinimizeCharacters(neverMinimize);
+
+  // Save hidden characters from form rows
+  QStringList hiddenChars;
+  for (int i = 0; i < m_hiddenCharactersLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_hiddenCharactersLayout->itemAt(i)->widget());
+    if (!rowWidget)
+      continue;
+
+    QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+    if (!nameEdit)
+      continue;
+
+    QString charName = nameEdit->text().trimmed();
+    if (!charName.isEmpty()) {
+      hiddenChars.append(charName);
+    }
+  }
+  config.setHiddenCharacters(hiddenChars);
+
+  // Save process names from form rows
+  QStringList processNames;
+  for (int i = 0; i < m_processNamesLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_processNamesLayout->itemAt(i)->widget());
+    if (!rowWidget)
+      continue;
+
+    QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+    if (!nameEdit)
+      continue;
+
+    QString processName = nameEdit->text().trimmed();
+    if (!processName.isEmpty()) {
+      processNames.append(processName);
+    }
+  }
+  config.setProcessNames(processNames);
 
   Config::instance().save();
 }
@@ -3116,35 +3365,162 @@ void ConfigDialog::updateColorButton(QPushButton *button, const QColor &color) {
   button->setText(color.name().toUpper());
 }
 
-void ConfigDialog::onAddCharacterHotkey() {
-  int row = m_characterHotkeysTable->rowCount();
-  m_characterHotkeysTable->insertRow(row);
+QWidget *ConfigDialog::createThumbnailSizeFormRow(const QString &characterName,
+                                                  int width, int height) {
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet(
+      "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
+      "border-radius: 4px; padding: 4px; }");
 
+  QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+  rowLayout->setContentsMargins(8, 4, 8, 4);
+  rowLayout->setSpacing(8);
+
+  // Character name field
   QLineEdit *nameEdit = new QLineEdit();
-  nameEdit->setPlaceholderText("Enter character name");
+  nameEdit->setText(characterName);
+  nameEdit->setPlaceholderText("Character Name");
   nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-  m_characterHotkeysTable->setCellWidget(row, 0, nameEdit);
+  nameEdit->setMinimumWidth(150);
+  rowLayout->addWidget(nameEdit, 1);
 
-  QWidget *hotkeyWidget = new QWidget();
-  QHBoxLayout *hotkeyLayout = new QHBoxLayout(hotkeyWidget);
-  hotkeyLayout->setContentsMargins(0, 0, 4, 0);
-  hotkeyLayout->setSpacing(4);
+  // Width field
+  QLabel *widthLabel = new QLabel("Width:");
+  widthLabel->setStyleSheet("QLabel { color: #ffffff; background-color: "
+                            "transparent; border: none; }");
+  rowLayout->addWidget(widthLabel);
 
+  QSpinBox *widthSpin = new QSpinBox();
+  widthSpin->setRange(50, 800);
+  widthSpin->setSuffix(" px");
+  widthSpin->setValue(width > 0 ? width : Config::instance().thumbnailWidth());
+  widthSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  widthSpin->setFixedWidth(100);
+  rowLayout->addWidget(widthSpin);
+
+  // Height field
+  QLabel *heightLabel = new QLabel("Height:");
+  heightLabel->setStyleSheet("QLabel { color: #ffffff; background-color: "
+                             "transparent; border: none; }");
+  rowLayout->addWidget(heightLabel);
+
+  QSpinBox *heightSpin = new QSpinBox();
+  heightSpin->setRange(50, 600);
+  heightSpin->setSuffix(" px");
+  heightSpin->setValue(height > 0 ? height
+                                  : Config::instance().thumbnailHeight());
+  heightSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  heightSpin->setFixedWidth(100);
+  rowLayout->addWidget(heightSpin);
+
+  // Delete button
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(32, 32);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+  deleteButton->setToolTip("Remove this character size override");
+  deleteButton->setCursor(Qt::PointingHandCursor);
+
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_thumbnailSizesLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    // Update scroll area height after deletion
+    QTimer::singleShot(0, this,
+                       &ConfigDialog::updateThumbnailSizesScrollHeight);
+  });
+
+  rowLayout->addWidget(deleteButton);
+
+  return rowWidget;
+}
+
+void ConfigDialog::updateThumbnailSizesScrollHeight() {
+  // Count actual form rows (excluding the stretch at the end)
+  int rowCount = m_thumbnailSizesLayout->count() - 1;
+
+  if (rowCount <= 0) {
+    // No rows, use minimal height to avoid blank space
+    m_thumbnailSizesScrollArea->setFixedHeight(10);
+  } else {
+    // Calculate height based on number of rows
+    // Each row: ~40px content + 8px spacing = 48px per row
+    // Add some padding for the first/last rows
+    int calculatedHeight = (rowCount * 48) + 10;
+
+    // Clamp between min and max
+    int finalHeight = qMin(240, qMax(50, calculatedHeight));
+    m_thumbnailSizesScrollArea->setFixedHeight(finalHeight);
+  }
+}
+
+QWidget *
+ConfigDialog::createCharacterHotkeyFormRow(const QString &characterName,
+                                           int vkCode, int modifiers) {
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet(
+      "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
+      "border-radius: 4px; padding: 4px; }");
+
+  QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+  rowLayout->setContentsMargins(8, 4, 8, 4);
+  rowLayout->setSpacing(8);
+
+  // Character name field
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setText(characterName);
+  nameEdit->setPlaceholderText("Character Name");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  nameEdit->setMinimumWidth(150);
+  rowLayout->addWidget(nameEdit, 1);
+
+  // Hotkey label
+  QLabel *hotkeyLabel = new QLabel("Hotkey:");
+  hotkeyLabel->setStyleSheet("QLabel { color: #ffffff; background-color: "
+                             "transparent; border: none; }");
+  rowLayout->addWidget(hotkeyLabel);
+
+  // Hotkey capture field
   HotkeyCapture *hotkeyCapture = new HotkeyCapture();
+  hotkeyCapture->setFixedWidth(180);
+  hotkeyCapture->setStyleSheet(
+      StyleSheet::getHotkeyCaptureStandaloneStyleSheet());
+
+  if (vkCode > 0) {
+    hotkeyCapture->setHotkey(vkCode, (modifiers & MOD_CONTROL) != 0,
+                             (modifiers & MOD_ALT) != 0,
+                             (modifiers & MOD_SHIFT) != 0);
+  }
 
   connect(hotkeyCapture, &HotkeyCapture::hotkeyChanged, this,
           &ConfigDialog::onHotkeyChanged);
 
-  QPushButton *clearButton = new QPushButton("×");
-  clearButton->setFixedSize(24, 24);
+  rowLayout->addWidget(hotkeyCapture);
+
+  // Clear hotkey button
+  QPushButton *clearButton = new QPushButton("Clear");
+  clearButton->setFixedHeight(28);
   clearButton->setStyleSheet("QPushButton {"
                              "    background-color: #3a3a3a;"
                              "    color: #a0a0a0;"
                              "    border: 1px solid #555555;"
                              "    border-radius: 3px;"
-                             "    font-size: 16px;"
+                             "    font-size: 11px;"
                              "    font-weight: bold;"
-                             "    padding: 0px;"
+                             "    padding: 4px 8px;"
                              "}"
                              "QPushButton:hover {"
                              "    background-color: #4a4a4a;"
@@ -3155,59 +3531,585 @@ void ConfigDialog::onAddCharacterHotkey() {
                              "    background-color: #2a2a2a;"
                              "}");
   clearButton->setToolTip("Clear hotkey");
+  clearButton->setCursor(Qt::PointingHandCursor);
   connect(clearButton, &QPushButton::clicked,
           [hotkeyCapture]() { hotkeyCapture->clearHotkey(); });
 
-  hotkeyLayout->addWidget(hotkeyCapture, 1);
-  hotkeyLayout->addWidget(clearButton, 0);
+  rowLayout->addWidget(clearButton);
 
-  m_characterHotkeysTable->setCellWidget(row, 1, hotkeyWidget);
-
-  QWidget *deleteContainer = new QWidget();
-  deleteContainer->setStyleSheet("QWidget { background-color: transparent; }");
-  QHBoxLayout *deleteLayout = new QHBoxLayout(deleteContainer);
-  deleteLayout->setContentsMargins(0, 0, 0, 0);
-  deleteLayout->setAlignment(Qt::AlignCenter);
-
+  // Delete button
   QPushButton *deleteButton = new QPushButton("×");
-  deleteButton->setFixedSize(24, 24);
+  deleteButton->setFixedSize(32, 32);
   deleteButton->setStyleSheet("QPushButton {"
                               "    background-color: #3a3a3a;"
-                              "    color: #e74c3c;"
+                              "    color: #ffffff;"
                               "    border: 1px solid #555555;"
-                              "    border-radius: 3px;"
-                              "    font-size: 16px;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
                               "    font-weight: bold;"
                               "    padding: 0px;"
                               "}"
                               "QPushButton:hover {"
                               "    background-color: #e74c3c;"
-                              "    color: #ffffff;"
-                              "    border: 1px solid #e74c3c;"
+                              "    border: 1px solid #c0392b;"
                               "}"
                               "QPushButton:pressed {"
                               "    background-color: #c0392b;"
                               "}");
-  deleteButton->setToolTip("Delete this character hotkey");
+  deleteButton->setToolTip("Remove this character hotkey");
   deleteButton->setCursor(Qt::PointingHandCursor);
 
-  connect(deleteButton, &QPushButton::clicked, [this, deleteButton]() {
-    for (int i = 0; i < m_characterHotkeysTable->rowCount(); ++i) {
-      QWidget *widget = m_characterHotkeysTable->cellWidget(i, 2);
-      if (widget && widget->findChild<QPushButton *>() == deleteButton) {
-        m_characterHotkeysTable->removeRow(i);
-        updateTableVisibility(m_characterHotkeysTable);
-        onHotkeyChanged();
-        break;
-      }
-    }
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_characterHotkeysLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    QTimer::singleShot(0, this,
+                       &ConfigDialog::updateCharacterHotkeysScrollHeight);
+    onHotkeyChanged();
   });
 
-  deleteLayout->addWidget(deleteButton);
-  m_characterHotkeysTable->setCellWidget(row, 2, deleteContainer);
+  rowLayout->addWidget(deleteButton);
 
-  updateTableVisibility(m_characterHotkeysTable);
-  m_characterHotkeysTable->scrollToBottom();
+  return rowWidget;
+}
+
+void ConfigDialog::updateCharacterHotkeysScrollHeight() {
+  int rowCount = m_characterHotkeysLayout->count() - 1;
+
+  if (rowCount <= 0) {
+    m_characterHotkeysScrollArea->setFixedHeight(10);
+  } else {
+    int calculatedHeight = (rowCount * 48) + 10;
+    int finalHeight = qMin(240, qMax(50, calculatedHeight));
+    m_characterHotkeysScrollArea->setFixedHeight(finalHeight);
+  }
+}
+
+void ConfigDialog::onAddCharacterHotkey() {
+  QWidget *formRow = createCharacterHotkeyFormRow();
+
+  int count = m_characterHotkeysLayout->count();
+  m_characterHotkeysLayout->insertWidget(count - 1, formRow);
+
+  m_characterHotkeysContainer->updateGeometry();
+  m_characterHotkeysLayout->activate();
+
+  QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
+  if (nameEdit) {
+    nameEdit->setFocus();
+    nameEdit->selectAll();
+  }
+
+  updateCharacterHotkeysScrollHeight();
+
+  QTimer::singleShot(10, this, [this, formRow]() {
+    m_characterHotkeysScrollArea->ensureWidgetVisible(formRow, 10, 10);
+    QScrollBar *scrollBar = m_characterHotkeysScrollArea->verticalScrollBar();
+    if (scrollBar) {
+      scrollBar->setValue(scrollBar->maximum());
+    }
+  });
+}
+
+QWidget *ConfigDialog::createCycleGroupFormRow(
+    const QString &groupName, int backwardKey, int backwardMods, int forwardKey,
+    int forwardMods, const QString &characters, bool includeNotLoggedIn,
+    bool noLoop) {
+
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet("QWidget#cycleGroupRow { background-color: #2a2a2a; "
+                           "border: 1px solid #3a3a3a; "
+                           "border-radius: 4px; padding: 8px; }");
+  rowWidget->setObjectName("cycleGroupRow");
+
+  // Main horizontal layout: content area + delete button
+  QHBoxLayout *topLayout = new QHBoxLayout(rowWidget);
+  topLayout->setContentsMargins(8, 8, 8, 8);
+  topLayout->setSpacing(8);
+
+  // Content area with 2-row vertical layout
+  QVBoxLayout *contentLayout = new QVBoxLayout();
+  contentLayout->setSpacing(4);
+
+  // First row: Group name, Characters, Hotkeys
+  QHBoxLayout *firstRowLayout = new QHBoxLayout();
+  firstRowLayout->setSpacing(8);
+
+  // Group name field
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setText(groupName);
+  nameEdit->setPlaceholderText("Group Name");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  nameEdit->setMinimumWidth(80);
+  nameEdit->setMaximumWidth(100);
+  firstRowLayout->addWidget(nameEdit);
+
+  // Characters button
+  QPushButton *charactersButton = new QPushButton();
+  QStringList charList;
+  if (!characters.isEmpty()) {
+    charList = characters.split(',');
+    for (QString &ch : charList) {
+      ch = ch.trimmed();
+    }
+    charactersButton->setText(QString("(%1 characters)").arg(charList.size()));
+    charactersButton->setToolTip(charList.join(", "));
+  } else {
+    charactersButton->setText("(No characters)");
+  }
+  charactersButton->setStyleSheet(StyleSheet::getTableCellButtonStyleSheet());
+  charactersButton->setFixedHeight(32);
+  charactersButton->setCursor(Qt::PointingHandCursor);
+  charactersButton->setProperty("characterList", charList);
+  connect(charactersButton, &QPushButton::clicked, this,
+          &ConfigDialog::onEditCycleGroupCharacters);
+  firstRowLayout->addWidget(charactersButton, 1);
+
+  // Backward hotkey label and capture
+  QLabel *backwardLabel = new QLabel("Back:");
+  backwardLabel->setStyleSheet(
+      "QLabel { color: #ffffff; background-color: transparent; border: none; "
+      "}");
+  firstRowLayout->addWidget(backwardLabel);
+
+  HotkeyCapture *backwardCapture = new HotkeyCapture();
+  backwardCapture->setFixedWidth(140);
+  backwardCapture->setStyleSheet(
+      StyleSheet::getHotkeyCaptureStandaloneStyleSheet());
+  if (backwardKey > 0) {
+    backwardCapture->setHotkey(backwardKey, (backwardMods & MOD_CONTROL) != 0,
+                               (backwardMods & MOD_ALT) != 0,
+                               (backwardMods & MOD_SHIFT) != 0);
+  }
+  connect(backwardCapture, &HotkeyCapture::hotkeyChanged, this,
+          &ConfigDialog::onHotkeyChanged);
+  firstRowLayout->addWidget(backwardCapture);
+
+  // Clear backward button
+  QPushButton *clearBackwardButton = new QPushButton("Clear");
+  clearBackwardButton->setFixedHeight(28);
+  clearBackwardButton->setStyleSheet("QPushButton {"
+                                     "    background-color: #3a3a3a;"
+                                     "    color: #ffffff;"
+                                     "    border: 1px solid #555555;"
+                                     "    border-radius: 3px;"
+                                     "    font-size: 11px;"
+                                     "    padding: 4px 8px;"
+                                     "}"
+                                     "QPushButton:hover {"
+                                     "    background-color: #4a4a4a;"
+                                     "    border: 1px solid #666666;"
+                                     "}"
+                                     "QPushButton:pressed {"
+                                     "    background-color: #2a2a2a;"
+                                     "}");
+  clearBackwardButton->setToolTip("Clear backward hotkey");
+  clearBackwardButton->setCursor(Qt::PointingHandCursor);
+  connect(clearBackwardButton, &QPushButton::clicked,
+          [backwardCapture]() { backwardCapture->clearHotkey(); });
+  firstRowLayout->addWidget(clearBackwardButton);
+
+  // Forward hotkey label and capture
+  QLabel *forwardLabel = new QLabel("Fwd:");
+  forwardLabel->setStyleSheet(
+      "QLabel { color: #ffffff; background-color: transparent; border: none; "
+      "}");
+  firstRowLayout->addWidget(forwardLabel);
+
+  HotkeyCapture *forwardCapture = new HotkeyCapture();
+  forwardCapture->setFixedWidth(140);
+  forwardCapture->setStyleSheet(
+      StyleSheet::getHotkeyCaptureStandaloneStyleSheet());
+  if (forwardKey > 0) {
+    forwardCapture->setHotkey(forwardKey, (forwardMods & MOD_CONTROL) != 0,
+                              (forwardMods & MOD_ALT) != 0,
+                              (forwardMods & MOD_SHIFT) != 0);
+  }
+  connect(forwardCapture, &HotkeyCapture::hotkeyChanged, this,
+          &ConfigDialog::onHotkeyChanged);
+  firstRowLayout->addWidget(forwardCapture);
+
+  // Clear forward button
+  QPushButton *clearForwardButton = new QPushButton("Clear");
+  clearForwardButton->setFixedHeight(28);
+  clearForwardButton->setStyleSheet("QPushButton {"
+                                    "    background-color: #3a3a3a;"
+                                    "    color: #ffffff;"
+                                    "    border: 1px solid #555555;"
+                                    "    border-radius: 3px;"
+                                    "    font-size: 11px;"
+                                    "    padding: 4px 8px;"
+                                    "}"
+                                    "QPushButton:hover {"
+                                    "    background-color: #4a4a4a;"
+                                    "    border: 1px solid #666666;"
+                                    "}"
+                                    "QPushButton:pressed {"
+                                    "    background-color: #2a2a2a;"
+                                    "}");
+  clearForwardButton->setToolTip("Clear forward hotkey");
+  clearForwardButton->setCursor(Qt::PointingHandCursor);
+  connect(clearForwardButton, &QPushButton::clicked,
+          [forwardCapture]() { forwardCapture->clearHotkey(); });
+  firstRowLayout->addWidget(clearForwardButton);
+
+  contentLayout->addLayout(firstRowLayout);
+
+  // Second row: Checkboxes
+  QHBoxLayout *secondRowLayout = new QHBoxLayout();
+  secondRowLayout->setSpacing(16);
+  secondRowLayout->setContentsMargins(4, 0, 4, 0);
+
+  // Include Not Logged In checkbox
+  QCheckBox *includeNotLoggedInCheck =
+      new QCheckBox("Include Not-Logged-In Clients");
+  includeNotLoggedInCheck->setChecked(includeNotLoggedIn);
+  includeNotLoggedInCheck->setStyleSheet(
+      StyleSheet::getDialogCheckBoxStyleSheet());
+  includeNotLoggedInCheck->setToolTip(
+      "Include not-logged-in EVE clients in this cycle group");
+  secondRowLayout->addWidget(includeNotLoggedInCheck);
+
+  // No Loop checkbox
+  QCheckBox *noLoopCheck = new QCheckBox("Don't Loop Back to Start");
+  noLoopCheck->setChecked(noLoop);
+  noLoopCheck->setStyleSheet(StyleSheet::getDialogCheckBoxStyleSheet());
+  noLoopCheck->setToolTip(
+      "Do not loop back to the first character when reaching the end");
+  secondRowLayout->addWidget(noLoopCheck);
+
+  secondRowLayout->addStretch();
+
+  contentLayout->addLayout(secondRowLayout);
+
+  topLayout->addLayout(contentLayout);
+
+  // Delete button - vertically centered between both rows
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(32, 32);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+  deleteButton->setToolTip("Remove this cycle group");
+  deleteButton->setCursor(Qt::PointingHandCursor);
+
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_cycleGroupsLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    QTimer::singleShot(0, this, &ConfigDialog::updateCycleGroupsScrollHeight);
+    onHotkeyChanged();
+  });
+
+  topLayout->addWidget(deleteButton, 0, Qt::AlignVCenter);
+
+  return rowWidget;
+}
+
+QWidget *ConfigDialog::createCharacterColorFormRow(const QString &characterName,
+                                                   const QColor &color) {
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet(
+      "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
+      "border-radius: 4px; padding: 4px; }");
+
+  QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+  rowLayout->setContentsMargins(8, 4, 8, 4);
+  rowLayout->setSpacing(8);
+
+  // Character name field
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setText(characterName);
+  nameEdit->setPlaceholderText("Character Name");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  rowLayout->addWidget(nameEdit, 1);
+
+  // Color picker button
+  QPushButton *colorButton = new QPushButton();
+  colorButton->setFixedSize(150, 32);
+  colorButton->setCursor(Qt::PointingHandCursor);
+  colorButton->setProperty("color", color);
+  updateColorButton(colorButton, color);
+  connect(colorButton, &QPushButton::clicked, this,
+          &ConfigDialog::onCharacterColorButtonClicked);
+  rowLayout->addWidget(colorButton);
+
+  // Delete button
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(32, 32);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+  deleteButton->setToolTip("Remove this character color");
+  deleteButton->setCursor(Qt::PointingHandCursor);
+
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_characterColorsLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    QTimer::singleShot(0, this,
+                       &ConfigDialog::updateCharacterColorsScrollHeight);
+  });
+
+  rowLayout->addWidget(deleteButton);
+
+  return rowWidget;
+}
+
+void ConfigDialog::updateCharacterColorsScrollHeight() {
+  if (m_characterColorsScrollArea && m_characterColorsLayout) {
+    int rowCount = m_characterColorsLayout->count() - 1;
+
+    if (rowCount <= 0) {
+      m_characterColorsScrollArea->setFixedHeight(10);
+    } else {
+      // Each character color form row is ~48px tall (with spacing)
+      int calculatedHeight = (rowCount * 48) + 10;
+      // Max 4 visible rows: 4 * 48 + 10 = 202
+      int finalHeight = qMin(202, qMax(50, calculatedHeight));
+      m_characterColorsScrollArea->setFixedHeight(finalHeight);
+    }
+  }
+}
+
+QWidget *
+ConfigDialog::createNeverMinimizeFormRow(const QString &characterName) {
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet(
+      "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
+      "border-radius: 4px; padding: 4px; }");
+
+  QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+  rowLayout->setContentsMargins(8, 4, 8, 4);
+  rowLayout->setSpacing(8);
+
+  // Character name field
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setText(characterName);
+  nameEdit->setPlaceholderText("Character Name");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  rowLayout->addWidget(nameEdit, 1);
+
+  // Delete button
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(32, 32);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+  deleteButton->setToolTip("Remove this character");
+  deleteButton->setCursor(Qt::PointingHandCursor);
+
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_neverMinimizeLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    QTimer::singleShot(0, this, &ConfigDialog::updateNeverMinimizeScrollHeight);
+  });
+
+  rowLayout->addWidget(deleteButton);
+
+  return rowWidget;
+}
+
+void ConfigDialog::updateNeverMinimizeScrollHeight() {
+  if (m_neverMinimizeScrollArea && m_neverMinimizeLayout) {
+    int rowCount = m_neverMinimizeLayout->count() - 1;
+
+    if (rowCount <= 0) {
+      m_neverMinimizeScrollArea->setFixedHeight(10);
+    } else {
+      // Each never minimize form row is ~48px tall (with spacing)
+      int calculatedHeight = (rowCount * 48) + 10;
+      // Max 4 visible rows: 4 * 48 + 10 = 202
+      int finalHeight = qMin(202, qMax(50, calculatedHeight));
+      m_neverMinimizeScrollArea->setFixedHeight(finalHeight);
+    }
+  }
+}
+
+QWidget *
+ConfigDialog::createHiddenCharactersFormRow(const QString &characterName) {
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet(
+      "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
+      "border-radius: 4px; padding: 4px; }");
+
+  QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+  rowLayout->setContentsMargins(8, 4, 8, 4);
+  rowLayout->setSpacing(8);
+
+  // Character name field
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setText(characterName);
+  nameEdit->setPlaceholderText("Character Name");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  rowLayout->addWidget(nameEdit, 1);
+
+  // Delete button
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(32, 32);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+  deleteButton->setToolTip("Remove this character");
+  deleteButton->setCursor(Qt::PointingHandCursor);
+
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_hiddenCharactersLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    QTimer::singleShot(0, this,
+                       &ConfigDialog::updateHiddenCharactersScrollHeight);
+  });
+
+  rowLayout->addWidget(deleteButton);
+
+  return rowWidget;
+}
+
+void ConfigDialog::updateHiddenCharactersScrollHeight() {
+  if (m_hiddenCharactersScrollArea && m_hiddenCharactersLayout) {
+    int rowCount = m_hiddenCharactersLayout->count() - 1;
+
+    if (rowCount <= 0) {
+      m_hiddenCharactersScrollArea->setFixedHeight(10);
+    } else {
+      // Each hidden characters form row is ~48px tall (with spacing)
+      int calculatedHeight = (rowCount * 48) + 10;
+      // Max 4 visible rows: 4 * 48 + 10 = 202
+      int finalHeight = qMin(202, qMax(50, calculatedHeight));
+      m_hiddenCharactersScrollArea->setFixedHeight(finalHeight);
+    }
+  }
+}
+
+QWidget *ConfigDialog::createProcessNamesFormRow(const QString &processName) {
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet(
+      "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
+      "border-radius: 4px; padding: 4px; }");
+
+  QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+  rowLayout->setContentsMargins(8, 4, 8, 4);
+  rowLayout->setSpacing(8);
+
+  // Process name field
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setText(processName);
+  nameEdit->setPlaceholderText("Process Name (e.g., example.exe)");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  rowLayout->addWidget(nameEdit, 1);
+
+  // Delete button
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(32, 32);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+  deleteButton->setToolTip("Remove this process");
+  deleteButton->setCursor(Qt::PointingHandCursor);
+
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_processNamesLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    QTimer::singleShot(0, this, &ConfigDialog::updateProcessNamesScrollHeight);
+  });
+
+  rowLayout->addWidget(deleteButton);
+
+  return rowWidget;
+}
+
+void ConfigDialog::updateProcessNamesScrollHeight() {
+  if (m_processNamesScrollArea && m_processNamesLayout) {
+    int rowCount = m_processNamesLayout->count() - 1;
+
+    if (rowCount <= 0) {
+      m_processNamesScrollArea->setFixedHeight(10);
+    } else {
+      // Each process names form row is ~48px tall (with spacing)
+      int calculatedHeight = (rowCount * 48) + 10;
+      // Max 4 visible rows: 4 * 48 + 10 = 202
+      int finalHeight = qMin(202, qMax(50, calculatedHeight));
+      m_processNamesScrollArea->setFixedHeight(finalHeight);
+    }
+  }
+}
+
+void ConfigDialog::updateCycleGroupsScrollHeight() {
+  if (m_cycleGroupsScrollArea && m_cycleGroupsLayout) {
+    int rowCount = m_cycleGroupsLayout->count() - 1;
+
+    if (rowCount <= 0) {
+      m_cycleGroupsScrollArea->setFixedHeight(10);
+    } else {
+      // Each cycle group form row is ~85px tall (2-row layout with spacing)
+      int calculatedHeight = (rowCount * 85) + 10;
+      // Max 2 visible groups: 2 * 85 + 10 = 180
+      int finalHeight = qMin(180, qMax(50, calculatedHeight));
+      m_cycleGroupsScrollArea->setFixedHeight(finalHeight);
+    }
+  }
 }
 
 void ConfigDialog::onPopulateFromOpenWindows() {
@@ -3252,15 +4154,26 @@ void ConfigDialog::onPopulateFromOpenWindows() {
 
   QSet<QString> existingCharacters;
   if (!clearExisting) {
-    for (int row = 0; row < m_characterHotkeysTable->rowCount(); ++row) {
-      QLineEdit *nameEdit = qobject_cast<QLineEdit *>(
-          m_characterHotkeysTable->cellWidget(row, 0));
-      if (nameEdit && !nameEdit->text().trimmed().isEmpty()) {
-        existingCharacters.insert(nameEdit->text().trimmed());
+    // Collect existing character names from form rows
+    for (int i = 0; i < m_characterHotkeysLayout->count() - 1; ++i) {
+      QWidget *rowWidget = qobject_cast<QWidget *>(
+          m_characterHotkeysLayout->itemAt(i)->widget());
+      if (rowWidget) {
+        QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+        if (nameEdit && !nameEdit->text().trimmed().isEmpty()) {
+          existingCharacters.insert(nameEdit->text().trimmed());
+        }
       }
     }
   } else {
-    m_characterHotkeysTable->setRowCount(0);
+    // Clear all existing rows
+    while (m_characterHotkeysLayout->count() > 1) {
+      QLayoutItem *item = m_characterHotkeysLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
   }
 
   int addedCount = 0;
@@ -3280,96 +4193,14 @@ void ConfigDialog::onPopulateFromOpenWindows() {
       continue;
     }
 
-    int row = m_characterHotkeysTable->rowCount();
-    m_characterHotkeysTable->insertRow(row);
-
-    QLineEdit *nameEdit = new QLineEdit();
-    nameEdit->setText(characterName);
-    nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-    m_characterHotkeysTable->setCellWidget(row, 0, nameEdit);
-
-    QWidget *hotkeyWidget = new QWidget();
-    QHBoxLayout *hotkeyLayout = new QHBoxLayout(hotkeyWidget);
-    hotkeyLayout->setContentsMargins(0, 0, 0, 0);
-    hotkeyLayout->setSpacing(4);
-
-    HotkeyCapture *hotkeyCapture = new HotkeyCapture();
-
-    connect(hotkeyCapture, &HotkeyCapture::hotkeyChanged, this,
-            &ConfigDialog::onHotkeyChanged);
-
-    QPushButton *clearButton = new QPushButton("×");
-    clearButton->setFixedSize(24, 24);
-    clearButton->setStyleSheet("QPushButton {"
-                               "    background-color: #3a3a3a;"
-                               "    color: #a0a0a0;"
-                               "    border: 1px solid #555555;"
-                               "    border-radius: 3px;"
-                               "    font-size: 16px;"
-                               "    font-weight: bold;"
-                               "    padding: 0px;"
-                               "}"
-                               "QPushButton:hover {"
-                               "    background-color: #4a4a4a;"
-                               "    color: #ffffff;"
-                               "    border: 1px solid #666666;"
-                               "}"
-                               "QPushButton:pressed {"
-                               "    background-color: #2a2a2a;"
-                               "}");
-    clearButton->setToolTip("Clear hotkey");
-    connect(clearButton, &QPushButton::clicked,
-            [hotkeyCapture]() { hotkeyCapture->clearHotkey(); });
-
-    hotkeyLayout->addWidget(hotkeyCapture, 1);
-    hotkeyLayout->addWidget(clearButton, 0);
-    m_characterHotkeysTable->setCellWidget(row, 1, hotkeyWidget);
-
-    QWidget *deleteContainer = new QWidget();
-    deleteContainer->setStyleSheet(
-        "QWidget { background-color: transparent; }");
-    QHBoxLayout *deleteLayout = new QHBoxLayout(deleteContainer);
-    deleteLayout->setContentsMargins(0, 0, 0, 0);
-    deleteLayout->setAlignment(Qt::AlignCenter);
-
-    QPushButton *deleteButton = new QPushButton("×");
-    deleteButton->setFixedSize(24, 24);
-    deleteButton->setStyleSheet("QPushButton {"
-                                "    background-color: #3a3a3a;"
-                                "    color: #e74c3c;"
-                                "    border: 1px solid #555555;"
-                                "    border-radius: 3px;"
-                                "    font-size: 16px;"
-                                "    font-weight: bold;"
-                                "    padding: 0px;"
-                                "}"
-                                "QPushButton:hover {"
-                                "    background-color: #e74c3c;"
-                                "    color: #ffffff;"
-                                "    border: 1px solid #e74c3c;"
-                                "}"
-                                "QPushButton:pressed {"
-                                "    background-color: #c0392b;"
-                                "}");
-    deleteButton->setToolTip("Delete this character hotkey");
-    deleteButton->setCursor(Qt::PointingHandCursor);
-
-    connect(deleteButton, &QPushButton::clicked, [this, deleteButton]() {
-      for (int i = 0; i < m_characterHotkeysTable->rowCount(); ++i) {
-        QWidget *widget = m_characterHotkeysTable->cellWidget(i, 2);
-        if (widget && widget->findChild<QPushButton *>() == deleteButton) {
-          m_characterHotkeysTable->removeRow(i);
-          onHotkeyChanged();
-          break;
-        }
-      }
-    });
-
-    deleteLayout->addWidget(deleteButton);
-    m_characterHotkeysTable->setCellWidget(row, 2, deleteContainer);
+    QWidget *formRow = createCharacterHotkeyFormRow(characterName);
+    int count = m_characterHotkeysLayout->count();
+    m_characterHotkeysLayout->insertWidget(count - 1, formRow);
 
     addedCount++;
   }
+
+  updateCharacterHotkeysScrollHeight();
 
   if (addedCount > 0) {
     onHotkeyChanged();
@@ -3388,241 +4219,32 @@ void ConfigDialog::onPopulateFromOpenWindows() {
 }
 
 void ConfigDialog::onAddCycleGroup() {
-  int row = m_cycleGroupsTable->rowCount();
-  m_cycleGroupsTable->insertRow(row);
+  int count = m_cycleGroupsLayout->count() - 1;
+  QString defaultName = QString("Group %1").arg(count + 1);
 
-  QString cellStyle = "QLineEdit {"
-                      "   background-color: transparent;"
-                      "   color: #ffffff;"
-                      "   border: none;"
-                      "   padding: 2px 4px;"
-                      "   font-size: 12px;"
-                      "}"
-                      "QLineEdit:focus {"
-                      "   background-color: #353535;"
-                      "}";
+  QWidget *formRow = createCycleGroupFormRow(defaultName);
 
-  QLineEdit *nameEdit = new QLineEdit();
-  nameEdit->setText(QString("Group %1").arg(row + 1));
-  nameEdit->setStyleSheet(cellStyle);
-  nameEdit->setFocusPolicy(Qt::NoFocus);
-  m_cycleGroupsTable->setCellWidget(row, 0, nameEdit);
+  int layoutCount = m_cycleGroupsLayout->count();
+  m_cycleGroupsLayout->insertWidget(layoutCount - 1, formRow);
 
-  QWidget *charactersButtonContainer = new QWidget();
-  QHBoxLayout *charactersButtonLayout =
-      new QHBoxLayout(charactersButtonContainer);
-  charactersButtonLayout->setContentsMargins(0, 0, 0, 0);
-  charactersButtonLayout->setAlignment(Qt::AlignCenter);
+  m_cycleGroupsContainer->updateGeometry();
+  m_cycleGroupsLayout->activate();
 
-  QPushButton *charactersButton = new QPushButton("No characters");
-  charactersButton->setStyleSheet(StyleSheet::getTableCellButtonStyleSheet());
-  charactersButton->setFixedHeight(32);
-  charactersButton->setFocusPolicy(Qt::NoFocus);
-  charactersButton->setCursor(Qt::PointingHandCursor);
-  charactersButton->setProperty("characterList", QStringList());
-  connect(charactersButton, &QPushButton::clicked, this,
-          &ConfigDialog::onEditCycleGroupCharacters);
+  QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
+  if (nameEdit) {
+    nameEdit->setFocus();
+    nameEdit->selectAll();
+  }
 
-  charactersButtonLayout->addWidget(charactersButton);
-  m_cycleGroupsTable->setCellWidget(row, 1, charactersButtonContainer);
+  updateCycleGroupsScrollHeight();
 
-  QWidget *backwardHotkeyWidget = new QWidget();
-  QHBoxLayout *backwardLayout = new QHBoxLayout(backwardHotkeyWidget);
-  backwardLayout->setContentsMargins(0, 0, 8, 0);
-  backwardLayout->setSpacing(4);
-
-  HotkeyCapture *backwardCapture = new HotkeyCapture();
-  backwardCapture->setFocusPolicy(Qt::NoFocus);
-
-  connect(backwardCapture, &HotkeyCapture::hotkeyChanged, this,
-          &ConfigDialog::onHotkeyChanged);
-
-  QPushButton *clearBackwardButton = new QPushButton("×");
-  clearBackwardButton->setFixedSize(24, 24);
-  clearBackwardButton->setFocusPolicy(Qt::NoFocus);
-  clearBackwardButton->setStyleSheet("QPushButton {"
-                                     "    background-color: #3a3a3a;"
-                                     "    color: #a0a0a0;"
-                                     "    border: 1px solid #555555;"
-                                     "    border-radius: 3px;"
-                                     "    font-size: 16px;"
-                                     "    font-weight: bold;"
-                                     "    padding: 0px;"
-                                     "}"
-                                     "QPushButton:hover {"
-                                     "    background-color: #4a4a4a;"
-                                     "    color: #ffffff;"
-                                     "    border: 1px solid #666666;"
-                                     "}"
-                                     "QPushButton:pressed {"
-                                     "    background-color: #2a2a2a;"
-                                     "}");
-  clearBackwardButton->setToolTip("Clear hotkey");
-  connect(clearBackwardButton, &QPushButton::clicked,
-          [backwardCapture]() { backwardCapture->clearHotkey(); });
-
-  backwardLayout->addWidget(backwardCapture, 1);
-  backwardLayout->addWidget(clearBackwardButton, 0);
-  m_cycleGroupsTable->setCellWidget(row, 2, backwardHotkeyWidget);
-
-  QWidget *forwardHotkeyWidget = new QWidget();
-  QHBoxLayout *forwardLayout = new QHBoxLayout(forwardHotkeyWidget);
-  forwardLayout->setContentsMargins(0, 0, 8, 0);
-  forwardLayout->setSpacing(4);
-
-  HotkeyCapture *forwardCapture = new HotkeyCapture();
-  forwardCapture->setFocusPolicy(Qt::NoFocus);
-
-  connect(forwardCapture, &HotkeyCapture::hotkeyChanged, this,
-          &ConfigDialog::onHotkeyChanged);
-
-  QPushButton *clearForwardButton = new QPushButton("×");
-  clearForwardButton->setFixedSize(24, 24);
-  clearForwardButton->setFocusPolicy(Qt::NoFocus);
-  clearForwardButton->setStyleSheet("QPushButton {"
-                                    "    background-color: #3a3a3a;"
-                                    "    color: #a0a0a0;"
-                                    "    border: 1px solid #555555;"
-                                    "    border-radius: 3px;"
-                                    "    font-size: 16px;"
-                                    "    font-weight: bold;"
-                                    "    padding: 0px;"
-                                    "}"
-                                    "QPushButton:hover {"
-                                    "    background-color: #4a4a4a;"
-                                    "    color: #ffffff;"
-                                    "    border: 1px solid #666666;"
-                                    "}"
-                                    "QPushButton:pressed {"
-                                    "    background-color: #2a2a2a;"
-                                    "}");
-  clearForwardButton->setToolTip("Clear hotkey");
-  connect(clearForwardButton, &QPushButton::clicked,
-          [forwardCapture]() { forwardCapture->clearHotkey(); });
-
-  forwardLayout->addWidget(forwardCapture, 1);
-  forwardLayout->addWidget(clearForwardButton, 0);
-  m_cycleGroupsTable->setCellWidget(row, 3, forwardHotkeyWidget);
-
-  QWidget *checkboxContainer = new QWidget();
-  checkboxContainer->setStyleSheet(
-      "QWidget { background-color: transparent; }");
-  QHBoxLayout *checkboxLayout = new QHBoxLayout(checkboxContainer);
-  checkboxLayout->setContentsMargins(0, 0, 0, 0);
-  checkboxLayout->setAlignment(Qt::AlignCenter);
-
-  QCheckBox *includeNotLoggedInCheck = new QCheckBox();
-  includeNotLoggedInCheck->setChecked(false);
-  includeNotLoggedInCheck->setFocusPolicy(Qt::NoFocus);
-  includeNotLoggedInCheck->setToolTip(
-      "Include not-logged-in EVE clients in this cycle group");
-
-  QString checkboxStyle =
-      QString("QCheckBox {"
-              "   spacing: 5px;"
-              "   outline: none;"
-              "}"
-              "QCheckBox::indicator {"
-              "   width: 18px;"
-              "   height: 18px;"
-              "   border: 2px solid %1;"
-              "   border-radius: 4px;"
-              "   background-color: #303030;"
-              "}"
-              "QCheckBox::indicator:hover {"
-              "   border: 2px solid %2;"
-              "}"
-              "QCheckBox::indicator:focus {"
-              "   border: 2px solid %2;"
-              "}"
-              "QCheckBox::indicator:checked {"
-              "   background-color: %2;"
-              "   border: 2px solid %2;"
-              "   image: "
-              "url(data:image/"
-              "svg+xml;base64,"
-              "PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTAiIHhtbG5zPSJodHRwOi8vd3d3Lncz"
-              "Lm9yZy8yMDAwL3N2ZyI+"
-              "PHBhdGggZD0iTTEgNUw0IDhMMTEgMSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Ut"
-              "d2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48L3N2Zz4=);"
-              "}"
-              "QCheckBox::indicator:checked:hover {"
-              "   background-color: %2;"
-              "   border: 2px solid %2;"
-              "}"
-              "QCheckBox::indicator:checked:focus {"
-              "   background-color: %2;"
-              "   border: 2px solid %2;"
-              "}")
-          .arg(StyleSheet::colorBorder())
-          .arg(StyleSheet::colorAccent());
-
-  includeNotLoggedInCheck->setStyleSheet(checkboxStyle);
-
-  checkboxLayout->addWidget(includeNotLoggedInCheck);
-  m_cycleGroupsTable->setCellWidget(row, 4, checkboxContainer);
-
-  QWidget *noLoopContainer = new QWidget();
-  noLoopContainer->setStyleSheet("QWidget { background-color: transparent; }");
-  QHBoxLayout *noLoopLayout = new QHBoxLayout(noLoopContainer);
-  noLoopLayout->setContentsMargins(0, 0, 0, 0);
-  noLoopLayout->setAlignment(Qt::AlignCenter);
-
-  QCheckBox *noLoopCheck = new QCheckBox();
-  noLoopCheck->setChecked(false);
-  noLoopCheck->setFocusPolicy(Qt::NoFocus);
-  noLoopCheck->setToolTip("Don't loop when reaching the end of the list");
-  noLoopCheck->setStyleSheet(checkboxStyle);
-
-  noLoopLayout->addWidget(noLoopCheck);
-  m_cycleGroupsTable->setCellWidget(row, 5, noLoopContainer);
-
-  QWidget *deleteContainer = new QWidget();
-  deleteContainer->setStyleSheet("QWidget { background-color: transparent; }");
-  QHBoxLayout *deleteLayout = new QHBoxLayout(deleteContainer);
-  deleteLayout->setContentsMargins(0, 0, 0, 0);
-  deleteLayout->setAlignment(Qt::AlignCenter);
-
-  QPushButton *deleteButton = new QPushButton("×");
-  deleteButton->setFixedSize(24, 24);
-  deleteButton->setFocusPolicy(Qt::NoFocus);
-  deleteButton->setStyleSheet("QPushButton {"
-                              "    background-color: #3a3a3a;"
-                              "    color: #e74c3c;"
-                              "    border: 1px solid #555555;"
-                              "    border-radius: 3px;"
-                              "    font-size: 16px;"
-                              "    font-weight: bold;"
-                              "    padding: 0px;"
-                              "}"
-                              "QPushButton:hover {"
-                              "    background-color: #e74c3c;"
-                              "    color: #ffffff;"
-                              "    border: 1px solid #e74c3c;"
-                              "}"
-                              "QPushButton:pressed {"
-                              "    background-color: #c0392b;"
-                              "}");
-  deleteButton->setToolTip("Delete this cycle group");
-  deleteButton->setCursor(Qt::PointingHandCursor);
-
-  connect(deleteButton, &QPushButton::clicked, [this, deleteButton]() {
-    for (int i = 0; i < m_cycleGroupsTable->rowCount(); ++i) {
-      QWidget *widget = m_cycleGroupsTable->cellWidget(i, 6);
-      if (widget && widget->findChild<QPushButton *>() == deleteButton) {
-        m_cycleGroupsTable->removeRow(i);
-        updateTableVisibility(m_cycleGroupsTable);
-        onHotkeyChanged();
-        break;
-      }
+  QTimer::singleShot(10, this, [this, formRow]() {
+    m_cycleGroupsScrollArea->ensureWidgetVisible(formRow, 10, 10);
+    QScrollBar *scrollBar = m_cycleGroupsScrollArea->verticalScrollBar();
+    if (scrollBar) {
+      scrollBar->setValue(scrollBar->maximum());
     }
   });
-
-  deleteLayout->addWidget(deleteButton);
-  m_cycleGroupsTable->setCellWidget(row, 6, deleteContainer);
-
-  updateTableVisibility(m_cycleGroupsTable);
-  m_cycleGroupsTable->scrollToBottom();
 }
 
 void ConfigDialog::onEditCycleGroupCharacters() {
@@ -3806,64 +4428,34 @@ void ConfigDialog::onEditCycleGroupCharacters() {
 
     if (newList.isEmpty()) {
       button->setText("(No characters)");
-    } else if (newList.count() == 1) {
-      button->setText(newList.first());
+      button->setToolTip("");
     } else {
-      button->setText(QString("%1 characters").arg(newList.count()));
+      button->setText(QString("(%1 characters)").arg(newList.count()));
+      button->setToolTip(newList.join(", "));
     }
   }
 }
 
 void ConfigDialog::onAddNeverMinimizeCharacter() {
-  int row = m_neverMinimizeTable->rowCount();
-  m_neverMinimizeTable->insertRow(row);
+  QWidget *formRow = createNeverMinimizeFormRow();
 
-  QLineEdit *nameEdit = new QLineEdit();
-  nameEdit->setPlaceholderText("Enter character name");
-  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-  m_neverMinimizeTable->setCellWidget(row, 0, nameEdit);
+  int count = m_neverMinimizeLayout->count();
+  m_neverMinimizeLayout->insertWidget(count - 1, formRow);
 
-  QWidget *buttonContainer = new QWidget();
-  QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
-  buttonLayout->setContentsMargins(0, 0, 0, 0);
+  m_neverMinimizeContainer->updateGeometry();
+  m_neverMinimizeLayout->activate();
 
-  QPushButton *deleteButton = new QPushButton("×");
-  deleteButton->setFixedSize(24, 24);
-  deleteButton->setStyleSheet("QPushButton {"
-                              "    background-color: #3a3a3a;"
-                              "    color: #ffffff;"
-                              "    border: 1px solid #555555;"
-                              "    border-radius: 4px;"
-                              "    font-size: 16px;"
-                              "    font-weight: bold;"
-                              "    padding: 0px;"
-                              "}"
-                              "QPushButton:hover {"
-                              "    background-color: #e74c3c;"
-                              "    border: 1px solid #c0392b;"
-                              "}"
-                              "QPushButton:pressed {"
-                              "    background-color: #c0392b;"
-                              "}");
+  QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
+  if (nameEdit) {
+    nameEdit->setFocus();
+  }
 
-  connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
-    for (int i = 0; i < m_neverMinimizeTable->rowCount(); ++i) {
-      QWidget *widget = m_neverMinimizeTable->cellWidget(i, 1);
-      if (widget && widget->findChild<QPushButton *>() == deleteButton) {
-        m_neverMinimizeTable->removeRow(i);
-        updateTableVisibility(m_neverMinimizeTable);
-        break;
-      }
-    }
+  updateNeverMinimizeScrollHeight();
+
+  QTimer::singleShot(0, [this]() {
+    m_neverMinimizeScrollArea->verticalScrollBar()->setValue(
+        m_neverMinimizeScrollArea->verticalScrollBar()->maximum());
   });
-
-  buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-  m_neverMinimizeTable->setCellWidget(row, 1, buttonContainer);
-
-  updateTableVisibility(m_neverMinimizeTable);
-  nameEdit->setFocus();
-
-  m_neverMinimizeTable->scrollToBottom();
 }
 
 void ConfigDialog::onPopulateNeverMinimize() {
@@ -3903,17 +4495,26 @@ void ConfigDialog::onPopulateNeverMinimize() {
 
   QSet<QString> existingCharacters;
   if (!clearExisting) {
-    for (int row = 0; row < m_neverMinimizeTable->rowCount(); ++row) {
-      QTableWidgetItem *item = m_neverMinimizeTable->item(row, 0);
-      if (item) {
-        QString charName = item->text().trimmed();
-        if (!charName.isEmpty()) {
-          existingCharacters.insert(charName);
-        }
+    for (int i = 0; i < m_neverMinimizeLayout->count() - 1; ++i) {
+      QWidget *rowWidget =
+          qobject_cast<QWidget *>(m_neverMinimizeLayout->itemAt(i)->widget());
+      if (!rowWidget)
+        continue;
+
+      QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+      if (nameEdit && !nameEdit->text().trimmed().isEmpty()) {
+        existingCharacters.insert(nameEdit->text().trimmed());
       }
     }
   } else {
-    m_neverMinimizeTable->setRowCount(0);
+    // Clear all existing form rows
+    while (m_neverMinimizeLayout->count() > 1) {
+      QLayoutItem *item = m_neverMinimizeLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
   }
 
   int addedCount = 0;
@@ -3933,44 +4534,14 @@ void ConfigDialog::onPopulateNeverMinimize() {
       continue;
     }
 
-    int row = m_neverMinimizeTable->rowCount();
-    m_neverMinimizeTable->insertRow(row);
-
-    QTableWidgetItem *nameItem = new QTableWidgetItem(characterName);
-    nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
-    m_neverMinimizeTable->setItem(row, 0, nameItem);
-
-    QWidget *buttonContainer = new QWidget();
-    QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
-    buttonLayout->setContentsMargins(0, 0, 0, 0);
-
-    QPushButton *deleteButton = new QPushButton("×");
-    deleteButton->setFixedSize(24, 24);
-    deleteButton->setStyleSheet("QPushButton {"
-                                "    background-color: #3a3a3a;"
-                                "    color: #ffffff;"
-                                "    border: 1px solid #555555;"
-                                "    border-radius: 4px;"
-                                "    font-size: 16px;"
-                                "    font-weight: bold;"
-                                "    padding: 0px;"
-                                "}"
-                                "QPushButton:hover {"
-                                "    background-color: #e74c3c;"
-                                "    border: 1px solid #c0392b;"
-                                "}"
-                                "QPushButton:pressed {"
-                                "    background-color: #c0392b;"
-                                "}");
-
-    connect(deleteButton, &QPushButton::clicked, this,
-            [this, row]() { m_neverMinimizeTable->removeRow(row); });
-
-    buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-    m_neverMinimizeTable->setCellWidget(row, 1, buttonContainer);
+    QWidget *formRow = createNeverMinimizeFormRow(characterName);
+    int count = m_neverMinimizeLayout->count();
+    m_neverMinimizeLayout->insertWidget(count - 1, formRow);
 
     addedCount++;
   }
+
+  updateNeverMinimizeScrollHeight();
 
   if (addedCount > 0) {
     QMessageBox::information(
@@ -3978,6 +4549,11 @@ void ConfigDialog::onPopulateNeverMinimize() {
         QString("Added %1 character%2 to the never minimize list.")
             .arg(addedCount)
             .arg(addedCount == 1 ? "" : "s"));
+
+    QTimer::singleShot(0, [this]() {
+      m_neverMinimizeScrollArea->verticalScrollBar()->setValue(
+          m_neverMinimizeScrollArea->verticalScrollBar()->maximum());
+    });
   } else {
     QMessageBox::information(this, "No New Characters",
                              "All open characters are already in the list.");
@@ -3985,55 +4561,22 @@ void ConfigDialog::onPopulateNeverMinimize() {
 }
 
 void ConfigDialog::onAddHiddenCharacter() {
-  int row = m_hiddenCharactersTable->rowCount();
-  m_hiddenCharactersTable->insertRow(row);
+  QWidget *formRow = createHiddenCharactersFormRow();
 
-  QLineEdit *nameEdit = new QLineEdit();
-  nameEdit->setPlaceholderText("Enter character name");
-  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-  m_hiddenCharactersTable->setCellWidget(row, 0, nameEdit);
+  int count = m_hiddenCharactersLayout->count();
+  m_hiddenCharactersLayout->insertWidget(count - 1, formRow);
 
-  QWidget *buttonContainer = new QWidget();
-  QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
-  buttonLayout->setContentsMargins(0, 0, 0, 0);
+  updateHiddenCharactersScrollHeight();
 
-  QPushButton *deleteButton = new QPushButton("×");
-  deleteButton->setFixedSize(24, 24);
-  deleteButton->setStyleSheet("QPushButton {"
-                              "    background-color: #3a3a3a;"
-                              "    color: #ffffff;"
-                              "    border: 1px solid #555555;"
-                              "    border-radius: 4px;"
-                              "    font-size: 16px;"
-                              "    font-weight: bold;"
-                              "    padding: 0px;"
-                              "}"
-                              "QPushButton:hover {"
-                              "    background-color: #e74c3c;"
-                              "    border: 1px solid #c0392b;"
-                              "}"
-                              "QPushButton:pressed {"
-                              "    background-color: #c0392b;"
-                              "}");
+  QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
+  if (nameEdit) {
+    nameEdit->setFocus();
+  }
 
-  connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
-    for (int i = 0; i < m_hiddenCharactersTable->rowCount(); ++i) {
-      QWidget *widget = m_hiddenCharactersTable->cellWidget(i, 1);
-      if (widget && widget->findChild<QPushButton *>() == deleteButton) {
-        m_hiddenCharactersTable->removeRow(i);
-        updateTableVisibility(m_hiddenCharactersTable);
-        break;
-      }
-    }
+  QTimer::singleShot(100, this, [this]() {
+    m_hiddenCharactersScrollArea->verticalScrollBar()->setValue(
+        m_hiddenCharactersScrollArea->verticalScrollBar()->maximum());
   });
-
-  buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-  m_hiddenCharactersTable->setCellWidget(row, 1, buttonContainer);
-
-  updateTableVisibility(m_hiddenCharactersTable);
-  nameEdit->setFocus();
-
-  m_hiddenCharactersTable->scrollToBottom();
 }
 
 void ConfigDialog::onPopulateHiddenCharacters() {
@@ -4073,17 +4616,30 @@ void ConfigDialog::onPopulateHiddenCharacters() {
 
   QSet<QString> existingCharacters;
   if (!clearExisting) {
-    for (int row = 0; row < m_hiddenCharactersTable->rowCount(); ++row) {
-      QTableWidgetItem *item = m_hiddenCharactersTable->item(row, 0);
-      if (item) {
-        QString charName = item->text().trimmed();
+    // Collect existing character names from form rows
+    for (int i = 0; i < m_hiddenCharactersLayout->count() - 1; ++i) {
+      QWidget *rowWidget = qobject_cast<QWidget *>(
+          m_hiddenCharactersLayout->itemAt(i)->widget());
+      if (!rowWidget)
+        continue;
+
+      QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+      if (nameEdit) {
+        QString charName = nameEdit->text().trimmed();
         if (!charName.isEmpty()) {
           existingCharacters.insert(charName);
         }
       }
     }
   } else {
-    m_hiddenCharactersTable->setRowCount(0);
+    // Clear all form rows
+    while (m_hiddenCharactersLayout->count() > 1) {
+      QLayoutItem *item = m_hiddenCharactersLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
   }
 
   int addedCount = 0;
@@ -4103,44 +4659,14 @@ void ConfigDialog::onPopulateHiddenCharacters() {
       continue;
     }
 
-    int row = m_hiddenCharactersTable->rowCount();
-    m_hiddenCharactersTable->insertRow(row);
-
-    QTableWidgetItem *nameItem = new QTableWidgetItem(characterName);
-    nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
-    m_hiddenCharactersTable->setItem(row, 0, nameItem);
-
-    QWidget *buttonContainer = new QWidget();
-    QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
-    buttonLayout->setContentsMargins(0, 0, 0, 0);
-
-    QPushButton *deleteButton = new QPushButton("×");
-    deleteButton->setFixedSize(24, 24);
-    deleteButton->setStyleSheet("QPushButton {"
-                                "    background-color: #3a3a3a;"
-                                "    color: #ffffff;"
-                                "    border: 1px solid #555555;"
-                                "    border-radius: 4px;"
-                                "    font-size: 16px;"
-                                "    font-weight: bold;"
-                                "    padding: 0px;"
-                                "}"
-                                "QPushButton:hover {"
-                                "    background-color: #e74c3c;"
-                                "    border: 1px solid #c0392b;"
-                                "}"
-                                "QPushButton:pressed {"
-                                "    background-color: #c0392b;"
-                                "}");
-
-    connect(deleteButton, &QPushButton::clicked, this,
-            [this, row]() { m_hiddenCharactersTable->removeRow(row); });
-
-    buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-    m_hiddenCharactersTable->setCellWidget(row, 1, buttonContainer);
+    QWidget *formRow = createHiddenCharactersFormRow(characterName);
+    int count = m_hiddenCharactersLayout->count();
+    m_hiddenCharactersLayout->insertWidget(count - 1, formRow);
 
     addedCount++;
   }
+
+  updateHiddenCharactersScrollHeight();
 
   if (addedCount > 0) {
     QMessageBox::information(
@@ -4155,69 +4681,25 @@ void ConfigDialog::onPopulateHiddenCharacters() {
 }
 
 void ConfigDialog::onAddCharacterColor() {
-  int row = m_characterColorsTable->rowCount();
-  m_characterColorsTable->insertRow(row);
+  QWidget *formRow = createCharacterColorFormRow();
 
-  QLineEdit *nameEdit = new QLineEdit();
-  nameEdit->setPlaceholderText("Enter character name");
-  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-  m_characterColorsTable->setCellWidget(row, 0, nameEdit);
+  int count = m_characterColorsLayout->count();
+  m_characterColorsLayout->insertWidget(count - 1, formRow);
 
-  QPushButton *colorButton = new QPushButton();
-  colorButton->setFixedSize(150, 28);
-  colorButton->setCursor(Qt::PointingHandCursor);
-  colorButton->setProperty("color", QColor("#00FFFF"));
-  updateColorButton(colorButton, QColor("#00FFFF"));
-  connect(colorButton, &QPushButton::clicked, this,
-          &ConfigDialog::onCharacterColorButtonClicked);
+  m_characterColorsContainer->updateGeometry();
+  m_characterColorsLayout->activate();
 
-  QWidget *buttonContainer = new QWidget();
-  QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
-  buttonLayout->setContentsMargins(3, 3, 3, 3);
-  buttonLayout->addWidget(colorButton);
-  buttonLayout->setAlignment(Qt::AlignCenter);
+  QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
+  if (nameEdit) {
+    nameEdit->setFocus();
+  }
 
-  m_characterColorsTable->setCellWidget(row, 1, buttonContainer);
+  updateCharacterColorsScrollHeight();
 
-  QWidget *deleteButtonContainer = new QWidget();
-  QHBoxLayout *deleteButtonLayout = new QHBoxLayout(deleteButtonContainer);
-  deleteButtonLayout->setContentsMargins(0, 0, 0, 0);
-
-  QPushButton *deleteButton = new QPushButton("×");
-  deleteButton->setFixedSize(24, 24);
-  deleteButton->setStyleSheet("QPushButton {"
-                              "    background-color: #3a3a3a;"
-                              "    color: #ffffff;"
-                              "    border: 1px solid #555555;"
-                              "    border-radius: 4px;"
-                              "    font-size: 16px;"
-                              "    font-weight: bold;"
-                              "    padding: 0px;"
-                              "}"
-                              "QPushButton:hover {"
-                              "    background-color: #e74c3c;"
-                              "    border: 1px solid #c0392b;"
-                              "}"
-                              "QPushButton:pressed {"
-                              "    background-color: #c0392b;"
-                              "}");
-
-  connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
-    for (int i = 0; i < m_characterColorsTable->rowCount(); ++i) {
-      QWidget *widget = m_characterColorsTable->cellWidget(i, 2);
-      if (widget && widget->findChild<QPushButton *>() == deleteButton) {
-        m_characterColorsTable->removeRow(i);
-        updateTableVisibility(m_characterColorsTable);
-        break;
-      }
-    }
+  QTimer::singleShot(0, [this]() {
+    m_characterColorsScrollArea->verticalScrollBar()->setValue(
+        m_characterColorsScrollArea->verticalScrollBar()->maximum());
   });
-
-  deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-  m_characterColorsTable->setCellWidget(row, 2, deleteButtonContainer);
-
-  updateTableVisibility(m_characterColorsTable);
-  m_characterColorsTable->scrollToBottom();
 }
 
 void ConfigDialog::onPopulateCharacterColors() {
@@ -4257,17 +4739,29 @@ void ConfigDialog::onPopulateCharacterColors() {
 
   QSet<QString> existingCharacters;
   if (!clearExisting) {
-    for (int row = 0; row < m_characterColorsTable->rowCount(); ++row) {
-      QLineEdit *nameEdit =
-          qobject_cast<QLineEdit *>(m_characterColorsTable->cellWidget(row, 0));
+    for (int i = 0; i < m_characterColorsLayout->count() - 1; ++i) {
+      QWidget *rowWidget =
+          qobject_cast<QWidget *>(m_characterColorsLayout->itemAt(i)->widget());
+      if (!rowWidget)
+        continue;
+
+      QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
       if (nameEdit && !nameEdit->text().trimmed().isEmpty()) {
         existingCharacters.insert(nameEdit->text().trimmed());
       }
     }
   } else {
-    m_characterColorsTable->setRowCount(0);
+    // Clear all existing form rows
+    while (m_characterColorsLayout->count() > 1) {
+      QLayoutItem *item = m_characterColorsLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
   }
 
+  Config &config = Config::instance();
   int addedCount = 0;
   for (const WindowInfo &window : windows) {
     QString characterName = window.title;
@@ -4283,66 +4777,20 @@ void ConfigDialog::onPopulateCharacterColors() {
       continue;
     }
 
-    int row = m_characterColorsTable->rowCount();
-    m_characterColorsTable->insertRow(row);
-
-    QLineEdit *nameEdit = new QLineEdit(characterName);
-    nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-    m_characterColorsTable->setCellWidget(row, 0, nameEdit);
-
-    Config &config = Config::instance();
     QColor characterColor = config.getCharacterBorderColor(characterName);
     if (!characterColor.isValid()) {
       characterColor = QColor("#00FFFF");
     }
 
-    QPushButton *colorButton = new QPushButton();
-    colorButton->setFixedSize(150, 28);
-    colorButton->setCursor(Qt::PointingHandCursor);
-    colorButton->setProperty("color", characterColor);
-    updateColorButton(colorButton, characterColor);
-    connect(colorButton, &QPushButton::clicked, this,
-            &ConfigDialog::onCharacterColorButtonClicked);
-
-    QWidget *buttonContainer = new QWidget();
-    QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
-    buttonLayout->setContentsMargins(3, 3, 3, 3);
-    buttonLayout->addWidget(colorButton);
-    buttonLayout->setAlignment(Qt::AlignCenter);
-
-    m_characterColorsTable->setCellWidget(row, 1, buttonContainer);
-
-    QWidget *deleteButtonContainer = new QWidget();
-    QHBoxLayout *deleteButtonLayout = new QHBoxLayout(deleteButtonContainer);
-    deleteButtonLayout->setContentsMargins(0, 0, 0, 0);
-
-    QPushButton *deleteButton = new QPushButton("×");
-    deleteButton->setFixedSize(24, 24);
-    deleteButton->setStyleSheet("QPushButton {"
-                                "    background-color: #3a3a3a;"
-                                "    color: #ffffff;"
-                                "    border: 1px solid #555555;"
-                                "    border-radius: 4px;"
-                                "    font-size: 16px;"
-                                "    font-weight: bold;"
-                                "    padding: 0px;"
-                                "}"
-                                "QPushButton:hover {"
-                                "    background-color: #e74c3c;"
-                                "    border: 1px solid #c0392b;"
-                                "}"
-                                "QPushButton:pressed {"
-                                "    background-color: #c0392b;"
-                                "}");
-
-    connect(deleteButton, &QPushButton::clicked, this,
-            [this, row]() { m_characterColorsTable->removeRow(row); });
-
-    deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-    m_characterColorsTable->setCellWidget(row, 2, deleteButtonContainer);
+    QWidget *formRow =
+        createCharacterColorFormRow(characterName, characterColor);
+    int count = m_characterColorsLayout->count();
+    m_characterColorsLayout->insertWidget(count - 1, formRow);
 
     addedCount++;
   }
+
+  updateCharacterColorsScrollHeight();
 
   if (addedCount > 0) {
     QMessageBox::information(
@@ -4350,6 +4798,11 @@ void ConfigDialog::onPopulateCharacterColors() {
         QString("Added %1 character%2 to the color customization list.")
             .arg(addedCount)
             .arg(addedCount == 1 ? "" : "s"));
+
+    QTimer::singleShot(0, [this]() {
+      m_characterColorsScrollArea->verticalScrollBar()->setValue(
+          m_characterColorsScrollArea->verticalScrollBar()->maximum());
+    });
   } else {
     QMessageBox::information(this, "No New Characters",
                              "All open characters are already in the list.");
@@ -4373,12 +4826,12 @@ void ConfigDialog::onCharacterColorButtonClicked() {
 }
 
 void ConfigDialog::onAssignUniqueColors() {
-  int rowCount = m_characterColorsTable->rowCount();
+  int rowCount = m_characterColorsLayout->count() - 1;
 
-  if (rowCount == 0) {
+  if (rowCount <= 0) {
     QMessageBox::information(
         this, "No Characters",
-        "There are no characters in the table. Add characters first using 'Add "
+        "There are no characters in the list. Add characters first using 'Add "
         "Character' or 'Populate from Open Clients'.");
     return;
   }
@@ -4396,7 +4849,7 @@ void ConfigDialog::onAssignUniqueColors() {
   msgBox.setWindowTitle("Assign Unique Colors");
   msgBox.setText(
       QString(
-          "This will assign unique colors to all %1 character%2 in the table.")
+          "This will assign unique colors to all %1 character%2 in the list.")
           .arg(rowCount)
           .arg(rowCount == 1 ? "" : "s"));
   msgBox.setInformativeText("Colors will be assigned from a predefined "
@@ -4409,16 +4862,26 @@ void ConfigDialog::onAssignUniqueColors() {
     return;
   }
 
-  for (int row = 0; row < rowCount; ++row) {
-    QColor assignedColor(colorPalette[row % colorPalette.size()]);
+  for (int i = 0; i < rowCount; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_characterColorsLayout->itemAt(i)->widget());
+    if (!rowWidget)
+      continue;
 
-    QWidget *buttonContainer = m_characterColorsTable->cellWidget(row, 1);
-    if (buttonContainer) {
-      QPushButton *colorButton = buttonContainer->findChild<QPushButton *>();
-      if (colorButton) {
-        colorButton->setProperty("color", assignedColor);
-        updateColorButton(colorButton, assignedColor);
+    QColor assignedColor(colorPalette[i % colorPalette.size()]);
+
+    QPushButton *colorButton = nullptr;
+    QList<QPushButton *> buttons = rowWidget->findChildren<QPushButton *>();
+    for (QPushButton *btn : buttons) {
+      if (btn->property("color").isValid()) {
+        colorButton = btn;
+        break;
       }
+    }
+
+    if (colorButton) {
+      colorButton->setProperty("color", assignedColor);
+      updateColorButton(colorButton, assignedColor);
     }
   }
 
@@ -4430,77 +4893,37 @@ void ConfigDialog::onAssignUniqueColors() {
 }
 
 void ConfigDialog::onAddThumbnailSize() {
-  int row = m_thumbnailSizesTable->rowCount();
-  m_thumbnailSizesTable->insertRow(row);
+  QWidget *formRow = createThumbnailSizeFormRow();
 
-  QLineEdit *nameEdit = new QLineEdit();
-  nameEdit->setPlaceholderText("Enter character name");
-  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-  m_thumbnailSizesTable->setCellWidget(row, 0, nameEdit);
+  // Insert before the stretch at the end
+  int count = m_thumbnailSizesLayout->count();
+  m_thumbnailSizesLayout->insertWidget(count - 1, formRow);
 
-  QSpinBox *widthSpin = new QSpinBox();
-  widthSpin->setRange(50, 800);
-  widthSpin->setSuffix(" px");
-  widthSpin->setValue(Config::instance().thumbnailWidth());
-  widthSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  // Force layout to update immediately
+  m_thumbnailSizesContainer->updateGeometry();
+  m_thumbnailSizesLayout->activate();
 
-  QWidget *widthContainer = new QWidget();
-  QHBoxLayout *widthLayout = new QHBoxLayout(widthContainer);
-  widthLayout->setContentsMargins(3, 3, 3, 3);
-  widthLayout->addWidget(widthSpin);
-  m_thumbnailSizesTable->setCellWidget(row, 1, widthContainer);
+  // Focus the name field for immediate editing and select all text
+  QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
+  if (nameEdit) {
+    nameEdit->setFocus();
+    nameEdit->selectAll();
+  }
 
-  QSpinBox *heightSpin = new QSpinBox();
-  heightSpin->setRange(50, 600);
-  heightSpin->setSuffix(" px");
-  heightSpin->setValue(Config::instance().thumbnailHeight());
-  heightSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  // Update scroll area height to fit new row count
+  updateThumbnailSizesScrollHeight();
 
-  QWidget *heightContainer = new QWidget();
-  QHBoxLayout *heightLayout = new QHBoxLayout(heightContainer);
-  heightLayout->setContentsMargins(3, 3, 3, 3);
-  heightLayout->addWidget(heightSpin);
-  m_thumbnailSizesTable->setCellWidget(row, 2, heightContainer);
+  // Scroll to the new widget after layout updates
+  QTimer::singleShot(10, this, [this, formRow]() {
+    // Ensure widget is visible with some margin
+    m_thumbnailSizesScrollArea->ensureWidgetVisible(formRow, 10, 10);
 
-  QWidget *deleteButtonContainer = new QWidget();
-  QHBoxLayout *deleteButtonLayout = new QHBoxLayout(deleteButtonContainer);
-  deleteButtonLayout->setContentsMargins(0, 0, 0, 0);
-
-  QPushButton *deleteButton = new QPushButton("×");
-  deleteButton->setFixedSize(24, 24);
-  deleteButton->setStyleSheet("QPushButton {"
-                              "    background-color: #3a3a3a;"
-                              "    color: #ffffff;"
-                              "    border: 1px solid #555555;"
-                              "    border-radius: 4px;"
-                              "    font-size: 16px;"
-                              "    font-weight: bold;"
-                              "    padding: 0px;"
-                              "}"
-                              "QPushButton:hover {"
-                              "    background-color: #e74c3c;"
-                              "    border: 1px solid #c0392b;"
-                              "}"
-                              "QPushButton:pressed {"
-                              "    background-color: #c0392b;"
-                              "}");
-
-  connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
-    for (int r = 0; r < m_thumbnailSizesTable->rowCount(); ++r) {
-      QWidget *container = m_thumbnailSizesTable->cellWidget(r, 3);
-      if (container && container->findChild<QPushButton *>() == deleteButton) {
-        m_thumbnailSizesTable->removeRow(r);
-        updateTableVisibility(m_thumbnailSizesTable);
-        break;
-      }
+    // Alternative: scroll to bottom if ensureWidgetVisible doesn't work
+    QScrollBar *scrollBar = m_thumbnailSizesScrollArea->verticalScrollBar();
+    if (scrollBar) {
+      scrollBar->setValue(scrollBar->maximum());
     }
   });
-
-  deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-  m_thumbnailSizesTable->setCellWidget(row, 3, deleteButtonContainer);
-
-  updateTableVisibility(m_thumbnailSizesTable);
-  m_thumbnailSizesTable->scrollToBottom();
 }
 
 void ConfigDialog::onPopulateThumbnailSizes() {
@@ -4561,15 +4984,26 @@ void ConfigDialog::onPopulateThumbnailSizes() {
 
   QSet<QString> existingCharacters;
   if (!clearExisting) {
-    for (int row = 0; row < m_thumbnailSizesTable->rowCount(); ++row) {
-      QLineEdit *nameEdit =
-          qobject_cast<QLineEdit *>(m_thumbnailSizesTable->cellWidget(row, 0));
-      if (nameEdit) {
-        existingCharacters.insert(nameEdit->text().trimmed());
+    // Collect existing character names from form rows
+    for (int i = 0; i < m_thumbnailSizesLayout->count() - 1; ++i) {
+      QWidget *rowWidget =
+          qobject_cast<QWidget *>(m_thumbnailSizesLayout->itemAt(i)->widget());
+      if (rowWidget) {
+        QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+        if (nameEdit) {
+          existingCharacters.insert(nameEdit->text().trimmed());
+        }
       }
     }
   } else {
-    m_thumbnailSizesTable->setRowCount(0);
+    // Clear all existing rows
+    while (m_thumbnailSizesLayout->count() > 1) {
+      QLayoutItem *item = m_thumbnailSizesLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
   }
 
   Config &cfg = Config::instance();
@@ -4579,13 +5013,6 @@ void ConfigDialog::onPopulateThumbnailSizes() {
     if (!clearExisting && existingCharacters.contains(characterName)) {
       continue;
     }
-
-    int row = m_thumbnailSizesTable->rowCount();
-    m_thumbnailSizesTable->insertRow(row);
-
-    QLineEdit *nameEdit = new QLineEdit(characterName);
-    nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-    m_thumbnailSizesTable->setCellWidget(row, 0, nameEdit);
 
     int width, height;
     if (cfg.hasCustomThumbnailSize(characterName)) {
@@ -4597,69 +5024,15 @@ void ConfigDialog::onPopulateThumbnailSizes() {
       height = cfg.thumbnailHeight();
     }
 
-    QSpinBox *widthSpin = new QSpinBox();
-    widthSpin->setRange(50, 800);
-    widthSpin->setSuffix(" px");
-    widthSpin->setValue(width);
-    widthSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-
-    QWidget *widthContainer = new QWidget();
-    QHBoxLayout *widthLayout = new QHBoxLayout(widthContainer);
-    widthLayout->setContentsMargins(3, 3, 3, 3);
-    widthLayout->addWidget(widthSpin);
-    m_thumbnailSizesTable->setCellWidget(row, 1, widthContainer);
-
-    QSpinBox *heightSpin = new QSpinBox();
-    heightSpin->setRange(50, 600);
-    heightSpin->setSuffix(" px");
-    heightSpin->setValue(height);
-    heightSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-
-    QWidget *heightContainer = new QWidget();
-    QHBoxLayout *heightLayout = new QHBoxLayout(heightContainer);
-    heightLayout->setContentsMargins(3, 3, 3, 3);
-    heightLayout->addWidget(heightSpin);
-    m_thumbnailSizesTable->setCellWidget(row, 2, heightContainer);
-
-    QWidget *deleteButtonContainer = new QWidget();
-    QHBoxLayout *deleteButtonLayout = new QHBoxLayout(deleteButtonContainer);
-    deleteButtonLayout->setContentsMargins(0, 0, 0, 0);
-
-    QPushButton *deleteButton = new QPushButton("×");
-    deleteButton->setFixedSize(24, 24);
-    deleteButton->setStyleSheet("QPushButton {"
-                                "    background-color: #3a3a3a;"
-                                "    color: #ffffff;"
-                                "    border: 1px solid #555555;"
-                                "    border-radius: 4px;"
-                                "    font-size: 16px;"
-                                "    font-weight: bold;"
-                                "    padding: 0px;"
-                                "}"
-                                "QPushButton:hover {"
-                                "    background-color: #e74c3c;"
-                                "    border: 1px solid #c0392b;"
-                                "}"
-                                "QPushButton:pressed {"
-                                "    background-color: #c0392b;"
-                                "}");
-
-    connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
-      for (int r = 0; r < m_thumbnailSizesTable->rowCount(); ++r) {
-        QWidget *container = m_thumbnailSizesTable->cellWidget(r, 3);
-        if (container &&
-            container->findChild<QPushButton *>() == deleteButton) {
-          m_thumbnailSizesTable->removeRow(r);
-          break;
-        }
-      }
-    });
-
-    deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-    m_thumbnailSizesTable->setCellWidget(row, 3, deleteButtonContainer);
+    QWidget *formRow = createThumbnailSizeFormRow(characterName, width, height);
+    int count = m_thumbnailSizesLayout->count();
+    m_thumbnailSizesLayout->insertWidget(count - 1, formRow);
 
     addedCount++;
   }
+
+  // Update scroll area height after populating
+  updateThumbnailSizesScrollHeight();
 
   QString resultMsg = clearExisting ? QString("Replaced with %1 character%2.")
                                           .arg(addedCount)
@@ -4672,15 +5045,15 @@ void ConfigDialog::onPopulateThumbnailSizes() {
 }
 
 void ConfigDialog::onRemoveThumbnailSize() {
-  int currentRow = m_thumbnailSizesTable->currentRow();
-  if (currentRow >= 0) {
-    m_thumbnailSizesTable->removeRow(currentRow);
-    updateTableVisibility(m_thumbnailSizesTable);
-  }
+  // This method is no longer needed since each row has its own delete button
+  // kept for compatibility but does nothing
 }
 
 void ConfigDialog::onResetThumbnailSizesToDefault() {
-  if (m_thumbnailSizesTable->rowCount() == 0) {
+  // Count actual form rows (excluding the stretch)
+  int rowCount = m_thumbnailSizesLayout->count() - 1;
+
+  if (rowCount == 0) {
     return;
   }
 
@@ -4691,58 +5064,37 @@ void ConfigDialog::onResetThumbnailSizesToDefault() {
       QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
 
   if (reply == QMessageBox::Yes) {
-    m_thumbnailSizesTable->setRowCount(0);
+    // Remove all form rows (keep the stretch at the end)
+    while (m_thumbnailSizesLayout->count() > 1) {
+      QLayoutItem *item = m_thumbnailSizesLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+
+    // Update scroll area height after reset
+    updateThumbnailSizesScrollHeight();
   }
 }
 
 void ConfigDialog::onAddProcessName() {
-  int row = m_processNamesTable->rowCount();
-  m_processNamesTable->insertRow(row);
+  QWidget *formRow = createProcessNamesFormRow();
 
-  QLineEdit *processEdit = new QLineEdit();
-  processEdit->setPlaceholderText("Enter process name (e.g., exefile.exe)");
-  processEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
-  m_processNamesTable->setCellWidget(row, 0, processEdit);
+  int count = m_processNamesLayout->count();
+  m_processNamesLayout->insertWidget(count - 1, formRow);
 
-  QWidget *buttonContainer = new QWidget();
-  QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
-  buttonLayout->setContentsMargins(0, 0, 0, 0);
+  updateProcessNamesScrollHeight();
 
-  QPushButton *deleteButton = new QPushButton("×");
-  deleteButton->setFixedSize(24, 24);
-  deleteButton->setStyleSheet("QPushButton {"
-                              "    background-color: #3a3a3a;"
-                              "    color: #ffffff;"
-                              "    border: 1px solid #555555;"
-                              "    border-radius: 4px;"
-                              "    font-size: 16px;"
-                              "    font-weight: bold;"
-                              "    padding: 0px;"
-                              "}"
-                              "QPushButton:hover {"
-                              "    background-color: #e74c3c;"
-                              "    border: 1px solid #c0392b;"
-                              "}"
-                              "QPushButton:pressed {"
-                              "    background-color: #c0392b;"
-                              "}");
+  QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
+  if (nameEdit) {
+    nameEdit->setFocus();
+  }
 
-  connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
-    for (int i = 0; i < m_processNamesTable->rowCount(); ++i) {
-      QWidget *widget = m_processNamesTable->cellWidget(i, 1);
-      if (widget && widget->findChild<QPushButton *>() == deleteButton) {
-        m_processNamesTable->removeRow(i);
-        updateTableVisibility(m_processNamesTable);
-        break;
-      }
-    }
+  QTimer::singleShot(100, this, [this]() {
+    m_processNamesScrollArea->verticalScrollBar()->setValue(
+        m_processNamesScrollArea->verticalScrollBar()->maximum());
   });
-
-  buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-  m_processNamesTable->setCellWidget(row, 1, buttonContainer);
-
-  updateTableVisibility(m_processNamesTable);
-  processEdit->setFocus();
 }
 
 void ConfigDialog::onPopulateProcessNames() {
@@ -4865,10 +5217,16 @@ void ConfigDialog::onPopulateProcessNames() {
     }
 
     QSet<QString> existingProcesses;
-    for (int row = 0; row < m_processNamesTable->rowCount(); ++row) {
-      QTableWidgetItem *item = m_processNamesTable->item(row, 0);
-      if (item) {
-        QString processName = item->text().trimmed();
+    // Collect existing process names from form rows
+    for (int i = 0; i < m_processNamesLayout->count() - 1; ++i) {
+      QWidget *rowWidget =
+          qobject_cast<QWidget *>(m_processNamesLayout->itemAt(i)->widget());
+      if (!rowWidget)
+        continue;
+
+      QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+      if (nameEdit) {
+        QString processName = nameEdit->text().trimmed();
         if (!processName.isEmpty()) {
           existingProcesses.insert(processName.toLower());
         }
@@ -4889,46 +5247,16 @@ void ConfigDialog::onPopulateProcessNames() {
     int addedCount = 0;
     for (const QString &processName : selectedProcesses) {
       if (!existingProcesses.contains(processName.toLower())) {
-        int row = m_processNamesTable->rowCount();
-        m_processNamesTable->insertRow(row);
-
-        QTableWidgetItem *processItem = new QTableWidgetItem(processName);
-        processItem->setFlags(processItem->flags() | Qt::ItemIsEditable);
-        m_processNamesTable->setItem(row, 0, processItem);
-
-        QWidget *buttonContainer = new QWidget();
-        QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
-        buttonLayout->setContentsMargins(0, 0, 0, 0);
-
-        QPushButton *deleteButton = new QPushButton("×");
-        deleteButton->setFixedSize(24, 24);
-        deleteButton->setStyleSheet("QPushButton {"
-                                    "    background-color: #3a3a3a;"
-                                    "    color: #ffffff;"
-                                    "    border: 1px solid #555555;"
-                                    "    border-radius: 4px;"
-                                    "    font-size: 16px;"
-                                    "    font-weight: bold;"
-                                    "    padding: 0px;"
-                                    "}"
-                                    "QPushButton:hover {"
-                                    "    background-color: #e74c3c;"
-                                    "    border: 1px solid #c0392b;"
-                                    "}"
-                                    "QPushButton:pressed {"
-                                    "    background-color: #c0392b;"
-                                    "}");
-
-        connect(deleteButton, &QPushButton::clicked, this,
-                [this, row]() { m_processNamesTable->removeRow(row); });
-
-        buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
-        m_processNamesTable->setCellWidget(row, 1, buttonContainer);
+        QWidget *formRow = createProcessNamesFormRow(processName);
+        int count = m_processNamesLayout->count();
+        m_processNamesLayout->insertWidget(count - 1, formRow);
 
         existingProcesses.insert(processName.toLower());
         addedCount++;
       }
     }
+
+    updateProcessNamesScrollHeight();
 
     if (addedCount > 0) {
       QMessageBox::information(
@@ -5090,9 +5418,25 @@ void ConfigDialog::onResetHotkeysDefaults() {
     m_suspendHotkeyCapture->setHotkey(0, false, false, false);
     m_closeAllClientsCapture->setHotkey(0, false, false, false);
 
-    m_characterHotkeysTable->setRowCount(0);
+    // Clear all character hotkey form rows
+    while (m_characterHotkeysLayout->count() > 1) {
+      QLayoutItem *item = m_characterHotkeysLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+    updateCharacterHotkeysScrollHeight();
 
-    m_cycleGroupsTable->setRowCount(0);
+    // Clear all cycle group form rows
+    while (m_cycleGroupsLayout->count() > 1) {
+      QLayoutItem *item = m_cycleGroupsLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+    updateCycleGroupsScrollHeight();
 
     QMessageBox::information(this, "Reset Complete",
                              "Hotkey settings have been reset to defaults.\n\n"
@@ -5119,7 +5463,15 @@ void ConfigDialog::onResetBehaviorDefaults() {
     m_saveClientLocationCheck->setChecked(
         Config::DEFAULT_WINDOW_SAVE_CLIENT_LOCATION);
 
-    m_neverMinimizeTable->setRowCount(0);
+    // Clear never minimize characters
+    while (m_neverMinimizeLayout->count() > 1) {
+      QLayoutItem *item = m_neverMinimizeLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+    updateNeverMinimizeScrollHeight();
 
     m_rememberPositionsCheck->setChecked(Config::DEFAULT_POSITION_REMEMBER);
     m_enableSnappingCheck->setChecked(Config::DEFAULT_POSITION_ENABLE_SNAPPING);
@@ -6771,7 +7123,14 @@ void ConfigDialog::copyLegacySettings(const QString &category,
       m_rememberPositionsCheck->setChecked(true);
     }
   } else if (category == "Hotkeys & Cycle Groups") {
-    m_cycleGroupsTable->setRowCount(0);
+    // Clear cycle groups layout for legacy migration
+    while (m_cycleGroupsLayout->count() > 1) {
+      QLayoutItem *item = m_cycleGroupsLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
 
     auto legacyKeyToVirtualKey = [](const QString &keyName) -> int {
       QString key = keyName.trimmed().toUpper();
@@ -6888,166 +7247,30 @@ void ConfigDialog::copyLegacySettings(const QString &category,
         characterList.append(it.value());
       }
 
-      int row = m_cycleGroupsTable->rowCount();
-      m_cycleGroupsTable->insertRow(row);
+      // Convert legacy hotkeys
+      int forwardVkCode = 0;
+      int backwardVkCode = 0;
 
-      QString cellStyle = "QLineEdit {"
-                          "   background-color: transparent;"
-                          "   color: #ffffff;"
-                          "   border: none;"
-                          "   padding: 2px 4px;"
-                          "   font-size: 12px;"
-                          "}"
-                          "QLineEdit:focus {"
-                          "   background-color: #353535;"
-                          "}";
-
-      QLineEdit *nameEdit = new QLineEdit();
-      nameEdit->setText(QString("Cycle Group %1").arg(i));
-      nameEdit->setStyleSheet(cellStyle);
-      nameEdit->setFocusPolicy(Qt::NoFocus);
-      m_cycleGroupsTable->setCellWidget(row, 0, nameEdit);
-
-      QWidget *charactersButtonContainer = new QWidget();
-      QHBoxLayout *charactersButtonLayout =
-          new QHBoxLayout(charactersButtonContainer);
-      charactersButtonLayout->setContentsMargins(0, 0, 0, 0);
-      charactersButtonLayout->setAlignment(Qt::AlignCenter);
-
-      QPushButton *charactersButton =
-          new QPushButton(QString("(%1 characters)").arg(characterList.size()));
-      charactersButton->setStyleSheet(
-          StyleSheet::getTableCellButtonStyleSheet());
-      charactersButton->setFixedHeight(32);
-      charactersButton->setFocusPolicy(Qt::NoFocus);
-      charactersButton->setCursor(Qt::PointingHandCursor);
-      charactersButton->setProperty("characterList", characterList);
-      charactersButton->setToolTip(characterList.join(", "));
-      connect(charactersButton, &QPushButton::clicked, this,
-              &ConfigDialog::onEditCycleGroupCharacters);
-
-      charactersButtonLayout->addWidget(charactersButton);
-      m_cycleGroupsTable->setCellWidget(row, 1, charactersButtonContainer);
-
-      QWidget *forwardHotkeyWidget = new QWidget();
-      QHBoxLayout *forwardLayout = new QHBoxLayout(forwardHotkeyWidget);
-      forwardLayout->setContentsMargins(0, 0, 8, 0);
-      forwardLayout->setSpacing(4);
-
-      HotkeyCapture *forwardCapture = new HotkeyCapture();
-      forwardCapture->setFocusPolicy(Qt::NoFocus);
-      if (!forwardHotkey.isEmpty() && forwardHotkey != "") {
-        int vkCode = legacyKeyToVirtualKey(forwardHotkey);
-        if (vkCode != 0) {
-          forwardCapture->setHotkey(vkCode, false, false, false);
-        }
+      if (!forwardHotkey.isEmpty()) {
+        forwardVkCode = legacyKeyToVirtualKey(forwardHotkey);
       }
 
-      QPushButton *clearForwardButton = new QPushButton("×");
-      clearForwardButton->setFixedSize(24, 24);
-      clearForwardButton->setFocusPolicy(Qt::NoFocus);
-      clearForwardButton->setStyleSheet("QPushButton {"
-                                        "    background-color: #3a3a3a;"
-                                        "    color: #a0a0a0;"
-                                        "    border: 1px solid #555555;"
-                                        "    border-radius: 3px;"
-                                        "    font-size: 16px;"
-                                        "    font-weight: bold;"
-                                        "    padding: 0px;"
-                                        "}"
-                                        "QPushButton:hover {"
-                                        "    background-color: #4a4a4a;"
-                                        "    color: #ffffff;"
-                                        "    border: 1px solid #666666;"
-                                        "}"
-                                        "QPushButton:pressed {"
-                                        "    background-color: #2a2a2a;"
-                                        "}");
-      clearForwardButton->setToolTip("Clear hotkey");
-      connect(clearForwardButton, &QPushButton::clicked,
-              [forwardCapture]() { forwardCapture->clearHotkey(); });
-
-      forwardLayout->addWidget(forwardCapture, 1);
-      forwardLayout->addWidget(clearForwardButton, 0);
-      m_cycleGroupsTable->setCellWidget(row, 2, forwardHotkeyWidget);
-
-      QWidget *backwardHotkeyWidget = new QWidget();
-      QHBoxLayout *backwardLayout = new QHBoxLayout(backwardHotkeyWidget);
-      backwardLayout->setContentsMargins(0, 0, 8, 0);
-      backwardLayout->setSpacing(4);
-
-      HotkeyCapture *backwardCapture = new HotkeyCapture();
-      backwardCapture->setFocusPolicy(Qt::NoFocus);
-      if (!backwardHotkey.isEmpty() && backwardHotkey != "") {
-        int vkCode = legacyKeyToVirtualKey(backwardHotkey);
-        if (vkCode != 0) {
-          backwardCapture->setHotkey(vkCode, false, false, false);
-        }
+      if (!backwardHotkey.isEmpty()) {
+        backwardVkCode = legacyKeyToVirtualKey(backwardHotkey);
       }
 
-      QPushButton *clearBackwardButton = new QPushButton("×");
-      clearBackwardButton->setFixedSize(24, 24);
-      clearBackwardButton->setFocusPolicy(Qt::NoFocus);
-      clearBackwardButton->setStyleSheet("QPushButton {"
-                                         "    background-color: #3a3a3a;"
-                                         "    color: #a0a0a0;"
-                                         "    border: 1px solid #555555;"
-                                         "    border-radius: 3px;"
-                                         "    font-size: 16px;"
-                                         "    font-weight: bold;"
-                                         "    padding: 0px;"
-                                         "}"
-                                         "QPushButton:hover {"
-                                         "    background-color: #4a4a4a;"
-                                         "    color: #ffffff;"
-                                         "    border: 1px solid #666666;"
-                                         "}"
-                                         "QPushButton:pressed {"
-                                         "    background-color: #2a2a2a;"
-                                         "}");
-      clearBackwardButton->setToolTip("Clear hotkey");
-      connect(clearBackwardButton, &QPushButton::clicked,
-              [backwardCapture]() { backwardCapture->clearHotkey(); });
+      // Create inline form row for this cycle group
+      QString characters = characterList.join(", ");
+      QWidget *formRow = createCycleGroupFormRow(
+          QString("Cycle Group %1").arg(i), backwardVkCode, 0, forwardVkCode, 0,
+          characters, false, false);
 
-      backwardLayout->addWidget(backwardCapture, 1);
-      backwardLayout->addWidget(clearBackwardButton, 0);
-      m_cycleGroupsTable->setCellWidget(row, 3, backwardHotkeyWidget);
-
-      QWidget *checkboxContainer = new QWidget();
-      checkboxContainer->setStyleSheet(
-          "QWidget { background-color: transparent; }");
-      QHBoxLayout *checkboxLayout = new QHBoxLayout(checkboxContainer);
-      checkboxLayout->setContentsMargins(0, 0, 0, 0);
-      checkboxLayout->setAlignment(Qt::AlignCenter);
-
-      QCheckBox *includeNotLoggedInCheck = new QCheckBox();
-      includeNotLoggedInCheck->setChecked(false);
-      includeNotLoggedInCheck->setFocusPolicy(Qt::NoFocus);
-      includeNotLoggedInCheck->setToolTip(
-          "Include not-logged-in EVE clients in this cycle group");
-      includeNotLoggedInCheck->setStyleSheet(
-          StyleSheet::getDialogCheckBoxStyleSheet());
-
-      checkboxLayout->addWidget(includeNotLoggedInCheck);
-      m_cycleGroupsTable->setCellWidget(row, 4, checkboxContainer);
-
-      QWidget *noLoopContainer = new QWidget();
-      noLoopContainer->setStyleSheet(
-          "QWidget { background-color: transparent; }");
-      QHBoxLayout *noLoopLayout = new QHBoxLayout(noLoopContainer);
-      noLoopLayout->setContentsMargins(0, 0, 0, 0);
-      noLoopLayout->setAlignment(Qt::AlignCenter);
-
-      QCheckBox *noLoopCheck = new QCheckBox();
-      noLoopCheck->setChecked(false);
-      noLoopCheck->setFocusPolicy(Qt::NoFocus);
-      noLoopCheck->setToolTip(
-          "Do not loop back to the first character when reaching the end");
-      noLoopCheck->setStyleSheet(StyleSheet::getDialogCheckBoxStyleSheet());
-
-      noLoopLayout->addWidget(noLoopCheck);
-      m_cycleGroupsTable->setCellWidget(row, 5, noLoopContainer);
+      int count = m_cycleGroupsLayout->count();
+      m_cycleGroupsLayout->insertWidget(count - 1, formRow);
     }
+
+    // Update scroll area height after legacy migration
+    updateCycleGroupsScrollHeight();
 
     bool hasWildcard = false;
     for (int i = 1; i <= 5; ++i) {
@@ -7095,107 +7318,16 @@ void ConfigDialog::copyLegacySettings(const QString &category,
         if (!hotkeyStr.isEmpty()) {
           int vkCode = legacyKeyToVirtualKey(hotkeyStr);
           if (vkCode != 0) {
-            int row = m_characterHotkeysTable->rowCount();
-            m_characterHotkeysTable->insertRow(row);
-
-            QString cellStyle = "QLineEdit {"
-                                "   background-color: transparent;"
-                                "   color: #ffffff;"
-                                "   border: none;"
-                                "   padding: 2px 4px;"
-                                "   font-size: 12px;"
-                                "}"
-                                "QLineEdit:focus {"
-                                "   background-color: #353535;"
-                                "}";
-
-            QLineEdit *nameEdit = new QLineEdit();
-            nameEdit->setText(characterName);
-            nameEdit->setStyleSheet(cellStyle);
-            m_characterHotkeysTable->setCellWidget(row, 0, nameEdit);
-
-            QWidget *hotkeyWidget = new QWidget();
-            QHBoxLayout *hotkeyLayout = new QHBoxLayout(hotkeyWidget);
-            hotkeyLayout->setContentsMargins(0, 0, 4, 0);
-            hotkeyLayout->setSpacing(4);
-
-            HotkeyCapture *hotkeyCapture = new HotkeyCapture();
-            hotkeyCapture->setHotkey(vkCode, false, false, false);
-
-            QPushButton *clearButton = new QPushButton("×");
-            clearButton->setFixedSize(24, 24);
-            clearButton->setStyleSheet("QPushButton {"
-                                       "    background-color: #3a3a3a;"
-                                       "    color: #a0a0a0;"
-                                       "    border: 1px solid #555555;"
-                                       "    border-radius: 3px;"
-                                       "    font-size: 16px;"
-                                       "    font-weight: bold;"
-                                       "    padding: 0px;"
-                                       "}"
-                                       "QPushButton:hover {"
-                                       "    background-color: #4a4a4a;"
-                                       "    color: #ffffff;"
-                                       "    border: 1px solid #666666;"
-                                       "}"
-                                       "QPushButton:pressed {"
-                                       "    background-color: #2a2a2a;"
-                                       "}");
-            clearButton->setToolTip("Clear hotkey");
-            connect(clearButton, &QPushButton::clicked,
-                    [hotkeyCapture]() { hotkeyCapture->clearHotkey(); });
-
-            hotkeyLayout->addWidget(hotkeyCapture, 1);
-            hotkeyLayout->addWidget(clearButton, 0);
-            m_characterHotkeysTable->setCellWidget(row, 1, hotkeyWidget);
-
-            QWidget *deleteContainer = new QWidget();
-            deleteContainer->setStyleSheet(
-                "QWidget { background-color: transparent; }");
-            QHBoxLayout *deleteLayout = new QHBoxLayout(deleteContainer);
-            deleteLayout->setContentsMargins(0, 0, 0, 0);
-            deleteLayout->setAlignment(Qt::AlignCenter);
-
-            QPushButton *deleteButton = new QPushButton("×");
-            deleteButton->setFixedSize(24, 24);
-            deleteButton->setStyleSheet("QPushButton {"
-                                        "    background-color: #3a3a3a;"
-                                        "    color: #e74c3c;"
-                                        "    border: 1px solid #555555;"
-                                        "    border-radius: 3px;"
-                                        "    font-size: 16px;"
-                                        "    font-weight: bold;"
-                                        "    padding: 0px;"
-                                        "}"
-                                        "QPushButton:hover {"
-                                        "    background-color: #e74c3c;"
-                                        "    color: #ffffff;"
-                                        "    border: 1px solid #e74c3c;"
-                                        "}"
-                                        "QPushButton:pressed {"
-                                        "    background-color: #c0392b;"
-                                        "}");
-            deleteButton->setToolTip("Delete this character hotkey");
-            deleteButton->setCursor(Qt::PointingHandCursor);
-
-            connect(
-                deleteButton, &QPushButton::clicked, [this, deleteButton]() {
-                  for (int i = 0; i < m_characterHotkeysTable->rowCount();
-                       ++i) {
-                    QWidget *widget = m_characterHotkeysTable->cellWidget(i, 2);
-                    if (widget &&
-                        widget->findChild<QPushButton *>() == deleteButton) {
-                      m_characterHotkeysTable->removeRow(i);
-                      break;
-                    }
-                  }
-                });
-
-            deleteLayout->addWidget(deleteButton);
-            m_characterHotkeysTable->setCellWidget(row, 2, deleteContainer);
+            QWidget *formRow =
+                createCharacterHotkeyFormRow(characterName, vkCode, 0);
+            int count = m_characterHotkeysLayout->count();
+            m_characterHotkeysLayout->insertWidget(count - 1, formRow);
           }
         }
       }
+
+      // Update scroll area height after legacy migration
+      updateCharacterHotkeysScrollHeight();
     }
   }
 }
@@ -7942,24 +8074,26 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
   };
 
   QStringList characterHotkeys;
-  qDebug() << "  Checking character hotkeys table, rows:"
-           << m_characterHotkeysTable->rowCount();
-  for (int row = 0; row < m_characterHotkeysTable->rowCount(); ++row) {
-    QLineEdit *nameEdit =
-        qobject_cast<QLineEdit *>(m_characterHotkeysTable->cellWidget(row, 0));
+  int charFormRowCount = m_characterHotkeysLayout->count() - 1;
+  qDebug() << "  Checking character hotkeys form rows:" << charFormRowCount;
+  for (int i = 0; i < charFormRowCount; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_characterHotkeysLayout->itemAt(i)->widget());
 
-    QWidget *hotkeyWidget = m_characterHotkeysTable->cellWidget(row, 1);
-    HotkeyCapture *hotkeyCapture =
-        hotkeyWidget ? hotkeyWidget->findChild<HotkeyCapture *>() : nullptr;
+    if (!rowWidget) {
+      continue;
+    }
 
-    qDebug() << "    Row" << row << "nameEdit:" << (nameEdit ? "valid" : "null")
-             << "hotkeyWidget:" << (hotkeyWidget ? "valid" : "null")
+    QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+    HotkeyCapture *hotkeyCapture = rowWidget->findChild<HotkeyCapture *>();
+
+    qDebug() << "    Row" << i << "nameEdit:" << (nameEdit ? "valid" : "null")
              << "hotkeyCapture:" << (hotkeyCapture ? "valid" : "null");
 
     if (nameEdit && hotkeyCapture) {
       QString charName = nameEdit->text().trimmed();
       QString desc = charName.isEmpty()
-                         ? QString("Character: (unnamed row %1)").arg(row + 1)
+                         ? QString("Character: (unnamed row %1)").arg(i + 1)
                          : QString("Character: %1").arg(charName);
 
       if (!charName.isEmpty()) {
@@ -7971,28 +8105,34 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
 
   addHotkeysFromCapture(m_suspendHotkeyCapture, "Suspend Hotkeys");
 
-  for (int row = 0; row < m_cycleGroupsTable->rowCount(); ++row) {
-    QLineEdit *nameEdit =
-        qobject_cast<QLineEdit *>(m_cycleGroupsTable->cellWidget(row, 0));
+  int cycleFormRowCount = m_cycleGroupsLayout->count() - 1;
+  for (int i = 0; i < cycleFormRowCount; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_cycleGroupsLayout->itemAt(i)->widget());
 
-    QWidget *backwardWidget = m_cycleGroupsTable->cellWidget(row, 2);
-    QWidget *forwardWidget = m_cycleGroupsTable->cellWidget(row, 3);
-    HotkeyCapture *backwardCapture =
-        backwardWidget ? backwardWidget->findChild<HotkeyCapture *>() : nullptr;
-    HotkeyCapture *forwardCapture =
-        forwardWidget ? forwardWidget->findChild<HotkeyCapture *>() : nullptr;
+    if (!rowWidget) {
+      continue;
+    }
 
-    if (nameEdit) {
+    QList<QLineEdit *> lineEdits = rowWidget->findChildren<QLineEdit *>();
+    QList<HotkeyCapture *> hotkeyCaptures =
+        rowWidget->findChildren<HotkeyCapture *>();
+
+    if (!lineEdits.isEmpty() && hotkeyCaptures.size() >= 2) {
+      QLineEdit *nameEdit = lineEdits[0];
+      HotkeyCapture *backwardCapture = hotkeyCaptures[0];
+      HotkeyCapture *forwardCapture = hotkeyCaptures[1];
+
       QString groupName = nameEdit->text().trimmed();
       QString backwardDesc =
           groupName.isEmpty()
               ? QString("Cycle Group (unnamed row %1): Cycle Backward")
-                    .arg(row + 1)
+                    .arg(i + 1)
               : QString("Group '%1': Cycle Backward").arg(groupName);
       QString forwardDesc =
           groupName.isEmpty()
               ? QString("Cycle Group (unnamed row %1): Cycle Forward")
-                    .arg(row + 1)
+                    .arg(i + 1)
               : QString("Group '%1': Cycle Forward").arg(groupName);
 
       addHotkeysFromCapture(backwardCapture, backwardDesc);
@@ -8116,22 +8256,27 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
     capture->setHasConflict(hasConflict);
   };
 
-  for (int row = 0; row < m_characterHotkeysTable->rowCount(); ++row) {
-    QWidget *hotkeyWidget = m_characterHotkeysTable->cellWidget(row, 1);
+  for (int i = 0; i < m_characterHotkeysLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_characterHotkeysLayout->itemAt(i)->widget());
     HotkeyCapture *capture =
-        hotkeyWidget ? hotkeyWidget->findChild<HotkeyCapture *>() : nullptr;
+        rowWidget ? rowWidget->findChild<HotkeyCapture *>() : nullptr;
     markIfConflicting(capture);
   }
 
-  for (int row = 0; row < m_cycleGroupsTable->rowCount(); ++row) {
-    QWidget *backwardWidget = m_cycleGroupsTable->cellWidget(row, 2);
-    QWidget *forwardWidget = m_cycleGroupsTable->cellWidget(row, 3);
-    HotkeyCapture *backwardCapture =
-        backwardWidget ? backwardWidget->findChild<HotkeyCapture *>() : nullptr;
-    HotkeyCapture *forwardCapture =
-        forwardWidget ? forwardWidget->findChild<HotkeyCapture *>() : nullptr;
-    markIfConflicting(backwardCapture);
-    markIfConflicting(forwardCapture);
+  for (int i = 0; i < m_cycleGroupsLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_cycleGroupsLayout->itemAt(i)->widget());
+    if (!rowWidget) {
+      continue;
+    }
+
+    QList<HotkeyCapture *> hotkeyCaptures =
+        rowWidget->findChildren<HotkeyCapture *>();
+    if (hotkeyCaptures.size() >= 2) {
+      markIfConflicting(hotkeyCaptures[0]); // backward
+      markIfConflicting(hotkeyCaptures[1]); // forward
+    }
   }
 
   markIfConflicting(m_suspendHotkeyCapture);
@@ -8164,22 +8309,27 @@ void ConfigDialog::clearHotkeyConflictVisuals() {
     }
   };
 
-  for (int row = 0; row < m_characterHotkeysTable->rowCount(); ++row) {
-    QWidget *hotkeyWidget = m_characterHotkeysTable->cellWidget(row, 1);
+  for (int i = 0; i < m_characterHotkeysLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_characterHotkeysLayout->itemAt(i)->widget());
     HotkeyCapture *capture =
-        hotkeyWidget ? hotkeyWidget->findChild<HotkeyCapture *>() : nullptr;
+        rowWidget ? rowWidget->findChild<HotkeyCapture *>() : nullptr;
     clearConflict(capture);
   }
 
-  for (int row = 0; row < m_cycleGroupsTable->rowCount(); ++row) {
-    QWidget *backwardWidget = m_cycleGroupsTable->cellWidget(row, 2);
-    QWidget *forwardWidget = m_cycleGroupsTable->cellWidget(row, 3);
-    HotkeyCapture *backwardCapture =
-        backwardWidget ? backwardWidget->findChild<HotkeyCapture *>() : nullptr;
-    HotkeyCapture *forwardCapture =
-        forwardWidget ? forwardWidget->findChild<HotkeyCapture *>() : nullptr;
-    clearConflict(backwardCapture);
-    clearConflict(forwardCapture);
+  for (int i = 0; i < m_cycleGroupsLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_cycleGroupsLayout->itemAt(i)->widget());
+    if (!rowWidget) {
+      continue;
+    }
+
+    QList<HotkeyCapture *> hotkeyCaptures =
+        rowWidget->findChildren<HotkeyCapture *>();
+    if (hotkeyCaptures.size() >= 2) {
+      clearConflict(hotkeyCaptures[0]); // backward
+      clearConflict(hotkeyCaptures[1]); // forward
+    }
   }
 
   clearConflict(m_suspendHotkeyCapture);
