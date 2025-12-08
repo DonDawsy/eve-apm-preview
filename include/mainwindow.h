@@ -72,7 +72,6 @@ private:
   QHash<QString, HWND> m_lastActivatedWindowByGroup;
   QHash<HWND, qint64> m_windowCreationTimes;
 
-  // For multi-character hotkey cycling - key is concatenated character names
   QHash<QString, int> m_characterHotkeyCycleIndex;
   QHash<QString, HWND> m_lastActivatedCharacterHotkeyWindow;
 

@@ -48,6 +48,8 @@ private slots:
   void onEditCycleGroupCharacters();
   void onAddNeverMinimizeCharacter();
   void onPopulateNeverMinimize();
+  void onAddHiddenCharacter();
+  void onPopulateHiddenCharacters();
   void onGlobalSearchChanged(const QString &text);
   void onResetAppearanceDefaults();
   void onResetHotkeysDefaults();
@@ -193,6 +195,9 @@ private:
   QTableWidget *m_neverMinimizeTable;
   QPushButton *m_addNeverMinimizeButton;
   QPushButton *m_populateNeverMinimizeButton;
+  QTableWidget *m_hiddenCharactersTable;
+  QPushButton *m_addHiddenCharacterButton;
+  QPushButton *m_populateHiddenCharactersButton;
   QCheckBox *m_saveClientLocationCheck;
   QPushButton *m_setClientLocationsButton;
   QLabel *m_setClientLocationsLabel;

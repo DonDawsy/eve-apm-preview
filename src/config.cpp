@@ -117,6 +117,9 @@ void Config::loadCacheFromSettings() {
   m_cachedNeverMinimizeCharacters =
       m_settings->value(KEY_WINDOW_NEVER_MINIMIZE_CHARACTERS, QStringList())
           .toStringList();
+  m_cachedHiddenCharacters =
+      m_settings->value(KEY_THUMBNAIL_HIDDEN_CHARACTERS, QStringList())
+          .toStringList();
   m_cachedSaveClientLocation = m_settings
                                    ->value(KEY_WINDOW_SAVE_CLIENT_LOCATION,
                                            DEFAULT_WINDOW_SAVE_CLIENT_LOCATION)
@@ -486,6 +489,34 @@ void Config::removeNeverMinimizeCharacter(const QString &characterName) {
 
 bool Config::isCharacterNeverMinimize(const QString &characterName) const {
   QStringList characters = neverMinimizeCharacters();
+  return characters.contains(characterName, Qt::CaseInsensitive);
+}
+
+QStringList Config::hiddenCharacters() const {
+  return m_cachedHiddenCharacters;
+}
+
+void Config::setHiddenCharacters(const QStringList &characters) {
+  m_settings->setValue(KEY_THUMBNAIL_HIDDEN_CHARACTERS, characters);
+  m_cachedHiddenCharacters = characters;
+}
+
+void Config::addHiddenCharacter(const QString &characterName) {
+  QStringList characters = hiddenCharacters();
+  if (!characters.contains(characterName, Qt::CaseInsensitive)) {
+    characters.append(characterName);
+    setHiddenCharacters(characters);
+  }
+}
+
+void Config::removeHiddenCharacter(const QString &characterName) {
+  QStringList characters = hiddenCharacters();
+  characters.removeAll(characterName);
+  setHiddenCharacters(characters);
+}
+
+bool Config::isCharacterHidden(const QString &characterName) const {
+  QStringList characters = hiddenCharacters();
   return characters.contains(characterName, Qt::CaseInsensitive);
 }
 

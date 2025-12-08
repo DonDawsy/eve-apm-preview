@@ -537,7 +537,16 @@ void MainWindow::refreshWindows() {
         }
       }
 
-      thumbWidget->show();
+      bool shouldHide = false;
+      if (isEVEClient && !characterName.isEmpty()) {
+        shouldHide = cfg.isCharacterHidden(characterName);
+      }
+
+      if (shouldHide) {
+        thumbWidget->hide();
+      } else {
+        thumbWidget->show();
+      }
 
       if (hasSavedPosition) {
         QRect thumbRect(savedPos, QSize(actualThumbWidth, actualThumbHeight));
@@ -590,8 +599,9 @@ void MainWindow::refreshWindows() {
     } else {
       QString lastTitle = m_lastKnownTitles.value(window.handle, "");
       if (lastTitle != window.title) {
-        thumbWidget->setTitle(window.title);
         m_lastKnownTitles.insert(window.handle, window.title);
+
+        thumbWidget->setTitle(window.title);
 
         if (isEVEClient) {
           QString lastCharacterName =
@@ -603,6 +613,9 @@ void MainWindow::refreshWindows() {
 
           if (wasNotLoggedIn && isNowLoggedIn) {
             thumbWidget->setCharacterName(characterName);
+
+            m_characterToWindow[characterName] = window.handle;
+            m_windowToCharacter[window.handle] = characterName;
 
             QString cachedSystem = m_characterSystems.value(characterName);
             if (!cachedSystem.isEmpty()) {
@@ -625,12 +638,15 @@ void MainWindow::refreshWindows() {
                 }
               }
             }
+
             m_needsMappingUpdate = true;
           } else if (wasLoggedIn && isNowNotLoggedIn) {
             QString newDisplayName =
                 showNotLoggedInOverlay ? NOT_LOGGED_IN_TEXT : "";
             thumbWidget->setCharacterName(newDisplayName);
             thumbWidget->setSystemName(QString());
+
+            thumbWidget->show();
 
             if (!cfg.preserveLogoutPositions()) {
               QPoint pos = calculateNotLoggedInPosition(notLoggedInCount);
@@ -642,22 +658,29 @@ void MainWindow::refreshWindows() {
         } else {
           thumbWidget->setCharacterName(showNonEVEOverlay ? window.title : "");
         }
-      }
+      } 
 
       if (isEVEClient && characterName.isEmpty()) {
         QString newDisplayName =
             showNotLoggedInOverlay ? NOT_LOGGED_IN_TEXT : "";
         thumbWidget->setCharacterName(newDisplayName);
         thumbWidget->setSystemName(QString());
+        thumbWidget->show();
       } else if (!isEVEClient) {
         thumbWidget->setCharacterName(showNonEVEOverlay ? window.title : "");
+      } else if (isEVEClient && !characterName.isEmpty()) {
+        if (cfg.isCharacterHidden(characterName)) {
+          thumbWidget->hide();
+        } else {
+          thumbWidget->show();
+        }
       }
     }
   }
 
   updateSnappingLists();
-  updateActiveWindow();
   updateCharacterMappings();
+  updateActiveWindow();
 }
 
 void MainWindow::updateSnappingLists() {
@@ -792,6 +815,15 @@ void MainWindow::handleWindowTitleChange(HWND hwnd) {
   const Config &cfg = Config::instance();
 
   if (wasNotLoggedIn && isNowLoggedIn) {
+    if (cfg.isCharacterHidden(newCharacterName)) {
+      thumbWidget->hide();
+      m_characterToWindow[newCharacterName] = hwnd;
+      m_windowToCharacter[hwnd] = newCharacterName;
+      m_needsMappingUpdate = true;
+      updateCharacterMappings();
+      return;
+    }
+
     thumbWidget->setCharacterName(newCharacterName);
 
     QString cachedSystem = m_characterSystems.value(newCharacterName);
@@ -936,7 +968,13 @@ void MainWindow::updateActiveWindow() {
       }
     }
 
-    if (hideActive && isActive) {
+    QString characterName = m_windowToCharacter.value(hwnd);
+    bool isHidden =
+        !characterName.isEmpty() && cfg.isCharacterHidden(characterName);
+
+    if (isHidden) {
+      it.value()->hide();
+    } else if (hideActive && isActive) {
       it.value()->hide();
     } else {
       it.value()->show();
@@ -964,7 +1002,6 @@ void MainWindow::onThumbnailClicked(quintptr windowId) {
 }
 
 void MainWindow::updateAllCycleIndices(HWND hwnd) {
-  // Update cycle group indices
   QHash<QString, CycleGroup> allGroups = hotkeyManager->getAllCycleGroups();
   for (auto it = allGroups.begin(); it != allGroups.end(); ++it) {
     const QString &groupName = it.key();
@@ -979,16 +1016,13 @@ void MainWindow::updateAllCycleIndices(HWND hwnd) {
     }
   }
 
-  // Update multi-character hotkey cycle indices
   updateCharacterHotkeyCycleIndices(hwnd);
 
-  // Update not-logged-in cycle index
   int notLoggedInIndex = m_notLoggedInWindows.indexOf(hwnd);
   if (notLoggedInIndex != -1) {
     m_notLoggedInCycleIndex = notLoggedInIndex;
   }
 
-  // Update non-EVE cycle index
   int nonEVEIndex = m_nonEVEWindows.indexOf(hwnd);
   if (nonEVEIndex != -1) {
     m_nonEVECycleIndex = nonEVEIndex;
@@ -1001,13 +1035,11 @@ void MainWindow::updateCharacterHotkeyCycleIndices(HWND hwnd) {
     return;
   }
 
-  // Find all hotkey groups that contain this character
   QHash<QString, QVector<HotkeyBinding>> allCharacterMultiHotkeys =
       hotkeyManager->getAllCharacterMultiHotkeys();
   QHash<QString, HotkeyBinding> allCharacterHotkeys =
       hotkeyManager->getAllCharacterHotkeys();
 
-  // Build groups of characters that share hotkeys
   QHash<HotkeyBinding, QVector<QString>> bindingToCharacters;
 
   for (auto it = allCharacterMultiHotkeys.begin();
@@ -1032,14 +1064,12 @@ void MainWindow::updateCharacterHotkeyCycleIndices(HWND hwnd) {
     }
   }
 
-  // Update indices for any groups containing this character
   for (auto it = bindingToCharacters.begin(); it != bindingToCharacters.end();
        ++it) {
     const QVector<QString> &characterNames = it.value();
 
     if (characterNames.size() > 1 &&
         characterNames.contains(activatedCharacter)) {
-      // Build the window list for this group
       QVector<HWND> windowsToCycle;
       for (const QString &charName : characterNames) {
         HWND characterHwnd = hotkeyManager->getWindowForCharacter(charName);
@@ -1048,19 +1078,16 @@ void MainWindow::updateCharacterHotkeyCycleIndices(HWND hwnd) {
         }
       }
 
-      // Sort by creation time
       std::sort(windowsToCycle.begin(), windowsToCycle.end(),
                 [this](HWND a, HWND b) {
                   return m_windowCreationTimes.value(a, 0) <
                          m_windowCreationTimes.value(b, 0);
                 });
 
-      // Create group key
       QVector<QString> sortedNames = characterNames;
       std::sort(sortedNames.begin(), sortedNames.end());
       QString groupKey = sortedNames.join("|");
 
-      // Update the index
       int index = windowsToCycle.indexOf(hwnd);
       if (index != -1) {
         m_characterHotkeyCycleIndex[groupKey] = index;
@@ -1281,7 +1308,6 @@ void MainWindow::handleNonEVECycleBackward() {
 
 void MainWindow::handleCharacterHotkeyCycle(
     const QVector<QString> &characterNames) {
-  // Build list of windows for these characters, sorted by creation time
   QVector<HWND> windowsToCycle;
 
   for (const QString &characterName : characterNames) {
@@ -1295,19 +1321,16 @@ void MainWindow::handleCharacterHotkeyCycle(
     return;
   }
 
-  // Sort by window creation time (client open order)
   std::sort(windowsToCycle.begin(), windowsToCycle.end(),
             [this](HWND a, HWND b) {
               return m_windowCreationTimes.value(a, 0) <
                      m_windowCreationTimes.value(b, 0);
             });
 
-  // Create a unique key for this hotkey group (sorted character names)
   QVector<QString> sortedNames = characterNames;
   std::sort(sortedNames.begin(), sortedNames.end());
   QString groupKey = sortedNames.join("|");
 
-  // Find current index
   int currentIndex = -1;
   HWND lastActivatedWindow =
       m_lastActivatedCharacterHotkeyWindow.value(groupKey, nullptr);
@@ -1324,7 +1347,6 @@ void MainWindow::handleCharacterHotkeyCycle(
     }
   }
 
-  // Move to next window
   currentIndex++;
   if (currentIndex >= windowsToCycle.size()) {
     currentIndex = 0;
@@ -1683,6 +1705,28 @@ void MainWindow::applySettings() {
     thumb->forceOverlayRender();
 
     thumb->QWidget::update();
+
+    if (isEVEClient) {
+      QString characterName = m_windowToCharacter.value(hwnd);
+      if (!characterName.isEmpty() && cfg.isCharacterHidden(characterName)) {
+        thumb->hide();
+      } else {
+
+        if (thumb->isHidden()) {
+          wchar_t titleBuf[256];
+          if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
+            QString currentTitle = QString::fromWCharArray(titleBuf);
+            QString charName = OverlayInfo::extractCharacterName(currentTitle);
+            if (!charName.isEmpty()) {
+              thumb->setTitle(currentTitle);
+              thumb->setCharacterName(charName);
+            }
+          }
+        }
+
+        thumb->show();
+      }
+    }
   }
 
   if (m_chatLogReader) {

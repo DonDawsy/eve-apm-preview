@@ -408,10 +408,8 @@ void HotkeyCapture::setHasConflict(bool hasConflict) {
 
   qDebug() << "  Updating border style";
 
-  // Use property to add visual indicator while preserving base style
   setProperty("hasConflict", hasConflict);
 
-  // Force style refresh
   style()->unpolish(this);
   style()->polish(this);
 

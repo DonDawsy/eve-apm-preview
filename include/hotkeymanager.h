@@ -42,7 +42,6 @@ struct HotkeyBinding {
   bool operator==(const HotkeyBinding &other) const;
 };
 
-/// Hash function for HotkeyBinding to enable use as QHash key
 inline size_t qHash(const HotkeyBinding &key, size_t seed = 0) {
   return qHashMulti(seed, key.keyCode, key.ctrl, key.alt, key.shift,
                     key.enabled);
@@ -152,7 +151,7 @@ public:
 signals:
   void characterHotkeyPressed(QString characterName);
   void characterHotkeyCyclePressed(
-      QVector<QString> characterNames); // Multiple characters on same hotkey
+      QVector<QString> characterNames); 
   void namedCycleForwardPressed(QString groupName);
   void namedCycleBackwardPressed(QString groupName);
   void notLoggedInCycleForwardPressed();
@@ -168,7 +167,7 @@ private:
   QHash<QString, QVector<HotkeyBinding>> m_characterMultiHotkeys;
   QHash<int, QString> m_hotkeyIdToCharacter;
   QHash<int, QVector<QString>>
-      m_hotkeyIdToCharacters; // Maps hotkey ID to multiple characters
+      m_hotkeyIdToCharacters; 
   QHash<int, QString> m_hotkeyIdToCycleGroup;
   QHash<int, bool> m_hotkeyIdIsForward;
   QHash<int, int> m_wildcardAliases;

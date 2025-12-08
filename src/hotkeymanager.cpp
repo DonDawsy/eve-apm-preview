@@ -173,10 +173,8 @@ bool HotkeyManager::registerHotkeys() {
     return true;
   }
 
-  // Group characters by their hotkey bindings
   QHash<HotkeyBinding, QVector<QString>> bindingToCharacters;
 
-  // Process multi-hotkeys first
   for (auto it = m_characterMultiHotkeys.begin();
        it != m_characterMultiHotkeys.end(); ++it) {
     const QString &characterName = it.key();
@@ -189,7 +187,6 @@ bool HotkeyManager::registerHotkeys() {
     }
   }
 
-  // Process legacy single hotkeys (skip if character already has multi-hotkeys)
   for (auto it = m_characterHotkeys.begin(); it != m_characterHotkeys.end();
        ++it) {
     const QString &characterName = it.key();
@@ -205,7 +202,6 @@ bool HotkeyManager::registerHotkeys() {
     bindingToCharacters[binding].append(characterName);
   }
 
-  // Register each unique binding once, mapping to all characters that use it
   for (auto it = bindingToCharacters.begin(); it != bindingToCharacters.end();
        ++it) {
     const HotkeyBinding &binding = it.key();
@@ -214,10 +210,8 @@ bool HotkeyManager::registerHotkeys() {
     int hotkeyId;
     if (registerHotkey(binding, hotkeyId)) {
       if (characters.size() == 1) {
-        // Single character - use legacy mapping for compatibility
         m_hotkeyIdToCharacter.insert(hotkeyId, characters.first());
       } else {
-        // Multiple characters - use new multi-character mapping
         m_hotkeyIdToCharacters.insert(hotkeyId, characters);
       }
     }
@@ -377,19 +371,16 @@ bool HotkeyManager::nativeEventFilter(void *message, long *result) {
       return false;
     }
 
-    // Handle single-character hotkeys (legacy behavior)
     if (s_instance->m_hotkeyIdToCharacter.contains(hotkeyId)) {
       QString characterName = s_instance->m_hotkeyIdToCharacter.value(hotkeyId);
       emit s_instance->characterHotkeyPressed(characterName);
       return false;
     }
 
-    // Handle multi-character hotkeys (cycling behavior)
     if (s_instance->m_hotkeyIdToCharacters.contains(hotkeyId)) {
       const QVector<QString> &characterNames =
           s_instance->m_hotkeyIdToCharacters.value(hotkeyId);
 
-      // Emit signal with all character names - MainWindow will handle cycling
       emit s_instance->characterHotkeyCyclePressed(characterNames);
       return false;
     }

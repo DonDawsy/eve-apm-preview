@@ -71,7 +71,6 @@ ConfigDialog::ConfigDialog(QWidget *parent)
   setWindowTitle("Settings");
   resize(1050, 800);
 
-  // Perform initial hotkey validation
   QTimer::singleShot(0, this, &ConfigDialog::validateAllHotkeys);
 }
 
@@ -1339,6 +1338,47 @@ void ConfigDialog::createBehaviorPage() {
 
   windowSectionLayout->addLayout(neverMinimizeButtonLayout);
 
+  QLabel *hiddenCharactersLabel = new QLabel("Hidden Characters:");
+  hiddenCharactersLabel->setStyleSheet(StyleSheet::getSubLabelStyleSheet());
+  windowSectionLayout->addWidget(hiddenCharactersLabel);
+
+  m_hiddenCharactersTable = new QTableWidget(0, 2);
+  m_hiddenCharactersTable->setHorizontalHeaderLabels({"Character Name", ""});
+  m_hiddenCharactersTable->horizontalHeader()->setSectionResizeMode(
+      0, QHeaderView::Stretch);
+  m_hiddenCharactersTable->horizontalHeader()->setSectionResizeMode(
+      1, QHeaderView::Fixed);
+  m_hiddenCharactersTable->setColumnWidth(1, 40);
+  m_hiddenCharactersTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+  m_hiddenCharactersTable->setMinimumHeight(150);
+  m_hiddenCharactersTable->setMaximumHeight(250);
+  m_hiddenCharactersTable->verticalHeader()->setDefaultSectionSize(40);
+  m_hiddenCharactersTable->setFocusPolicy(Qt::NoFocus);
+  m_hiddenCharactersTable->setStyleSheet(StyleSheet::getTableStyleSheet());
+  windowSectionLayout->addWidget(m_hiddenCharactersTable);
+
+  QHBoxLayout *hiddenCharactersButtonLayout = new QHBoxLayout();
+  m_addHiddenCharacterButton = new QPushButton("Add Character");
+  m_populateHiddenCharactersButton =
+      new QPushButton("Populate from Open Clients");
+
+  QString hiddenCharactersButtonStyle =
+      StyleSheet::getSecondaryButtonStyleSheet();
+
+  m_addHiddenCharacterButton->setStyleSheet(hiddenCharactersButtonStyle);
+  m_populateHiddenCharactersButton->setStyleSheet(hiddenCharactersButtonStyle);
+
+  connect(m_addHiddenCharacterButton, &QPushButton::clicked, this,
+          &ConfigDialog::onAddHiddenCharacter);
+  connect(m_populateHiddenCharactersButton, &QPushButton::clicked, this,
+          &ConfigDialog::onPopulateHiddenCharacters);
+
+  hiddenCharactersButtonLayout->addWidget(m_addHiddenCharacterButton);
+  hiddenCharactersButtonLayout->addWidget(m_populateHiddenCharactersButton);
+  hiddenCharactersButtonLayout->addStretch();
+
+  windowSectionLayout->addLayout(hiddenCharactersButtonLayout);
+
   layout->addWidget(windowSection);
 
   connect(m_minimizeInactiveCheck, &QCheckBox::toggled, this,
@@ -2370,6 +2410,12 @@ void ConfigDialog::setupBindings() {
       QStringList()));
 
   m_bindingManager.addBinding(BindingHelpers::bindStringListTable(
+      m_hiddenCharactersTable, 0,
+      [&config]() { return config.hiddenCharacters(); },
+      [&config](const QStringList &list) { config.setHiddenCharacters(list); },
+      QStringList()));
+
+  m_bindingManager.addBinding(BindingHelpers::bindStringListTable(
       m_processNamesTable, 0, [&config]() { return config.processNames(); },
       [&config](const QStringList &list) { config.setProcessNames(list); },
       QStringList() << "exefile.exe"));
@@ -2852,7 +2898,6 @@ void ConfigDialog::saveSettings() {
 }
 
 void ConfigDialog::onApplyClicked() {
-  // Check for hotkey conflicts before saving
   QVector<HotkeyConflict> conflicts = checkHotkeyConflicts();
   if (!conflicts.isEmpty()) {
     showConflictDialog(conflicts);
@@ -2868,7 +2913,6 @@ void ConfigDialog::onApplyClicked() {
 }
 
 void ConfigDialog::onOkClicked() {
-  // Check for hotkey conflicts before saving
   QVector<HotkeyConflict> conflicts = checkHotkeyConflicts();
   if (!conflicts.isEmpty()) {
     showConflictDialog(conflicts);
@@ -3153,7 +3197,6 @@ void ConfigDialog::onAddCharacterHotkey() {
       QWidget *widget = m_characterHotkeysTable->cellWidget(i, 2);
       if (widget && widget->findChild<QPushButton *>() == deleteButton) {
         m_characterHotkeysTable->removeRow(i);
-        // Revalidate after removing a row
         onHotkeyChanged();
         break;
       }
@@ -3315,7 +3358,6 @@ void ConfigDialog::onPopulateFromOpenWindows() {
         QWidget *widget = m_characterHotkeysTable->cellWidget(i, 2);
         if (widget && widget->findChild<QPushButton *>() == deleteButton) {
           m_characterHotkeysTable->removeRow(i);
-          // Revalidate after removing a row
           onHotkeyChanged();
           break;
         }
@@ -3328,7 +3370,6 @@ void ConfigDialog::onPopulateFromOpenWindows() {
     addedCount++;
   }
 
-  // Validate after populating
   if (addedCount > 0) {
     onHotkeyChanged();
   }
@@ -3551,7 +3592,6 @@ void ConfigDialog::onAddCycleGroup() {
       QWidget *widget = m_cycleGroupsTable->cellWidget(i, 6);
       if (widget && widget->findChild<QPushButton *>() == deleteButton) {
         m_cycleGroupsTable->removeRow(i);
-        // Revalidate after removing a row
         onHotkeyChanged();
         break;
       }
@@ -3905,6 +3945,166 @@ void ConfigDialog::onPopulateNeverMinimize() {
     QMessageBox::information(
         this, "Characters Added",
         QString("Added %1 character%2 to the never minimize list.")
+            .arg(addedCount)
+            .arg(addedCount == 1 ? "" : "s"));
+  } else {
+    QMessageBox::information(this, "No New Characters",
+                             "All open characters are already in the list.");
+  }
+}
+
+void ConfigDialog::onAddHiddenCharacter() {
+  int row = m_hiddenCharactersTable->rowCount();
+  m_hiddenCharactersTable->insertRow(row);
+
+  QTableWidgetItem *nameItem = new QTableWidgetItem("");
+  nameItem->setFlags(nameItem->flags() | Qt::ItemIsEditable);
+  m_hiddenCharactersTable->setItem(row, 0, nameItem);
+
+  QWidget *buttonContainer = new QWidget();
+  QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
+  buttonLayout->setContentsMargins(0, 0, 0, 0);
+
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(24, 24);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 16px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+
+  connect(deleteButton, &QPushButton::clicked, this,
+          [this, row]() { m_hiddenCharactersTable->removeRow(row); });
+
+  buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
+  m_hiddenCharactersTable->setCellWidget(row, 1, buttonContainer);
+
+  m_hiddenCharactersTable->editItem(nameItem);
+
+  m_hiddenCharactersTable->scrollToBottom();
+}
+
+void ConfigDialog::onPopulateHiddenCharacters() {
+  WindowCapture capture;
+  QVector<WindowInfo> windows = capture.getEVEWindows();
+
+  if (windows.isEmpty()) {
+    QMessageBox::information(this, "No Windows Found",
+                             "No EVE Online windows are currently open.");
+    return;
+  }
+
+  QMessageBox msgBox(this);
+  msgBox.setWindowTitle("Populate Hidden Characters List");
+  msgBox.setText(QString("Found %1 open EVE Online window%2.")
+                     .arg(windows.count())
+                     .arg(windows.count() == 1 ? "" : "s"));
+  msgBox.setInformativeText(
+      "Do you want to clear existing entries or add to them?");
+
+  QPushButton *clearButton =
+      msgBox.addButton("Clear & Replace", QMessageBox::ActionRole);
+  QPushButton *addButton =
+      msgBox.addButton("Add to Existing", QMessageBox::ActionRole);
+  QPushButton *cancelButton =
+      msgBox.addButton("Cancel", QMessageBox::RejectRole);
+
+  msgBox.setStyleSheet(StyleSheet::getMessageBoxStyleSheet());
+
+  msgBox.exec();
+
+  if (msgBox.clickedButton() == cancelButton) {
+    return;
+  }
+
+  bool clearExisting = (msgBox.clickedButton() == clearButton);
+
+  QSet<QString> existingCharacters;
+  if (!clearExisting) {
+    for (int row = 0; row < m_hiddenCharactersTable->rowCount(); ++row) {
+      QTableWidgetItem *item = m_hiddenCharactersTable->item(row, 0);
+      if (item) {
+        QString charName = item->text().trimmed();
+        if (!charName.isEmpty()) {
+          existingCharacters.insert(charName);
+        }
+      }
+    }
+  } else {
+    m_hiddenCharactersTable->setRowCount(0);
+  }
+
+  int addedCount = 0;
+  for (const WindowInfo &window : windows) {
+    QString characterName = window.title;
+    if (characterName.startsWith("EVE - ")) {
+      characterName = characterName.mid(6);
+    } else {
+      continue;
+    }
+
+    if (characterName.trimmed().isEmpty()) {
+      continue;
+    }
+
+    if (!clearExisting && existingCharacters.contains(characterName)) {
+      continue;
+    }
+
+    int row = m_hiddenCharactersTable->rowCount();
+    m_hiddenCharactersTable->insertRow(row);
+
+    QTableWidgetItem *nameItem = new QTableWidgetItem(characterName);
+    nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
+    m_hiddenCharactersTable->setItem(row, 0, nameItem);
+
+    QWidget *buttonContainer = new QWidget();
+    QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
+    buttonLayout->setContentsMargins(0, 0, 0, 0);
+
+    QPushButton *deleteButton = new QPushButton("×");
+    deleteButton->setFixedSize(24, 24);
+    deleteButton->setStyleSheet("QPushButton {"
+                                "    background-color: #3a3a3a;"
+                                "    color: #ffffff;"
+                                "    border: 1px solid #555555;"
+                                "    border-radius: 4px;"
+                                "    font-size: 16px;"
+                                "    font-weight: bold;"
+                                "    padding: 0px;"
+                                "}"
+                                "QPushButton:hover {"
+                                "    background-color: #e74c3c;"
+                                "    border: 1px solid #c0392b;"
+                                "}"
+                                "QPushButton:pressed {"
+                                "    background-color: #c0392b;"
+                                "}");
+
+    connect(deleteButton, &QPushButton::clicked, this,
+            [this, row]() { m_hiddenCharactersTable->removeRow(row); });
+
+    buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
+    m_hiddenCharactersTable->setCellWidget(row, 1, buttonContainer);
+
+    addedCount++;
+  }
+
+  if (addedCount > 0) {
+    QMessageBox::information(
+        this, "Characters Added",
+        QString("Added %1 character%2 to the hidden characters list.")
             .arg(addedCount)
             .arg(addedCount == 1 ? "" : "s"));
   } else {
@@ -7038,7 +7238,6 @@ void ConfigDialog::createProfileToolbar() {
 
             if (key == 0) {
               Config::instance().clearProfileHotkey(currentProfile);
-              // Validate hotkeys when profile hotkey is cleared
               onHotkeyChanged();
               return;
             }
@@ -7060,7 +7259,6 @@ void ConfigDialog::createProfileToolbar() {
 
             Config::instance().setProfileHotkey(currentProfile, key, modifiers);
 
-            // Validate hotkeys when profile hotkey changes
             onHotkeyChanged();
           });
   toolbarLayout->addWidget(m_profileHotkeyCapture);
@@ -7631,17 +7829,14 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
 
   qDebug() << "ConfigDialog::checkHotkeyConflicts() - starting check";
 
-  // Map to store all hotkeys with their descriptions
   QHash<HotkeyBinding, QStringList> hotkeyMap;
 
-  // Helper lambda to add hotkey(s) from a HotkeyCapture widget to the map
   auto addHotkeysFromCapture = [&hotkeyMap](HotkeyCapture *capture,
                                             const QString &description) {
     if (!capture) {
       return;
     }
 
-    // Get all hotkey combinations from this capture widget
     QVector<HotkeyCombination> hotkeys = capture->getHotkeys();
     qDebug() << "  Widget for" << description << "has" << hotkeys.size()
              << "hotkeys";
@@ -7657,7 +7852,6 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
     }
   };
 
-  // Collect all character hotkeys
   QStringList characterHotkeys;
   qDebug() << "  Checking character hotkeys table, rows:"
            << m_characterHotkeysTable->rowCount();
@@ -7665,7 +7859,6 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
     QLineEdit *nameEdit =
         qobject_cast<QLineEdit *>(m_characterHotkeysTable->cellWidget(row, 0));
 
-    // The HotkeyCapture is inside a container widget
     QWidget *hotkeyWidget = m_characterHotkeysTable->cellWidget(row, 1);
     HotkeyCapture *hotkeyCapture =
         hotkeyWidget ? hotkeyWidget->findChild<HotkeyCapture *>() : nullptr;
@@ -7676,8 +7869,6 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
 
     if (nameEdit && hotkeyCapture) {
       QString charName = nameEdit->text().trimmed();
-      // Always include character hotkeys in conflict detection, even if name is
-      // empty
       QString desc = charName.isEmpty()
                          ? QString("Character: (unnamed row %1)").arg(row + 1)
                          : QString("Character: %1").arg(charName);
@@ -7689,15 +7880,12 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
     }
   }
 
-  // Collect suspend hotkey
   addHotkeysFromCapture(m_suspendHotkeyCapture, "Suspend Hotkeys");
 
-  // Collect cycle group hotkeys
   for (int row = 0; row < m_cycleGroupsTable->rowCount(); ++row) {
     QLineEdit *nameEdit =
         qobject_cast<QLineEdit *>(m_cycleGroupsTable->cellWidget(row, 0));
 
-    // The HotkeyCapture widgets are inside container widgets
     QWidget *backwardWidget = m_cycleGroupsTable->cellWidget(row, 2);
     QWidget *forwardWidget = m_cycleGroupsTable->cellWidget(row, 3);
     HotkeyCapture *backwardCapture =
@@ -7707,8 +7895,6 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
 
     if (nameEdit) {
       QString groupName = nameEdit->text().trimmed();
-      // Always include cycle group hotkeys in conflict detection, even if name
-      // is empty
       QString backwardDesc =
           groupName.isEmpty()
               ? QString("Cycle Group (unnamed row %1): Cycle Backward")
@@ -7725,20 +7911,16 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
     }
   }
 
-  // Collect not-logged-in cycle hotkeys
   addHotkeysFromCapture(m_notLoggedInForwardCapture,
                         "Not-Logged-In: Cycle Forward");
   addHotkeysFromCapture(m_notLoggedInBackwardCapture,
                         "Not-Logged-In: Cycle Backward");
 
-  // Collect non-EVE cycle hotkeys
   addHotkeysFromCapture(m_nonEVEForwardCapture, "Non-EVE: Cycle Forward");
   addHotkeysFromCapture(m_nonEVEBackwardCapture, "Non-EVE: Cycle Backward");
 
-  // Collect close all clients hotkey
   addHotkeysFromCapture(m_closeAllClientsCapture, "Close All Clients");
 
-  // Collect profile hotkey
   if (m_profileHotkeyCapture &&
       !m_profileHotkeyCapture->getHotkeys().isEmpty()) {
     QString profileName =
@@ -7749,7 +7931,6 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
 
   qDebug() << "  Total hotkeys collected:" << hotkeyMap.size();
 
-  // Now check for conflicts
   for (auto it = hotkeyMap.constBegin(); it != hotkeyMap.constEnd(); ++it) {
     const HotkeyBinding &binding = it.key();
     const QStringList &descriptions = it.value();
@@ -7758,7 +7939,6 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
              << "assignments:" << descriptions;
 
     if (descriptions.size() > 1) {
-      // Check if all conflicts are character hotkeys (which is allowed)
       bool allCharacterHotkeys = true;
       for (const QString &desc : descriptions) {
         if (!desc.startsWith("Character: ")) {
@@ -7767,11 +7947,9 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
         }
       }
 
-      // Only report as conflict if not all are character hotkeys
       if (!allCharacterHotkeys) {
         qDebug() << "    CONFLICT DETECTED:" << binding.toString() << "used by"
                  << descriptions;
-        // Create a conflict for each pair
         for (int i = 0; i < descriptions.size(); ++i) {
           for (int j = i + 1; j < descriptions.size(); ++j) {
             HotkeyConflict conflict;
@@ -7792,15 +7970,12 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
 void ConfigDialog::updateHotkeyConflictVisuals() {
   qDebug() << "ConfigDialog::updateHotkeyConflictVisuals() - starting";
 
-  // First, clear all conflict visuals
   clearHotkeyConflictVisuals();
 
-  // Get all conflicts
   QVector<HotkeyConflict> conflicts = checkHotkeyConflicts();
 
   qDebug() << "  Found" << conflicts.size() << "conflicts";
 
-  // Build set of conflicting bindings
   m_conflictingHotkeys.clear();
   for (const HotkeyConflict &conflict : conflicts) {
     m_conflictingHotkeys.insert(conflict.binding);
@@ -7808,19 +7983,16 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
 
   qDebug() << "  Unique conflicting hotkeys:" << m_conflictingHotkeys.size();
 
-  // Helper to check and mark a capture widget
   auto markIfConflicting = [this](HotkeyCapture *capture) {
     if (!capture) {
       return;
     }
 
-    // Get all hotkey combinations from this capture widget
     QVector<HotkeyCombination> hotkeys = capture->getHotkeys();
 
     qDebug() << "    Checking widget" << capture << "with" << hotkeys.size()
              << "hotkeys";
 
-    // Check if there are any valid (non-zero) hotkeys
     bool hasValidHotkey = false;
     for (const HotkeyCombination &hk : hotkeys) {
       if (hk.keyCode != 0) {
@@ -7832,14 +8004,12 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
       }
     }
 
-    // If no valid hotkeys are set, make sure there's no conflict border
     if (!hasValidHotkey) {
       qDebug() << "      Widget has no valid hotkeys, clearing conflict";
       capture->setHasConflict(false);
       return;
     }
 
-    // Check if ANY of the hotkey combinations are conflicting
     bool hasConflict = false;
     for (const HotkeyCombination &hk : hotkeys) {
       if (hk.keyCode != 0) {
@@ -7857,7 +8027,6 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
     capture->setHasConflict(hasConflict);
   };
 
-  // Mark character hotkeys
   for (int row = 0; row < m_characterHotkeysTable->rowCount(); ++row) {
     QWidget *hotkeyWidget = m_characterHotkeysTable->cellWidget(row, 1);
     HotkeyCapture *capture =
@@ -7865,7 +8034,6 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
     markIfConflicting(capture);
   }
 
-  // Mark cycle group hotkeys
   for (int row = 0; row < m_cycleGroupsTable->rowCount(); ++row) {
     QWidget *backwardWidget = m_cycleGroupsTable->cellWidget(row, 2);
     QWidget *forwardWidget = m_cycleGroupsTable->cellWidget(row, 3);
@@ -7877,7 +8045,6 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
     markIfConflicting(forwardCapture);
   }
 
-  // Mark other hotkey captures
   markIfConflicting(m_suspendHotkeyCapture);
   markIfConflicting(m_notLoggedInForwardCapture);
   markIfConflicting(m_notLoggedInBackwardCapture);
@@ -7886,7 +8053,6 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
   markIfConflicting(m_closeAllClientsCapture);
   markIfConflicting(m_profileHotkeyCapture);
 
-  // Update button states
   bool hasConflicts = !conflicts.isEmpty();
   qDebug() << "  Setting buttons enabled:" << !hasConflicts;
   if (m_okButton) {
@@ -7901,7 +8067,6 @@ void ConfigDialog::clearHotkeyConflictVisuals() {
   qDebug() << "ConfigDialog::clearHotkeyConflictVisuals() - clearing all "
               "conflict visuals";
 
-  // Helper to clear conflict from a capture widget
   auto clearConflict = [](HotkeyCapture *capture) {
     if (capture) {
       qDebug() << "    Clearing conflict for widget:" << capture
@@ -7910,7 +8075,6 @@ void ConfigDialog::clearHotkeyConflictVisuals() {
     }
   };
 
-  // Clear character hotkeys
   for (int row = 0; row < m_characterHotkeysTable->rowCount(); ++row) {
     QWidget *hotkeyWidget = m_characterHotkeysTable->cellWidget(row, 1);
     HotkeyCapture *capture =
@@ -7918,7 +8082,6 @@ void ConfigDialog::clearHotkeyConflictVisuals() {
     clearConflict(capture);
   }
 
-  // Clear cycle group hotkeys
   for (int row = 0; row < m_cycleGroupsTable->rowCount(); ++row) {
     QWidget *backwardWidget = m_cycleGroupsTable->cellWidget(row, 2);
     QWidget *forwardWidget = m_cycleGroupsTable->cellWidget(row, 3);
@@ -7930,7 +8093,6 @@ void ConfigDialog::clearHotkeyConflictVisuals() {
     clearConflict(forwardCapture);
   }
 
-  // Clear other hotkey captures
   clearConflict(m_suspendHotkeyCapture);
   clearConflict(m_notLoggedInForwardCapture);
   clearConflict(m_notLoggedInBackwardCapture);
@@ -7969,7 +8131,6 @@ void ConfigDialog::showConflictDialog(
 
   layout->addSpacing(10);
 
-  // Create a table to show conflicts
   QTableWidget *conflictTable = new QTableWidget(conflicts.size(), 3);
   conflictTable->setHorizontalHeaderLabels(
       {"Hotkey", "Function 1", "Function 2"});
@@ -7987,18 +8148,15 @@ void ConfigDialog::showConflictDialog(
   for (int i = 0; i < conflicts.size(); ++i) {
     const HotkeyConflict &conflict = conflicts[i];
 
-    // Hotkey column
     QString hotkeyStr = conflict.binding.toString();
     QTableWidgetItem *hotkeyItem = new QTableWidgetItem(hotkeyStr);
     hotkeyItem->setForeground(QBrush(QColor("#e74c3c")));
     hotkeyItem->setFont(QFont("Consolas", 9, QFont::Bold));
     conflictTable->setItem(i, 0, hotkeyItem);
 
-    // Function 1 column
     QTableWidgetItem *func1Item = new QTableWidgetItem(conflict.existingName);
     conflictTable->setItem(i, 1, func1Item);
 
-    // Function 2 column
     QTableWidgetItem *func2Item =
         new QTableWidgetItem(conflict.conflictingName);
     conflictTable->setItem(i, 2, func2Item);
@@ -8029,7 +8187,6 @@ void ConfigDialog::showConflictDialog(
 }
 
 void ConfigDialog::onHotkeyChanged() {
-  // Validate all hotkeys when any hotkey changes
   qDebug() << "ConfigDialog::onHotkeyChanged() - triggered";
   validateAllHotkeys();
 }
