@@ -177,6 +177,7 @@ private:
   HotkeyBinding m_suspendHotkey;
   QVector<HotkeyBinding> m_suspendHotkeys;
   int m_suspendHotkeyId;
+  QVector<int> m_suspendHotkeyIds;
   bool m_suspended;
 
   HotkeyBinding m_notLoggedInForwardHotkey;

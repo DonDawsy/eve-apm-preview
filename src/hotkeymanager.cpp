@@ -30,7 +30,7 @@ bool HotkeyManager::registerHotkey(const HotkeyBinding &binding,
 
   if (isMouseButton(binding.keyCode)) {
     outHotkeyId = -1;
-    return true; 
+    return true;
   }
 
   UINT modifiers = 0;
@@ -165,12 +165,15 @@ bool HotkeyManager::registerHotkeys() {
   m_hotkeyIdToCycleGroup.clear();
   m_hotkeyIdIsForward.clear();
 
+  m_suspendHotkeyIds.clear();
   if (!m_suspendHotkeys.isEmpty()) {
     for (const HotkeyBinding &binding : m_suspendHotkeys) {
       if (!binding.enabled)
         continue;
       int hotkeyId;
-      registerHotkey(binding, hotkeyId);
+      if (registerHotkey(binding, hotkeyId)) {
+        m_suspendHotkeyIds.append(hotkeyId);
+      }
     }
   } else if (m_suspendHotkey.enabled) {
     registerHotkey(m_suspendHotkey, m_suspendHotkeyId);
@@ -306,6 +309,11 @@ void HotkeyManager::unregisterHotkeys() {
     unregisterHotkey(aliasId);
   }
 
+  for (int hotkeyId : m_suspendHotkeyIds) {
+    unregisterHotkey(hotkeyId);
+  }
+  m_suspendHotkeyIds.clear();
+
   unregisterAndReset(m_suspendHotkeyId);
   unregisterAndReset(m_notLoggedInForwardHotkeyId);
   unregisterAndReset(m_notLoggedInBackwardHotkeyId);
@@ -366,13 +374,14 @@ bool HotkeyManager::nativeEventFilter(void *message, long *result) {
       hotkeyId = s_instance->m_wildcardAliases.value(hotkeyId);
     }
 
-    if (hotkeyId == s_instance->m_suspendHotkeyId) {
+    if (hotkeyId == s_instance->m_suspendHotkeyId ||
+        s_instance->m_suspendHotkeyIds.contains(hotkeyId)) {
       s_instance->toggleSuspended();
       return true;
     }
 
     if (s_instance->m_suspended) {
-      return true;
+      return false;
     }
 
     bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
@@ -970,7 +979,6 @@ LRESULT CALLBACK HotkeyManager::LowLevelMouseProc(int nCode, WPARAM wParam,
                 }
               },
               Qt::QueuedConnection);
-
         }
       }
     }
