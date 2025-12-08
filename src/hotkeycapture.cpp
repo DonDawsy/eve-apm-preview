@@ -172,25 +172,25 @@ void HotkeyCapture::keyPressEvent(QKeyEvent *event) {
 
 void HotkeyCapture::focusInEvent(QFocusEvent *event) {
   QLineEdit::focusInEvent(event);
-  
+
   if (!m_capturing) {
     m_capturing = true;
     m_savedText = text();
     setText("Press a key...");
   }
-  
+
   installKeyboardHook();
   installMouseHook();
-  
+
   selectAll();
 }
 
 void HotkeyCapture::focusOutEvent(QFocusEvent *event) {
   QLineEdit::focusOutEvent(event);
-  
+
   bool wasCapturing = m_capturing;
   m_capturing = false;
-  
+
   uninstallKeyboardHook();
   uninstallMouseHook();
 
@@ -459,7 +459,6 @@ LRESULT CALLBACK HotkeyCapture::LowLevelMouseProc(int nCode, WPARAM wParam,
               }
             },
             Qt::QueuedConnection);
-
       }
     }
   }
