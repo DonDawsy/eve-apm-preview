@@ -6,6 +6,7 @@
 
 HotkeyCapture *HotkeyCapture::s_activeInstance = nullptr;
 HHOOK HotkeyCapture::s_keyboardHook = nullptr;
+HHOOK HotkeyCapture::s_mouseHook = nullptr;
 
 HotkeyCapture::HotkeyCapture(QWidget *parent)
     : QLineEdit(parent), m_capturing(false), m_hasConflict(false) {
@@ -19,6 +20,7 @@ HotkeyCapture::HotkeyCapture(QWidget *parent)
 
 HotkeyCapture::~HotkeyCapture() {
   uninstallKeyboardHook();
+  uninstallMouseHook();
   QApplication::instance()->removeNativeEventFilter(this);
 }
 
@@ -170,31 +172,35 @@ void HotkeyCapture::keyPressEvent(QKeyEvent *event) {
 
 void HotkeyCapture::focusInEvent(QFocusEvent *event) {
   QLineEdit::focusInEvent(event);
-  if (m_capturing) {
-    installKeyboardHook();
+  
+  if (!m_capturing) {
+    m_capturing = true;
+    m_savedText = text();
+    setText("Press a key...");
   }
+  
+  installKeyboardHook();
+  installMouseHook();
+  
   selectAll();
 }
 
 void HotkeyCapture::focusOutEvent(QFocusEvent *event) {
   QLineEdit::focusOutEvent(event);
+  
+  bool wasCapturing = m_capturing;
+  m_capturing = false;
+  
   uninstallKeyboardHook();
+  uninstallMouseHook();
 
-  if (m_capturing) {
-    m_capturing = false;
+  if (wasCapturing && text() == "Press a key...") {
     setText(m_savedText);
   }
 }
 
 void HotkeyCapture::mousePressEvent(QMouseEvent *event) {
   QLineEdit::mousePressEvent(event);
-
-  if (!m_capturing) {
-    m_capturing = true;
-    m_savedText = text();
-    setText("Press a key...");
-    installKeyboardHook();
-  }
 }
 
 bool HotkeyCapture::event(QEvent *e) {
@@ -321,6 +327,10 @@ QString HotkeyCapture::keyCodeToString(int keyCode) const {
     return "Numpad .";
   case VK_DIVIDE:
     return "Numpad /";
+  case VK_XBUTTON1:
+    return "Mouse4";
+  case VK_XBUTTON2:
+    return "Mouse5";
   default:
     return QString("Key %1").arg(keyCode);
   }
@@ -338,7 +348,27 @@ void HotkeyCapture::uninstallKeyboardHook() {
   if (s_keyboardHook != nullptr) {
     UnhookWindowsHookEx(s_keyboardHook);
     s_keyboardHook = nullptr;
-    s_activeInstance = nullptr;
+    if (s_mouseHook == nullptr) {
+      s_activeInstance = nullptr;
+    }
+  }
+}
+
+void HotkeyCapture::installMouseHook() {
+  if (s_mouseHook == nullptr) {
+    s_activeInstance = this;
+    s_mouseHook = SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc,
+                                   GetModuleHandle(nullptr), 0);
+  }
+}
+
+void HotkeyCapture::uninstallMouseHook() {
+  if (s_mouseHook != nullptr) {
+    UnhookWindowsHookEx(s_mouseHook);
+    s_mouseHook = nullptr;
+    if (s_keyboardHook == nullptr) {
+      s_activeInstance = nullptr;
+    }
   }
 }
 
@@ -357,6 +387,7 @@ LRESULT CALLBACK HotkeyCapture::LowLevelKeyboardProc(int nCode, WPARAM wParam,
                 instance->m_capturing = false;
                 instance->setText(instance->m_savedText);
                 instance->uninstallKeyboardHook();
+                instance->uninstallMouseHook();
                 instance->clearFocus();
               }
             },
@@ -382,6 +413,7 @@ LRESULT CALLBACK HotkeyCapture::LowLevelKeyboardProc(int nCode, WPARAM wParam,
             [instance = s_activeInstance, vkCode, ctrl, alt, shift]() {
               instance->m_capturing = false;
               instance->uninstallKeyboardHook();
+              instance->uninstallMouseHook();
 
               instance->addHotkey(vkCode, ctrl, alt, shift);
             },
@@ -393,6 +425,46 @@ LRESULT CALLBACK HotkeyCapture::LowLevelKeyboardProc(int nCode, WPARAM wParam,
   }
 
   return CallNextHookEx(s_keyboardHook, nCode, wParam, lParam);
+}
+
+LRESULT CALLBACK HotkeyCapture::LowLevelMouseProc(int nCode, WPARAM wParam,
+                                                  LPARAM lParam) {
+  if (nCode == HC_ACTION && s_activeInstance != nullptr &&
+      s_activeInstance->m_capturing) {
+    if (wParam == WM_XBUTTONUP) {
+      MSLLHOOKSTRUCT *pMouse = reinterpret_cast<MSLLHOOKSTRUCT *>(lParam);
+      int xButton = HIWORD(pMouse->mouseData);
+
+      int vkCode = 0;
+      if (xButton == XBUTTON1) {
+        vkCode = VK_XBUTTON1;
+      } else if (xButton == XBUTTON2) {
+        vkCode = VK_XBUTTON2;
+      }
+
+      if (vkCode != 0) {
+        bool ctrl = GetKeyState(VK_CONTROL) & 0x8000;
+        bool alt = GetKeyState(VK_MENU) & 0x8000;
+        bool shift = GetKeyState(VK_SHIFT) & 0x8000;
+
+        QMetaObject::invokeMethod(
+            s_activeInstance,
+            [instance = s_activeInstance, vkCode, ctrl, alt, shift]() {
+              if (instance && instance->m_capturing) {
+                instance->m_capturing = false;
+                instance->uninstallKeyboardHook();
+                instance->uninstallMouseHook();
+
+                instance->addHotkey(vkCode, ctrl, alt, shift);
+              }
+            },
+            Qt::QueuedConnection);
+
+      }
+    }
+  }
+
+  return CallNextHookEx(s_mouseHook, nCode, wParam, lParam);
 }
 
 void HotkeyCapture::setHasConflict(bool hasConflict) {

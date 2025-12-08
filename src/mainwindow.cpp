@@ -1540,8 +1540,6 @@ void MainWindow::showSettings() {
   connect(this, &MainWindow::profileSwitchedExternally, m_configDialog,
           &ConfigDialog::onExternalProfileSwitch);
 
-  // Suspend hotkeys while the configuration dialog is open to prevent
-  // accidental character switches when rebinding hotkeys
   hotkeyManager->setSuspended(true);
 
   for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
@@ -1551,7 +1549,6 @@ void MainWindow::showSettings() {
   connect(m_configDialog, &QObject::destroyed, this, [this]() {
     m_configDialog = nullptr;
 
-    // Resume hotkeys when configuration dialog is closed
     hotkeyManager->setSuspended(false);
 
     for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
@@ -1785,15 +1782,12 @@ void MainWindow::restartApplication() {
   QCoreApplication::exit(1000);
 }
 
-/// Reload all thumbnails to a fresh state without restarting the application
 void MainWindow::reloadThumbnails() {
   qDebug() << "MainWindow: Reloading thumbnails to fresh state";
 
-  // Clear all existing thumbnails
   qDeleteAll(thumbnails);
   thumbnails.clear();
 
-  // Clear all state mappings
   m_characterToWindow.clear();
   m_windowToCharacter.clear();
   m_characterSystems.clear();
@@ -1809,29 +1803,24 @@ void MainWindow::reloadThumbnails() {
   m_cachedThumbnailList.clear();
   m_groupDragInitialPositions.clear();
 
-  // Clear cycle indices
   m_notLoggedInWindows.clear();
   m_notLoggedInCycleIndex = -1;
   m_nonEVEWindows.clear();
   m_nonEVECycleIndex = -1;
 
-  // Reset window handles
   m_hwndToActivate = nullptr;
   m_hwndPendingRefresh = nullptr;
   m_lastActiveWindow = nullptr;
 
-  // Reset flags
   m_needsEnumeration = true;
   m_needsMappingUpdate = false;
   m_lastThumbnailListSize = 0;
 
-  // Clear caches
   if (windowCapture) {
     windowCapture->clearCache();
   }
   OverlayInfo::clearCache();
 
-  // Refresh to rebuild all thumbnails
   qDebug() << "MainWindow: Refreshing windows after reload";
   refreshWindows();
 }

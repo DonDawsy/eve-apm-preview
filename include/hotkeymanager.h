@@ -150,8 +150,7 @@ public:
 
 signals:
   void characterHotkeyPressed(QString characterName);
-  void characterHotkeyCyclePressed(
-      QVector<QString> characterNames); 
+  void characterHotkeyCyclePressed(QVector<QString> characterNames);
   void namedCycleForwardPressed(QString groupName);
   void namedCycleBackwardPressed(QString groupName);
   void notLoggedInCycleForwardPressed();
@@ -166,8 +165,7 @@ private:
   QHash<QString, HotkeyBinding> m_characterHotkeys;
   QHash<QString, QVector<HotkeyBinding>> m_characterMultiHotkeys;
   QHash<int, QString> m_hotkeyIdToCharacter;
-  QHash<int, QVector<QString>>
-      m_hotkeyIdToCharacters; 
+  QHash<int, QVector<QString>> m_hotkeyIdToCharacters;
   QHash<int, QString> m_hotkeyIdToCycleGroup;
   QHash<int, bool> m_hotkeyIdIsForward;
   QHash<int, int> m_wildcardAliases;
@@ -202,11 +200,19 @@ private:
   int m_nextHotkeyId;
 
   static QPointer<HotkeyManager> s_instance;
+  static HHOOK s_mouseHook;
 
   int generateHotkeyId();
 
   bool registerHotkey(const HotkeyBinding &binding, int &outHotkeyId);
   void unregisterHotkey(int hotkeyId);
+
+  void installMouseHook();
+  void uninstallMouseHook();
+  static LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam,
+                                            LPARAM lParam);
+  bool isMouseButton(int keyCode) const;
+  void checkMouseButtonBindings(int vkCode, bool ctrl, bool alt, bool shift);
 
   void registerHotkeyList(const QVector<HotkeyBinding> &multiHotkeys,
                           const HotkeyBinding &legacyHotkey,

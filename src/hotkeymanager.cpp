@@ -6,6 +6,7 @@
 #include <QStringList>
 
 QPointer<HotkeyManager> HotkeyManager::s_instance;
+HHOOK HotkeyManager::s_mouseHook = nullptr;
 
 HotkeyManager::HotkeyManager(QObject *parent)
     : QObject(parent), m_nextHotkeyId(1000), m_suspendHotkeyId(-1),
@@ -18,6 +19,7 @@ HotkeyManager::HotkeyManager(QObject *parent)
 
 HotkeyManager::~HotkeyManager() {
   unregisterHotkeys();
+  uninstallMouseHook();
   s_instance.clear();
 }
 
@@ -25,6 +27,11 @@ bool HotkeyManager::registerHotkey(const HotkeyBinding &binding,
                                    int &outHotkeyId) {
   if (!binding.enabled)
     return false;
+
+  if (isMouseButton(binding.keyCode)) {
+    outHotkeyId = -1;
+    return true; 
+  }
 
   UINT modifiers = 0;
   if (binding.ctrl)
@@ -274,6 +281,8 @@ bool HotkeyManager::registerHotkeys() {
                      m_closeAllClientsHotkeyId);
 
   registerProfileHotkeys();
+
+  installMouseHook();
 
   return true;
 }
@@ -913,4 +922,247 @@ void HotkeyManager::unregisterProfileHotkeys() {
     unregisterHotkey(hotkeyId);
   }
   m_hotkeyIdToProfile.clear();
+}
+
+bool HotkeyManager::isMouseButton(int keyCode) const {
+  return keyCode == VK_XBUTTON1 || keyCode == VK_XBUTTON2;
+}
+
+void HotkeyManager::installMouseHook() {
+  if (s_mouseHook == nullptr && !s_instance.isNull()) {
+    s_mouseHook = SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc,
+                                   GetModuleHandle(nullptr), 0);
+  }
+}
+
+void HotkeyManager::uninstallMouseHook() {
+  if (s_mouseHook != nullptr) {
+    UnhookWindowsHookEx(s_mouseHook);
+    s_mouseHook = nullptr;
+  }
+}
+
+LRESULT CALLBACK HotkeyManager::LowLevelMouseProc(int nCode, WPARAM wParam,
+                                                  LPARAM lParam) {
+  if (nCode == HC_ACTION && !s_instance.isNull()) {
+    if (!s_instance->m_suspended) {
+      if (wParam == WM_XBUTTONUP) {
+        MSLLHOOKSTRUCT *pMouse = reinterpret_cast<MSLLHOOKSTRUCT *>(lParam);
+        int xButton = HIWORD(pMouse->mouseData);
+
+        int vkCode = 0;
+        if (xButton == XBUTTON1) {
+          vkCode = VK_XBUTTON1;
+        } else if (xButton == XBUTTON2) {
+          vkCode = VK_XBUTTON2;
+        }
+
+        if (vkCode != 0) {
+          bool ctrl = GetKeyState(VK_CONTROL) & 0x8000;
+          bool alt = GetKeyState(VK_MENU) & 0x8000;
+          bool shift = GetKeyState(VK_SHIFT) & 0x8000;
+
+          QMetaObject::invokeMethod(
+              s_instance.data(),
+              [instance = s_instance, vkCode, ctrl, alt, shift]() {
+                if (!instance.isNull()) {
+                  instance->checkMouseButtonBindings(vkCode, ctrl, alt, shift);
+                }
+              },
+              Qt::QueuedConnection);
+
+        }
+      }
+    }
+  }
+
+  return CallNextHookEx(s_mouseHook, nCode, wParam, lParam);
+}
+
+void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
+                                             bool shift) {
+  HotkeyBinding pressedBinding(vkCode, ctrl, alt, shift, true);
+
+  if (!m_suspendHotkeys.isEmpty()) {
+    for (const HotkeyBinding &binding : m_suspendHotkeys) {
+      if (binding.enabled && binding.keyCode == vkCode &&
+          binding.ctrl == ctrl && binding.alt == alt &&
+          binding.shift == shift) {
+        toggleSuspended();
+        return;
+      }
+    }
+  } else if (m_suspendHotkey.enabled && m_suspendHotkey.keyCode == vkCode &&
+             m_suspendHotkey.ctrl == ctrl && m_suspendHotkey.alt == alt &&
+             m_suspendHotkey.shift == shift) {
+    toggleSuspended();
+    return;
+  }
+
+  if (m_suspended) {
+    return;
+  }
+
+  bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
+  if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
+    return;
+  }
+
+  for (auto it = m_characterMultiHotkeys.begin();
+       it != m_characterMultiHotkeys.end(); ++it) {
+    const QString &characterName = it.key();
+    const QVector<HotkeyBinding> &bindings = it.value();
+
+    for (const HotkeyBinding &binding : bindings) {
+      if (binding.enabled && binding.keyCode == vkCode &&
+          binding.ctrl == ctrl && binding.alt == alt &&
+          binding.shift == shift) {
+        emit characterHotkeyPressed(characterName);
+        return;
+      }
+    }
+  }
+
+  for (auto it = m_characterHotkeys.begin(); it != m_characterHotkeys.end();
+       ++it) {
+    const QString &characterName = it.key();
+    const HotkeyBinding &binding = it.value();
+
+    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
+        binding.alt == alt && binding.shift == shift) {
+      emit characterHotkeyPressed(characterName);
+      return;
+    }
+  }
+
+  for (auto it = m_cycleGroups.begin(); it != m_cycleGroups.end(); ++it) {
+    const QString &groupName = it.key();
+    const CycleGroup &group = it.value();
+
+    if (!group.forwardBindings.isEmpty()) {
+      for (const HotkeyBinding &binding : group.forwardBindings) {
+        if (binding.enabled && binding.keyCode == vkCode &&
+            binding.ctrl == ctrl && binding.alt == alt &&
+            binding.shift == shift) {
+          emit namedCycleForwardPressed(groupName);
+          return;
+        }
+      }
+    } else if (group.forwardBinding.enabled &&
+               group.forwardBinding.keyCode == vkCode &&
+               group.forwardBinding.ctrl == ctrl &&
+               group.forwardBinding.alt == alt &&
+               group.forwardBinding.shift == shift) {
+      emit namedCycleForwardPressed(groupName);
+      return;
+    }
+
+    if (!group.backwardBindings.isEmpty()) {
+      for (const HotkeyBinding &binding : group.backwardBindings) {
+        if (binding.enabled && binding.keyCode == vkCode &&
+            binding.ctrl == ctrl && binding.alt == alt &&
+            binding.shift == shift) {
+          emit namedCycleBackwardPressed(groupName);
+          return;
+        }
+      }
+    } else if (group.backwardBinding.enabled &&
+               group.backwardBinding.keyCode == vkCode &&
+               group.backwardBinding.ctrl == ctrl &&
+               group.backwardBinding.alt == alt &&
+               group.backwardBinding.shift == shift) {
+      emit namedCycleBackwardPressed(groupName);
+      return;
+    }
+  }
+
+  if (!m_notLoggedInForwardHotkeys.isEmpty()) {
+    for (const HotkeyBinding &binding : m_notLoggedInForwardHotkeys) {
+      if (binding.enabled && binding.keyCode == vkCode &&
+          binding.ctrl == ctrl && binding.alt == alt &&
+          binding.shift == shift) {
+        emit notLoggedInCycleForwardPressed();
+        return;
+      }
+    }
+  } else if (m_notLoggedInForwardHotkey.enabled &&
+             m_notLoggedInForwardHotkey.keyCode == vkCode &&
+             m_notLoggedInForwardHotkey.ctrl == ctrl &&
+             m_notLoggedInForwardHotkey.alt == alt &&
+             m_notLoggedInForwardHotkey.shift == shift) {
+    emit notLoggedInCycleForwardPressed();
+    return;
+  }
+
+  if (!m_notLoggedInBackwardHotkeys.isEmpty()) {
+    for (const HotkeyBinding &binding : m_notLoggedInBackwardHotkeys) {
+      if (binding.enabled && binding.keyCode == vkCode &&
+          binding.ctrl == ctrl && binding.alt == alt &&
+          binding.shift == shift) {
+        emit notLoggedInCycleBackwardPressed();
+        return;
+      }
+    }
+  } else if (m_notLoggedInBackwardHotkey.enabled &&
+             m_notLoggedInBackwardHotkey.keyCode == vkCode &&
+             m_notLoggedInBackwardHotkey.ctrl == ctrl &&
+             m_notLoggedInBackwardHotkey.alt == alt &&
+             m_notLoggedInBackwardHotkey.shift == shift) {
+    emit notLoggedInCycleBackwardPressed();
+    return;
+  }
+
+  if (!m_nonEVEForwardHotkeys.isEmpty()) {
+    for (const HotkeyBinding &binding : m_nonEVEForwardHotkeys) {
+      if (binding.enabled && binding.keyCode == vkCode &&
+          binding.ctrl == ctrl && binding.alt == alt &&
+          binding.shift == shift) {
+        emit nonEVECycleForwardPressed();
+        return;
+      }
+    }
+  } else if (m_nonEVEForwardHotkey.enabled &&
+             m_nonEVEForwardHotkey.keyCode == vkCode &&
+             m_nonEVEForwardHotkey.ctrl == ctrl &&
+             m_nonEVEForwardHotkey.alt == alt &&
+             m_nonEVEForwardHotkey.shift == shift) {
+    emit nonEVECycleForwardPressed();
+    return;
+  }
+
+  if (!m_nonEVEBackwardHotkeys.isEmpty()) {
+    for (const HotkeyBinding &binding : m_nonEVEBackwardHotkeys) {
+      if (binding.enabled && binding.keyCode == vkCode &&
+          binding.ctrl == ctrl && binding.alt == alt &&
+          binding.shift == shift) {
+        emit nonEVECycleBackwardPressed();
+        return;
+      }
+    }
+  } else if (m_nonEVEBackwardHotkey.enabled &&
+             m_nonEVEBackwardHotkey.keyCode == vkCode &&
+             m_nonEVEBackwardHotkey.ctrl == ctrl &&
+             m_nonEVEBackwardHotkey.alt == alt &&
+             m_nonEVEBackwardHotkey.shift == shift) {
+    emit nonEVECycleBackwardPressed();
+    return;
+  }
+
+  if (!m_closeAllClientsHotkeys.isEmpty()) {
+    for (const HotkeyBinding &binding : m_closeAllClientsHotkeys) {
+      if (binding.enabled && binding.keyCode == vkCode &&
+          binding.ctrl == ctrl && binding.alt == alt &&
+          binding.shift == shift) {
+        emit closeAllClientsRequested();
+        return;
+      }
+    }
+  } else if (m_closeAllClientsHotkey.enabled &&
+             m_closeAllClientsHotkey.keyCode == vkCode &&
+             m_closeAllClientsHotkey.ctrl == ctrl &&
+             m_closeAllClientsHotkey.alt == alt &&
+             m_closeAllClientsHotkey.shift == shift) {
+    emit closeAllClientsRequested();
+    return;
+  }
 }

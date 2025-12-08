@@ -73,8 +73,12 @@ private:
   QString formatHotkey(const HotkeyCombination &hk) const;
   void installKeyboardHook();
   void uninstallKeyboardHook();
+  void installMouseHook();
+  void uninstallMouseHook();
   static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam,
                                                LPARAM lParam);
+  static LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam,
+                                            LPARAM lParam);
 
   QVector<HotkeyCombination> m_hotkeys;
   bool m_capturing;
@@ -83,6 +87,7 @@ private:
 
   static HotkeyCapture *s_activeInstance;
   static HHOOK s_keyboardHook;
+  static HHOOK s_mouseHook;
 };
 
 #endif

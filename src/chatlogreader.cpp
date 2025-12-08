@@ -37,8 +37,6 @@ static QString normalizeLogLine(const QString &line) {
 
   QString s = line;
 
-  // Optimization #3: Only normalize if line contains special characters
-  // Most EVE log lines are clean ASCII, so skip expensive regex operations
   bool needsNormalization = false;
   for (const QChar &ch : line) {
     ushort code = ch.unicode();
@@ -206,7 +204,6 @@ void ChatLogWorker::stopMonitoring() {
   m_running = false;
   m_scanTimer->stop();
 
-  // Clean up debounce timers
   for (auto it = m_debounceTimers.begin(); it != m_debounceTimers.end(); ++it) {
     QTimer *t = it.value();
     if (t) {
@@ -315,9 +312,6 @@ void ChatLogWorker::scanExistingLogs() {
             m_fileToKeyMap.remove(currentFile);
           }
 
-          // Only add to watcher if gamelog monitoring is disabled
-          // If gamelog is enabled, we only use chatlog for initial system
-          // detection
           bool shouldMonitorChatlog = !m_enableGameLogMonitoring;
 
           if (shouldMonitorChatlog) {
@@ -370,8 +364,6 @@ void ChatLogWorker::scanExistingLogs() {
             }
 
             if (!lastSystemLine.isEmpty()) {
-              // Extract initial system from chatlog (always, regardless of
-              // gamelog monitoring)
               static QRegularExpression systemChangePattern(
                   R"(\[\s*([\d.\s:]+)\]\s*EVE System\s*>\s*Channel changed to Local\s*:\s*(.+))",
                   QRegularExpression::CaseInsensitiveOption |
@@ -404,7 +396,6 @@ void ChatLogWorker::scanExistingLogs() {
                 emit systemChanged(characterName, newSystem);
               }
 
-              // Also parse for other events (fleet invites, etc.)
               parseLogLine(lastSystemLine, characterName);
             }
 
@@ -784,41 +775,33 @@ void ChatLogWorker::markFileDirty(const QString &filePath) {
   m_fileLastSize[filePath] = currentSize;
   m_fileLastModified[filePath] = currentModified;
 
-  // Optimization #2: Rate limiting - don't process same file too frequently
   qint64 now = QDateTime::currentMSecsSinceEpoch();
   qint64 lastProcessed = m_fileLastProcessed.value(filePath, 0);
   qint64 timeSinceLastProcess = now - lastProcessed;
 
-  // If processed within last 50ms, skip (prevents rapid-fire processing)
   if (timeSinceLastProcess < 50) {
     qDebug() << "ChatLogWorker: Rate limiting" << filePath << "(last processed"
              << timeSinceLastProcess << "ms ago)";
     return;
   }
 
-  // Optimization #1: Minimal debouncing (30ms)
-  // Use a timer to batch rapid changes, but keep it short for responsiveness
   QTimer *debounceTimer = m_debounceTimers.value(filePath, nullptr);
 
   if (!debounceTimer) {
     debounceTimer = new QTimer(this);
     debounceTimer->setSingleShot(true);
-    debounceTimer->setInterval(30); // 30ms debounce - imperceptible to users
+    debounceTimer->setInterval(30); 
 
     connect(debounceTimer, &QTimer::timeout, this, [this, filePath]() {
       QMutexLocker innerLocker(&m_mutex);
 
-      // Update last processed time
       m_fileLastProcessed[filePath] = QDateTime::currentMSecsSinceEpoch();
 
-      // Clean up timer
       QTimer *timerToDelete = m_debounceTimers.take(filePath);
       innerLocker.unlock();
 
-      // Process the file
       this->processLogFile(filePath);
 
-      // Delete timer
       if (timerToDelete) {
         timerToDelete->deleteLater();
       }
@@ -827,7 +810,6 @@ void ChatLogWorker::markFileDirty(const QString &filePath) {
     m_debounceTimers[filePath] = debounceTimer;
   }
 
-  // Start or restart the debounce timer
   debounceTimer->start();
 }
 
@@ -835,18 +817,11 @@ void ChatLogWorker::parseLogLine(const QString &line,
                                  const QString &characterName) {
   QString normalizedLine = normalizeLogLine(line);
 
-  // Optimization #5: Line length pre-filter
-  // Valid EVE log lines have timestamps and content: [ 2025.12.08 14:17:27 ]
-  // ... Minimum: ~25 chars, Maximum: reasonable limit to filter garbage
   if (normalizedLine.isEmpty() || normalizedLine.length() < 25 ||
       normalizedLine.length() > 1000) {
     return;
   }
 
-  // System change detection from chatlog - only if gamelog monitoring is
-  // disabled (If gamelog monitoring is enabled, we get system changes from
-  // there instead)
-  // Early filter: check for "EVE System" before expensive regex
   if (!m_enableGameLogMonitoring && normalizedLine.contains("EVE System")) {
     static QRegularExpression systemChangePattern(
         R"(\[\s*([\d.\s:]+)\]\s*EVE System\s*>\s*Channel changed to Local\s*:\s*(.+))",
@@ -878,10 +853,9 @@ void ChatLogWorker::parseLogLine(const QString &line,
         emit systemChanged(characterName, newSystem);
       }
     }
-    return; // EVE System messages don't have other events
+    return; 
   }
 
-  // Early filter: check for "(question)" before fleet invite regex
   if (normalizedLine.contains("(question)")) {
     static QRegularExpression fleetInvitePattern(
         R"(\[\s*[\d.\s:]+\]\s*\(question\)\s*<a href="[^"]+">([^<]+)</a>\s*wants you to join their fleet)");
@@ -895,12 +869,10 @@ void ChatLogWorker::parseLogLine(const QString &line,
                << "from" << inviter;
       emit combatEventDetected(characterName, "fleet_invite", eventText);
     }
-    return; // question messages are specific
+    return; 
   }
 
-  // Early filter: check for "(notify)" before notification regexes
   if (normalizedLine.contains("(notify)")) {
-    // Follow warp detection
     if (normalizedLine.contains("Following")) {
       static QRegularExpression followWarpPattern(
           R"(\[\s*[\d.\s:]+\]\s*\(notify\)\s*Following\s+(\S+)\s+in warp)");
@@ -917,7 +889,6 @@ void ChatLogWorker::parseLogLine(const QString &line,
       }
     }
 
-    // Regroup detection
     if (normalizedLine.contains("Regrouping")) {
       static QRegularExpression regroupPattern(
           R"(\[\s*[\d.\s:]+\]\s*\(notify\)\s*Regrouping to\s+(\S+))");
@@ -934,7 +905,6 @@ void ChatLogWorker::parseLogLine(const QString &line,
       }
     }
 
-    // Compression detection
     if (normalizedLine.contains("compressed")) {
       static QRegularExpression compressionPattern(
           R"(\[\s*[\d.\s:]+\]\s*\(notify\)\s*Successfully compressed\s+(.+?)\s+into\s+(\d+)\s+(.+))");
@@ -955,10 +925,9 @@ void ChatLogWorker::parseLogLine(const QString &line,
         return;
       }
     }
-    return; // All notify messages handled above
+    return; 
   }
 
-  // Early filter: check for "(mining)" before mining regex
   if (normalizedLine.contains("(mining)")) {
     static QRegularExpression miningPattern(R"(\[\s*[\d.\s:]+\]\s*\(mining\))");
 
@@ -970,8 +939,6 @@ void ChatLogWorker::parseLogLine(const QString &line,
     return;
   }
 
-  // Gamelog: Detect system jumps - "Jumping from X to Y"
-  // Early filter: check for "(None)" and "Jumping" before regex
   if (normalizedLine.contains("(None)") && normalizedLine.contains("Jumping")) {
     static QRegularExpression jumpPattern(
         R"(\[\s*([\d.\s:]+)\]\s*\(None\)\s*Jumping from\s+(.+?)\s+to\s+(.+))");
