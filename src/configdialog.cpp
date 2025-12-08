@@ -345,9 +345,11 @@ void ConfigDialog::createAppearancePage() {
   m_thumbnailSizesTable->setColumnWidth(2, 100);
   m_thumbnailSizesTable->setColumnWidth(3, 40);
   m_thumbnailSizesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_thumbnailSizesTable->setMinimumHeight(150);
-  m_thumbnailSizesTable->setMaximumHeight(250);
   m_thumbnailSizesTable->verticalHeader()->setDefaultSectionSize(44);
+  m_thumbnailSizesTable->setSizeAdjustPolicy(
+      QAbstractScrollArea::AdjustToContents);
+  m_thumbnailSizesTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_thumbnailSizesTable->setMaximumHeight(206);
   m_thumbnailSizesTable->setFocusPolicy(Qt::NoFocus);
   m_thumbnailSizesTable->setStyleSheet(StyleSheet::getTableStyleSheet());
   thumbnailSizesSectionLayout->addWidget(m_thumbnailSizesTable);
@@ -476,9 +478,11 @@ void ConfigDialog::createAppearancePage() {
   m_characterColorsTable->setColumnWidth(1, 160);
   m_characterColorsTable->setColumnWidth(2, 40);
   m_characterColorsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_characterColorsTable->setMinimumHeight(150);
-  m_characterColorsTable->setMaximumHeight(250);
   m_characterColorsTable->verticalHeader()->setDefaultSectionSize(40);
+  m_characterColorsTable->setSizeAdjustPolicy(
+      QAbstractScrollArea::AdjustToContents);
+  m_characterColorsTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_characterColorsTable->setMaximumHeight(190);
   m_characterColorsTable->setFocusPolicy(Qt::NoFocus);
   m_characterColorsTable->setStyleSheet(StyleSheet::getTableStyleSheet());
   charColorsSectionLayout->addWidget(m_characterColorsTable);
@@ -897,9 +901,11 @@ void ConfigDialog::createHotkeysPage() {
   m_characterHotkeysTable->setColumnWidth(1, 200);
   m_characterHotkeysTable->setColumnWidth(2, 40);
   m_characterHotkeysTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_characterHotkeysTable->setMinimumHeight(150);
-  m_characterHotkeysTable->setMaximumHeight(250);
   m_characterHotkeysTable->verticalHeader()->setDefaultSectionSize(40);
+  m_characterHotkeysTable->setSizeAdjustPolicy(
+      QAbstractScrollArea::AdjustToContents);
+  m_characterHotkeysTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_characterHotkeysTable->setMaximumHeight(190);
   m_characterHotkeysTable->setFocusPolicy(Qt::NoFocus);
   m_characterHotkeysTable->setStyleSheet(StyleSheet::getTableStyleSheet());
   charHotkeysSectionLayout->addWidget(m_characterHotkeysTable);
@@ -966,9 +972,11 @@ void ConfigDialog::createHotkeysPage() {
   m_cycleGroupsTable->setColumnWidth(5, 100);
   m_cycleGroupsTable->setColumnWidth(6, 40);
   m_cycleGroupsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_cycleGroupsTable->setMinimumHeight(150);
-  m_cycleGroupsTable->setMaximumHeight(250);
   m_cycleGroupsTable->verticalHeader()->setDefaultSectionSize(40);
+  m_cycleGroupsTable->setSizeAdjustPolicy(
+      QAbstractScrollArea::AdjustToContents);
+  m_cycleGroupsTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_cycleGroupsTable->setMaximumHeight(190);
   m_cycleGroupsTable->setFocusPolicy(Qt::NoFocus);
   m_cycleGroupsTable->setStyleSheet(StyleSheet::getTableStyleSheet());
   cycleGroupsSectionLayout->addWidget(m_cycleGroupsTable);
@@ -1304,6 +1312,7 @@ void ConfigDialog::createBehaviorPage() {
   windowSectionLayout->addWidget(neverMinimizeLabel);
 
   m_neverMinimizeTable = new QTableWidget(0, 2);
+  m_neverMinimizeTable->setObjectName("neverMinimizeTable");
   m_neverMinimizeTable->setHorizontalHeaderLabels({"Character Name", ""});
   m_neverMinimizeTable->horizontalHeader()->setSectionResizeMode(
       0, QHeaderView::Stretch);
@@ -1311,9 +1320,11 @@ void ConfigDialog::createBehaviorPage() {
       1, QHeaderView::Fixed);
   m_neverMinimizeTable->setColumnWidth(1, 40);
   m_neverMinimizeTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_neverMinimizeTable->setMinimumHeight(150);
-  m_neverMinimizeTable->setMaximumHeight(250);
   m_neverMinimizeTable->verticalHeader()->setDefaultSectionSize(40);
+  m_neverMinimizeTable->setSizeAdjustPolicy(
+      QAbstractScrollArea::AdjustToContents);
+  m_neverMinimizeTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_neverMinimizeTable->setMaximumHeight(190);
   m_neverMinimizeTable->setFocusPolicy(Qt::NoFocus);
   m_neverMinimizeTable->setStyleSheet(StyleSheet::getTableStyleSheet());
   windowSectionLayout->addWidget(m_neverMinimizeTable);
@@ -1343,6 +1354,7 @@ void ConfigDialog::createBehaviorPage() {
   windowSectionLayout->addWidget(hiddenCharactersLabel);
 
   m_hiddenCharactersTable = new QTableWidget(0, 2);
+  m_hiddenCharactersTable->setObjectName("hiddenCharactersTable");
   m_hiddenCharactersTable->setHorizontalHeaderLabels({"Character Name", ""});
   m_hiddenCharactersTable->horizontalHeader()->setSectionResizeMode(
       0, QHeaderView::Stretch);
@@ -1350,9 +1362,11 @@ void ConfigDialog::createBehaviorPage() {
       1, QHeaderView::Fixed);
   m_hiddenCharactersTable->setColumnWidth(1, 40);
   m_hiddenCharactersTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_hiddenCharactersTable->setMinimumHeight(150);
-  m_hiddenCharactersTable->setMaximumHeight(250);
   m_hiddenCharactersTable->verticalHeader()->setDefaultSectionSize(40);
+  m_hiddenCharactersTable->setSizeAdjustPolicy(
+      QAbstractScrollArea::AdjustToContents);
+  m_hiddenCharactersTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_hiddenCharactersTable->setMaximumHeight(190);
   m_hiddenCharactersTable->setFocusPolicy(Qt::NoFocus);
   m_hiddenCharactersTable->setStyleSheet(StyleSheet::getTableStyleSheet());
   windowSectionLayout->addWidget(m_hiddenCharactersTable);
@@ -1577,9 +1591,11 @@ void ConfigDialog::createBehaviorPage() {
       1, QHeaderView::Fixed);
   m_processNamesTable->setColumnWidth(1, 40);
   m_processNamesTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-  m_processNamesTable->setMinimumHeight(150);
-  m_processNamesTable->setMaximumHeight(250);
   m_processNamesTable->verticalHeader()->setDefaultSectionSize(40);
+  m_processNamesTable->setSizeAdjustPolicy(
+      QAbstractScrollArea::AdjustToContents);
+  m_processNamesTable->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_processNamesTable->setMaximumHeight(190);
   m_processNamesTable->setFocusPolicy(Qt::NoFocus);
   m_processNamesTable->setStyleSheet(StyleSheet::getTableStyleSheet());
   clientFilterSectionLayout->addWidget(m_processNamesTable);
@@ -2844,6 +2860,14 @@ void ConfigDialog::loadSettings() {
     deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
     m_thumbnailSizesTable->setCellWidget(row, 3, deleteButtonContainer);
   }
+
+  updateTableVisibility(m_thumbnailSizesTable);
+  updateTableVisibility(m_characterColorsTable);
+  updateTableVisibility(m_characterHotkeysTable);
+  updateTableVisibility(m_cycleGroupsTable);
+  updateTableVisibility(m_neverMinimizeTable);
+  updateTableVisibility(m_hiddenCharactersTable);
+  updateTableVisibility(m_processNamesTable);
 }
 
 void ConfigDialog::saveSettings() {
@@ -3197,6 +3221,7 @@ void ConfigDialog::onAddCharacterHotkey() {
       QWidget *widget = m_characterHotkeysTable->cellWidget(i, 2);
       if (widget && widget->findChild<QPushButton *>() == deleteButton) {
         m_characterHotkeysTable->removeRow(i);
+        updateTableVisibility(m_characterHotkeysTable);
         onHotkeyChanged();
         break;
       }
@@ -3206,6 +3231,7 @@ void ConfigDialog::onAddCharacterHotkey() {
   deleteLayout->addWidget(deleteButton);
   m_characterHotkeysTable->setCellWidget(row, 2, deleteContainer);
 
+  updateTableVisibility(m_characterHotkeysTable);
   m_characterHotkeysTable->scrollToBottom();
 }
 
@@ -3592,6 +3618,7 @@ void ConfigDialog::onAddCycleGroup() {
       QWidget *widget = m_cycleGroupsTable->cellWidget(i, 6);
       if (widget && widget->findChild<QPushButton *>() == deleteButton) {
         m_cycleGroupsTable->removeRow(i);
+        updateTableVisibility(m_cycleGroupsTable);
         onHotkeyChanged();
         break;
       }
@@ -3601,6 +3628,7 @@ void ConfigDialog::onAddCycleGroup() {
   deleteLayout->addWidget(deleteButton);
   m_cycleGroupsTable->setCellWidget(row, 6, deleteContainer);
 
+  updateTableVisibility(m_cycleGroupsTable);
   m_cycleGroupsTable->scrollToBottom();
 }
 
@@ -3797,9 +3825,10 @@ void ConfigDialog::onAddNeverMinimizeCharacter() {
   int row = m_neverMinimizeTable->rowCount();
   m_neverMinimizeTable->insertRow(row);
 
-  QTableWidgetItem *nameItem = new QTableWidgetItem("");
-  nameItem->setFlags(nameItem->flags() | Qt::ItemIsEditable);
-  m_neverMinimizeTable->setItem(row, 0, nameItem);
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setPlaceholderText("Enter character name");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  m_neverMinimizeTable->setCellWidget(row, 0, nameEdit);
 
   QWidget *buttonContainer = new QWidget();
   QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
@@ -3824,13 +3853,22 @@ void ConfigDialog::onAddNeverMinimizeCharacter() {
                               "    background-color: #c0392b;"
                               "}");
 
-  connect(deleteButton, &QPushButton::clicked, this,
-          [this, row]() { m_neverMinimizeTable->removeRow(row); });
+  connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
+    for (int i = 0; i < m_neverMinimizeTable->rowCount(); ++i) {
+      QWidget *widget = m_neverMinimizeTable->cellWidget(i, 1);
+      if (widget && widget->findChild<QPushButton *>() == deleteButton) {
+        m_neverMinimizeTable->removeRow(i);
+        updateTableVisibility(m_neverMinimizeTable);
+        break;
+      }
+    }
+  });
 
   buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
   m_neverMinimizeTable->setCellWidget(row, 1, buttonContainer);
 
-  m_neverMinimizeTable->editItem(nameItem);
+  updateTableVisibility(m_neverMinimizeTable);
+  nameEdit->setFocus();
 
   m_neverMinimizeTable->scrollToBottom();
 }
@@ -3957,9 +3995,10 @@ void ConfigDialog::onAddHiddenCharacter() {
   int row = m_hiddenCharactersTable->rowCount();
   m_hiddenCharactersTable->insertRow(row);
 
-  QTableWidgetItem *nameItem = new QTableWidgetItem("");
-  nameItem->setFlags(nameItem->flags() | Qt::ItemIsEditable);
-  m_hiddenCharactersTable->setItem(row, 0, nameItem);
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setPlaceholderText("Enter character name");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  m_hiddenCharactersTable->setCellWidget(row, 0, nameEdit);
 
   QWidget *buttonContainer = new QWidget();
   QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
@@ -3984,13 +4023,22 @@ void ConfigDialog::onAddHiddenCharacter() {
                               "    background-color: #c0392b;"
                               "}");
 
-  connect(deleteButton, &QPushButton::clicked, this,
-          [this, row]() { m_hiddenCharactersTable->removeRow(row); });
+  connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
+    for (int i = 0; i < m_hiddenCharactersTable->rowCount(); ++i) {
+      QWidget *widget = m_hiddenCharactersTable->cellWidget(i, 1);
+      if (widget && widget->findChild<QPushButton *>() == deleteButton) {
+        m_hiddenCharactersTable->removeRow(i);
+        updateTableVisibility(m_hiddenCharactersTable);
+        break;
+      }
+    }
+  });
 
   buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
   m_hiddenCharactersTable->setCellWidget(row, 1, buttonContainer);
 
-  m_hiddenCharactersTable->editItem(nameItem);
+  updateTableVisibility(m_hiddenCharactersTable);
+  nameEdit->setFocus();
 
   m_hiddenCharactersTable->scrollToBottom();
 }
@@ -4161,12 +4209,21 @@ void ConfigDialog::onAddCharacterColor() {
                               "    background-color: #c0392b;"
                               "}");
 
-  connect(deleteButton, &QPushButton::clicked, this,
-          [this, row]() { m_characterColorsTable->removeRow(row); });
+  connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
+    for (int i = 0; i < m_characterColorsTable->rowCount(); ++i) {
+      QWidget *widget = m_characterColorsTable->cellWidget(i, 2);
+      if (widget && widget->findChild<QPushButton *>() == deleteButton) {
+        m_characterColorsTable->removeRow(i);
+        updateTableVisibility(m_characterColorsTable);
+        break;
+      }
+    }
+  });
 
   deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
   m_characterColorsTable->setCellWidget(row, 2, deleteButtonContainer);
 
+  updateTableVisibility(m_characterColorsTable);
   m_characterColorsTable->scrollToBottom();
 }
 
@@ -4440,6 +4497,7 @@ void ConfigDialog::onAddThumbnailSize() {
       QWidget *container = m_thumbnailSizesTable->cellWidget(r, 3);
       if (container && container->findChild<QPushButton *>() == deleteButton) {
         m_thumbnailSizesTable->removeRow(r);
+        updateTableVisibility(m_thumbnailSizesTable);
         break;
       }
     }
@@ -4448,6 +4506,7 @@ void ConfigDialog::onAddThumbnailSize() {
   deleteButtonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
   m_thumbnailSizesTable->setCellWidget(row, 3, deleteButtonContainer);
 
+  updateTableVisibility(m_thumbnailSizesTable);
   m_thumbnailSizesTable->scrollToBottom();
 }
 
@@ -4623,6 +4682,7 @@ void ConfigDialog::onRemoveThumbnailSize() {
   int currentRow = m_thumbnailSizesTable->currentRow();
   if (currentRow >= 0) {
     m_thumbnailSizesTable->removeRow(currentRow);
+    updateTableVisibility(m_thumbnailSizesTable);
   }
 }
 
@@ -4646,9 +4706,10 @@ void ConfigDialog::onAddProcessName() {
   int row = m_processNamesTable->rowCount();
   m_processNamesTable->insertRow(row);
 
-  QTableWidgetItem *processItem = new QTableWidgetItem("");
-  processItem->setFlags(processItem->flags() | Qt::ItemIsEditable);
-  m_processNamesTable->setItem(row, 0, processItem);
+  QLineEdit *processEdit = new QLineEdit();
+  processEdit->setPlaceholderText("Enter process name (e.g., exefile.exe)");
+  processEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  m_processNamesTable->setCellWidget(row, 0, processEdit);
 
   QWidget *buttonContainer = new QWidget();
   QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
@@ -4673,13 +4734,22 @@ void ConfigDialog::onAddProcessName() {
                               "    background-color: #c0392b;"
                               "}");
 
-  connect(deleteButton, &QPushButton::clicked, this,
-          [this, row]() { m_processNamesTable->removeRow(row); });
+  connect(deleteButton, &QPushButton::clicked, this, [this, deleteButton]() {
+    for (int i = 0; i < m_processNamesTable->rowCount(); ++i) {
+      QWidget *widget = m_processNamesTable->cellWidget(i, 1);
+      if (widget && widget->findChild<QPushButton *>() == deleteButton) {
+        m_processNamesTable->removeRow(i);
+        updateTableVisibility(m_processNamesTable);
+        break;
+      }
+    }
+  });
 
   buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
   m_processNamesTable->setCellWidget(row, 1, buttonContainer);
 
-  m_processNamesTable->editItem(processItem);
+  updateTableVisibility(m_processNamesTable);
+  processEdit->setFocus();
 }
 
 void ConfigDialog::onPopulateProcessNames() {
@@ -4792,7 +4862,6 @@ void ConfigDialog::onPopulateProcessNames() {
   connect(cancelButton, &QPushButton::clicked, &dialog, &QDialog::reject);
 
   dialog.setStyleSheet(StyleSheet::getDialogStyleSheetForWidget());
-  tableWidget->setStyleSheet(StyleSheet::getTableStyleSheet());
 
   if (dialog.exec() == QDialog::Accepted) {
     QList<QTableWidgetItem *> selectedItems = tableWidget->selectedItems();
@@ -7149,6 +7218,14 @@ void ConfigDialog::showFeedback(QWidget *nearWidget, const QString &message) {
           &QLabel::deleteLater);
 
   animation->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+void ConfigDialog::updateTableVisibility(QTableWidget *table) {
+  if (!table)
+    return;
+
+  bool isEmpty = (table->rowCount() == 0);
+  table->setVisible(!isEmpty);
 }
 
 void ConfigDialog::createProfileToolbar() {

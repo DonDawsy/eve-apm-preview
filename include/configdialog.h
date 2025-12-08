@@ -119,6 +119,8 @@ private:
   void copyLegacySettings(const QString &category, const QVariantMap &settings);
   void showFeedback(QWidget *nearWidget, const QString &message);
 
+  void updateTableVisibility(QTableWidget *table);
+
   void createProfileToolbar();
   void updateProfileDropdown();
   void switchProfile(const QString &profileName);

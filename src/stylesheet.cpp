@@ -486,61 +486,9 @@ QString StyleSheet::getComboBoxStyleSheet() {
 }
 
 QString StyleSheet::getTableStyleSheet() {
-  return QString("QTableWidget {"
-                 "   background-color: %1;"
-                 "   color: %2;"
-                 "   border: 1px solid %3;"
-                 "   border-radius: 6px;"
-                 "   gridline-color: %3;"
-                 "   font-size: 12px;"
-                 "   selection-background-color: #505050;"
-                 "   outline: none;"
-                 "}"
-                 "QTableWidget::item {"
-                 "   padding: 4px;"
-                 "   border: none;"
-                 "   outline: none;"
-                 "}"
-                 "QTableWidget::item:selected {"
-                 "   background-color: #505050;"
-                 "   outline: none;"
-                 "}"
-                 "QTableWidget::item:focus {"
-                 "   outline: none;"
-                 "   border: none;"
-                 "}"
-                 "QHeaderView {"
-                 "   background-color: transparent;"
-                 "   border-top-left-radius: 6px;"
-                 "   border-top-right-radius: 6px;"
-                 "}"
-                 "QHeaderView::section {"
-                 "   background-color: #404040;"
-                 "   color: %2;"
-                 "   padding: 6px;"
-                 "   border: none;"
-                 "   border-right: 1px solid %3;"
-                 "   border-bottom: 1px solid %3;"
+  return QString("QHeaderView::section {"
                  "   font-weight: bold;"
-                 "   font-size: 12px;"
-                 "}"
-                 "QHeaderView::section:first {"
-                 "   border-top-left-radius: 5px;"
-                 "}"
-                 "QHeaderView::section:last {"
-                 "   border-right: none;"
-                 "   border-top-right-radius: 5px;"
-                 "}"
-                 "QTableCornerButton::section {"
-                 "   background-color: #404040;"
-                 "   border: none;"
-                 "   border-right: 1px solid %3;"
-                 "   border-bottom: 1px solid %3;"
-                 "   border-top-left-radius: 5px;"
-                 "}")
-      .arg(colorSection())
-      .arg(colorTextPrimary())
-      .arg(colorBorder());
+                 "}");
 }
 
 QString StyleSheet::getHotkeyCaptureStyleSheet() {
@@ -803,58 +751,7 @@ QString StyleSheet::getSubsectionHeaderStyleSheet() {
       .arg(colorAccent());
 }
 
-QString StyleSheet::getNeverMinimizeTableStyleSheet() {
-  return QString("QTableWidget {"
-                 "   background-color: %1;"
-                 "   color: %2;"
-                 "   gridline-color: #404040;"
-                 "   border: 1px solid %3;"
-                 "   border-radius: 6px;"
-                 "   outline: none;"
-                 "}"
-                 "QTableWidget::item {"
-                 "   padding: 8px;"
-                 "   border: none;"
-                 "   outline: none;"
-                 "}"
-                 "QTableWidget::item:selected {"
-                 "   background-color: #505050;"
-                 "   color: %2;"
-                 "   outline: none;"
-                 "}"
-                 "QTableWidget::item:focus {"
-                 "   outline: none;"
-                 "   border: none;"
-                 "}"
-                 "QHeaderView {"
-                 "   background-color: transparent;"
-                 "   border-top-left-radius: 6px;"
-                 "   border-top-right-radius: 6px;"
-                 "}"
-                 "QHeaderView::section {"
-                 "   background-color: #404040;"
-                 "   color: %2;"
-                 "   padding: 8px;"
-                 "   border: none;"
-                 "   font-weight: bold;"
-                 "}"
-                 "QHeaderView::section:first {"
-                 "   border-top-left-radius: 5px;"
-                 "}"
-                 "QHeaderView::section:last {"
-                 "   border-top-right-radius: 5px;"
-                 "}"
-                 "QTableCornerButton::section {"
-                 "   background-color: #404040;"
-                 "   border: none;"
-                 "   border-right: 1px solid %3;"
-                 "   border-bottom: 1px solid %3;"
-                 "   border-top-left-radius: 5px;"
-                 "}")
-      .arg(colorSection())
-      .arg(colorTextPrimary())
-      .arg(colorBorder());
-}
+QString StyleSheet::getNeverMinimizeTableStyleSheet() { return QString(""); }
 
 QString StyleSheet::getSecondaryButtonStyleSheet() {
   return QString("QPushButton {"

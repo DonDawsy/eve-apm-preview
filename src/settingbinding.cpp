@@ -56,9 +56,10 @@ void StringListTableBinding::loadFromConfig() {
 
   m_table->setRowCount(0);
 
-  bool isProcessNamesTable = m_table->objectName() == "processNamesTable";
-  bool isNeverMinimizeTable =
-      (m_table->columnCount() == 2 && m_column == 0 && !isProcessNamesTable);
+  QString tableName = m_table->objectName();
+  bool isProcessNamesTable = (tableName == "processNamesTable");
+  bool isNeverMinimizeTable = (tableName == "neverMinimizeTable");
+  bool isHiddenCharactersTable = (tableName == "hiddenCharactersTable");
 
   for (const QString &item : items) {
     if (isProcessNamesTable &&
@@ -69,11 +70,18 @@ void StringListTableBinding::loadFromConfig() {
     int row = m_table->rowCount();
     m_table->insertRow(row);
 
-    QTableWidgetItem *tableItem = new QTableWidgetItem(item);
-    tableItem->setFlags(tableItem->flags() | Qt::ItemIsEditable);
-    m_table->setItem(row, m_column, tableItem);
+    QLineEdit *lineEdit = new QLineEdit();
+    lineEdit->setText(item);
+    if (isProcessNamesTable) {
+      lineEdit->setPlaceholderText("Enter process name (e.g., exefile.exe)");
+    } else {
+      lineEdit->setPlaceholderText("Enter character name");
+    }
+    lineEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+    m_table->setCellWidget(row, m_column, lineEdit);
 
-    if (isNeverMinimizeTable || isProcessNamesTable) {
+    if (isNeverMinimizeTable || isProcessNamesTable ||
+        isHiddenCharactersTable) {
       QWidget *buttonContainer = new QWidget();
       QHBoxLayout *buttonLayout = new QHBoxLayout(buttonContainer);
       buttonLayout->setContentsMargins(0, 0, 0, 0);
@@ -98,7 +106,16 @@ void StringListTableBinding::loadFromConfig() {
                                   "}");
 
       QObject::connect(deleteButton, &QPushButton::clicked,
-                       [this, row]() { m_table->removeRow(row); });
+                       [this, deleteButton]() {
+                         for (int i = 0; i < m_table->rowCount(); ++i) {
+                           QWidget *widget = m_table->cellWidget(i, 1);
+                           if (widget && widget->findChild<QPushButton *>() ==
+                                             deleteButton) {
+                             m_table->removeRow(i);
+                             break;
+                           }
+                         }
+                       });
 
       buttonLayout->addWidget(deleteButton, 0, Qt::AlignCenter);
       m_table->setCellWidget(row, 1, buttonContainer);
@@ -141,9 +158,15 @@ void StringListTableBinding::reset() {
     int row = m_table->rowCount();
     m_table->insertRow(row);
 
-    QTableWidgetItem *tableItem = new QTableWidgetItem(item);
-    tableItem->setFlags(tableItem->flags() | Qt::ItemIsEditable);
-    m_table->setItem(row, m_column, tableItem);
+    QLineEdit *lineEdit = new QLineEdit();
+    lineEdit->setText(item);
+    if (isProcessNamesTable) {
+      lineEdit->setPlaceholderText("Enter process name (e.g., exefile.exe)");
+    } else {
+      lineEdit->setPlaceholderText("Enter character name");
+    }
+    lineEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+    m_table->setCellWidget(row, m_column, lineEdit);
   }
 }
 
@@ -156,9 +179,10 @@ QWidget *StringListTableBinding::widget() const { return m_table; }
 QStringList StringListTableBinding::getCurrentList() const {
   QStringList items;
   for (int row = 0; row < m_table->rowCount(); ++row) {
-    QTableWidgetItem *item = m_table->item(row, m_column);
-    if (item) {
-      items.append(item->text());
+    QWidget *cellWidget = m_table->cellWidget(row, m_column);
+    QLineEdit *lineEdit = qobject_cast<QLineEdit *>(cellWidget);
+    if (lineEdit) {
+      items.append(lineEdit->text());
     }
   }
   return items;
