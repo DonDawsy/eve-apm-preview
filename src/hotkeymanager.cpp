@@ -9,10 +9,7 @@ QPointer<HotkeyManager> HotkeyManager::s_instance;
 HHOOK HotkeyManager::s_mouseHook = nullptr;
 
 HotkeyManager::HotkeyManager(QObject *parent)
-    : QObject(parent), m_nextHotkeyId(1000), m_suspendHotkeyId(-1),
-      m_suspended(false), m_notLoggedInForwardHotkeyId(-1),
-      m_notLoggedInBackwardHotkeyId(-1), m_nonEVEForwardHotkeyId(-1),
-      m_nonEVEBackwardHotkeyId(-1), m_closeAllClientsHotkeyId(-1) {
+    : QObject(parent), m_nextHotkeyId(1000), m_suspended(false) {
   s_instance = this;
   loadFromConfig();
 }
@@ -96,17 +93,25 @@ void HotkeyManager::unregisterHotkey(int hotkeyId) {
 }
 
 void HotkeyManager::registerHotkeyList(
-    const QVector<HotkeyBinding> &multiHotkeys,
-    const HotkeyBinding &legacyHotkey, int &legacyHotkeyId) {
-  if (!multiHotkeys.isEmpty()) {
-    for (const HotkeyBinding &binding : multiHotkeys) {
-      if (!binding.enabled)
-        continue;
-      int hotkeyId;
-      registerHotkey(binding, hotkeyId);
+    const QVector<HotkeyBinding> &multiHotkeys) {
+  for (const HotkeyBinding &binding : multiHotkeys) {
+    if (!binding.enabled)
+      continue;
+    int hotkeyId;
+    registerHotkey(binding, hotkeyId);
+  }
+}
+
+void HotkeyManager::registerHotkeyList(
+    const QVector<HotkeyBinding> &multiHotkeys, QSet<int> &outHotkeyIds) {
+  outHotkeyIds.clear();
+  for (const HotkeyBinding &binding : multiHotkeys) {
+    if (!binding.enabled)
+      continue;
+    int hotkeyId;
+    if (registerHotkey(binding, hotkeyId)) {
+      outHotkeyIds.insert(hotkeyId);
     }
-  } else if (legacyHotkey.enabled) {
-    registerHotkey(legacyHotkey, legacyHotkeyId);
   }
 }
 
@@ -118,41 +123,28 @@ void HotkeyManager::unregisterAndReset(int &hotkeyId) {
 }
 
 void HotkeyManager::saveHotkeyList(QSettings &settings, const QString &key,
-                                   const QVector<HotkeyBinding> &multiHotkeys,
-                                   const HotkeyBinding &legacyHotkey) {
+                                   const QVector<HotkeyBinding> &multiHotkeys) {
   settings.remove(key);
-  if (!multiHotkeys.isEmpty()) {
-    QStringList bindingStrs;
-    for (const HotkeyBinding &binding : multiHotkeys) {
-      bindingStrs.append(binding.toString());
-    }
-    settings.setValue(key, bindingStrs.join('|'));
-  } else {
-    settings.setValue(key, legacyHotkey.toString());
+  QStringList bindingStrs;
+  for (const HotkeyBinding &binding : multiHotkeys) {
+    bindingStrs.append(binding.toString());
   }
+  settings.setValue(key, bindingStrs.join('|'));
 }
 
-QVector<HotkeyBinding>
-HotkeyManager::loadHotkeyList(QSettings &settings, const QString &key,
-                              HotkeyBinding &outLegacyHotkey) {
+QVector<HotkeyBinding> HotkeyManager::loadHotkeyList(QSettings &settings,
+                                                     const QString &key) {
   QString value = settings.value(key, QString()).toString();
   QVector<HotkeyBinding> result;
 
-  if (value.contains('|')) {
-    QStringList bindingStrs = value.split('|', Qt::SkipEmptyParts);
-    for (const QString &bindingStr : bindingStrs) {
-      HotkeyBinding binding = HotkeyBinding::fromString(bindingStr);
-      if (binding.enabled && binding.keyCode != 0) {
-        if (!result.contains(binding)) {
-          result.append(binding);
-        }
+  QStringList bindingStrs = value.split('|', Qt::SkipEmptyParts);
+  for (const QString &bindingStr : bindingStrs) {
+    HotkeyBinding binding = HotkeyBinding::fromString(bindingStr);
+    if (binding.enabled && binding.keyCode != 0) {
+      if (!result.contains(binding)) {
+        result.append(binding);
       }
     }
-    if (!result.isEmpty()) {
-      outLegacyHotkey = result.first();
-    }
-  } else if (!value.isEmpty()) {
-    outLegacyHotkey = HotkeyBinding::fromString(value);
   }
 
   return result;
@@ -166,17 +158,13 @@ bool HotkeyManager::registerHotkeys() {
   m_hotkeyIdIsForward.clear();
 
   m_suspendHotkeyIds.clear();
-  if (!m_suspendHotkeys.isEmpty()) {
-    for (const HotkeyBinding &binding : m_suspendHotkeys) {
-      if (!binding.enabled)
-        continue;
-      int hotkeyId;
-      if (registerHotkey(binding, hotkeyId)) {
-        m_suspendHotkeyIds.append(hotkeyId);
-      }
+  for (const HotkeyBinding &binding : m_suspendHotkeys) {
+    if (!binding.enabled)
+      continue;
+    int hotkeyId;
+    if (registerHotkey(binding, hotkeyId)) {
+      m_suspendHotkeyIds.append(hotkeyId);
     }
-  } else if (m_suspendHotkey.enabled) {
-    registerHotkey(m_suspendHotkey, m_suspendHotkeyId);
   }
 
   if (m_suspended) {
@@ -270,18 +258,15 @@ bool HotkeyManager::registerHotkeys() {
     }
   }
 
-  registerHotkeyList(m_notLoggedInForwardHotkeys, m_notLoggedInForwardHotkey,
-                     m_notLoggedInForwardHotkeyId);
-  registerHotkeyList(m_notLoggedInBackwardHotkeys, m_notLoggedInBackwardHotkey,
-                     m_notLoggedInBackwardHotkeyId);
+  registerHotkeyList(m_notLoggedInForwardHotkeys,
+                     m_notLoggedInForwardHotkeyIds);
+  registerHotkeyList(m_notLoggedInBackwardHotkeys,
+                     m_notLoggedInBackwardHotkeyIds);
 
-  registerHotkeyList(m_nonEVEForwardHotkeys, m_nonEVEForwardHotkey,
-                     m_nonEVEForwardHotkeyId);
-  registerHotkeyList(m_nonEVEBackwardHotkeys, m_nonEVEBackwardHotkey,
-                     m_nonEVEBackwardHotkeyId);
+  registerHotkeyList(m_nonEVEForwardHotkeys, m_nonEVEForwardHotkeyIds);
+  registerHotkeyList(m_nonEVEBackwardHotkeys, m_nonEVEBackwardHotkeyIds);
 
-  registerHotkeyList(m_closeAllClientsHotkeys, m_closeAllClientsHotkey,
-                     m_closeAllClientsHotkeyId);
+  registerHotkeyList(m_closeAllClientsHotkeys, m_closeAllClientsHotkeyIds);
 
   registerProfileHotkeys();
 
@@ -314,12 +299,30 @@ void HotkeyManager::unregisterHotkeys() {
   }
   m_suspendHotkeyIds.clear();
 
-  unregisterAndReset(m_suspendHotkeyId);
-  unregisterAndReset(m_notLoggedInForwardHotkeyId);
-  unregisterAndReset(m_notLoggedInBackwardHotkeyId);
-  unregisterAndReset(m_nonEVEForwardHotkeyId);
-  unregisterAndReset(m_nonEVEBackwardHotkeyId);
-  unregisterAndReset(m_closeAllClientsHotkeyId);
+  for (int hotkeyId : m_notLoggedInForwardHotkeyIds) {
+    unregisterHotkey(hotkeyId);
+  }
+  m_notLoggedInForwardHotkeyIds.clear();
+
+  for (int hotkeyId : m_notLoggedInBackwardHotkeyIds) {
+    unregisterHotkey(hotkeyId);
+  }
+  m_notLoggedInBackwardHotkeyIds.clear();
+
+  for (int hotkeyId : m_nonEVEForwardHotkeyIds) {
+    unregisterHotkey(hotkeyId);
+  }
+  m_nonEVEForwardHotkeyIds.clear();
+
+  for (int hotkeyId : m_nonEVEBackwardHotkeyIds) {
+    unregisterHotkey(hotkeyId);
+  }
+  m_nonEVEBackwardHotkeyIds.clear();
+
+  for (int hotkeyId : m_closeAllClientsHotkeyIds) {
+    unregisterHotkey(hotkeyId);
+  }
+  m_closeAllClientsHotkeyIds.clear();
 
   m_hotkeyIdToCharacter.clear();
   m_hotkeyIdToCharacters.clear();
@@ -374,8 +377,7 @@ bool HotkeyManager::nativeEventFilter(void *message, long *result) {
       hotkeyId = s_instance->m_wildcardAliases.value(hotkeyId);
     }
 
-    if (hotkeyId == s_instance->m_suspendHotkeyId ||
-        s_instance->m_suspendHotkeyIds.contains(hotkeyId)) {
+    if (s_instance->m_suspendHotkeyIds.contains(hotkeyId)) {
       s_instance->toggleSuspended();
       return true;
     }
@@ -415,27 +417,25 @@ bool HotkeyManager::nativeEventFilter(void *message, long *result) {
       return false;
     }
 
-    if (hotkeyId == s_instance->m_notLoggedInForwardHotkeyId) {
+    if (s_instance->m_notLoggedInForwardHotkeyIds.contains(hotkeyId)) {
       emit s_instance->notLoggedInCycleForwardPressed();
       return false;
     }
-
-    if (hotkeyId == s_instance->m_notLoggedInBackwardHotkeyId) {
+    if (s_instance->m_notLoggedInBackwardHotkeyIds.contains(hotkeyId)) {
       emit s_instance->notLoggedInCycleBackwardPressed();
       return false;
     }
 
-    if (hotkeyId == s_instance->m_nonEVEForwardHotkeyId) {
+    if (s_instance->m_nonEVEForwardHotkeyIds.contains(hotkeyId)) {
       emit s_instance->nonEVECycleForwardPressed();
       return false;
     }
-
-    if (hotkeyId == s_instance->m_nonEVEBackwardHotkeyId) {
+    if (s_instance->m_nonEVEBackwardHotkeyIds.contains(hotkeyId)) {
       emit s_instance->nonEVECycleBackwardPressed();
       return false;
     }
 
-    if (hotkeyId == s_instance->m_closeAllClientsHotkeyId) {
+    if (s_instance->m_closeAllClientsHotkeyIds.contains(hotkeyId)) {
       emit s_instance->closeAllClientsRequested();
       return false;
     }
@@ -461,8 +461,8 @@ void HotkeyManager::setSuspended(bool suspended) {
 
 void HotkeyManager::toggleSuspended() { setSuspended(!m_suspended); }
 
-void HotkeyManager::setSuspendHotkey(const HotkeyBinding &binding) {
-  m_suspendHotkey = binding;
+void HotkeyManager::setSuspendHotkeys(const QVector<HotkeyBinding> &bindings) {
+  m_suspendHotkeys = bindings;
   registerHotkeys();
 }
 
@@ -573,22 +573,40 @@ CycleGroup HotkeyManager::getCycleGroup(const QString &groupName) const {
 }
 
 void HotkeyManager::setNotLoggedInCycleHotkeys(
-    const HotkeyBinding &forwardKey, const HotkeyBinding &backwardKey) {
-  m_notLoggedInForwardHotkey = forwardKey;
-  m_notLoggedInBackwardHotkey = backwardKey;
+    const QVector<HotkeyBinding> &forwardKeys,
+    const QVector<HotkeyBinding> &backwardKeys) {
+  m_notLoggedInForwardHotkeys = forwardKeys;
+  m_notLoggedInBackwardHotkeys = backwardKeys;
   registerHotkeys();
 }
 
-void HotkeyManager::setNonEVECycleHotkeys(const HotkeyBinding &forwardKey,
-                                          const HotkeyBinding &backwardKey) {
-  m_nonEVEForwardHotkey = forwardKey;
-  m_nonEVEBackwardHotkey = backwardKey;
+void HotkeyManager::setNonEVECycleHotkeys(
+    const QVector<HotkeyBinding> &forwardKeys,
+    const QVector<HotkeyBinding> &backwardKeys) {
+  m_nonEVEForwardHotkeys = forwardKeys;
+  m_nonEVEBackwardHotkeys = backwardKeys;
   registerHotkeys();
 }
 
-void HotkeyManager::setCloseAllClientsHotkey(const HotkeyBinding &binding) {
-  m_closeAllClientsHotkey = binding;
+void HotkeyManager::setCloseAllClientsHotkeys(
+    const QVector<HotkeyBinding> &bindings) {
+  m_closeAllClientsHotkeys = bindings;
   registerHotkeys();
+}
+
+void HotkeyManager::setProfileHotkeys(const QString &profileName,
+                                      const QVector<HotkeyBinding> &bindings) {
+  if (bindings.isEmpty()) {
+    m_profileHotkeys.remove(profileName);
+  } else {
+    m_profileHotkeys[profileName] = bindings;
+  }
+  registerHotkeys();
+}
+
+QVector<HotkeyBinding>
+HotkeyManager::getProfileHotkeys(const QString &profileName) const {
+  return m_profileHotkeys.value(profileName);
 }
 
 void HotkeyManager::updateCharacterWindows(
@@ -637,11 +655,6 @@ void HotkeyManager::loadFromConfig() {
         }
       }
     }
-    m_suspendHotkey = !m_suspendHotkeys.isEmpty()
-                          ? m_suspendHotkeys.first()
-                          : HotkeyBinding(VK_F12, true, true, true, true);
-  } else {
-    m_suspendHotkey = HotkeyBinding(VK_F12, true, true, true, true);
   }
   settings.endGroup();
 
@@ -739,26 +752,31 @@ void HotkeyManager::loadFromConfig() {
   m_notLoggedInForwardHotkeys.clear();
   m_notLoggedInBackwardHotkeys.clear();
   settings.beginGroup("notLoggedInHotkeys");
-  m_notLoggedInForwardHotkeys =
-      loadHotkeyList(settings, "forward", m_notLoggedInForwardHotkey);
-  m_notLoggedInBackwardHotkeys =
-      loadHotkeyList(settings, "backward", m_notLoggedInBackwardHotkey);
+  m_notLoggedInForwardHotkeys = loadHotkeyList(settings, "forward");
+  m_notLoggedInBackwardHotkeys = loadHotkeyList(settings, "backward");
   settings.endGroup();
 
   m_nonEVEForwardHotkeys.clear();
   m_nonEVEBackwardHotkeys.clear();
   settings.beginGroup("nonEVEHotkeys");
-  m_nonEVEForwardHotkeys =
-      loadHotkeyList(settings, "forward", m_nonEVEForwardHotkey);
-  m_nonEVEBackwardHotkeys =
-      loadHotkeyList(settings, "backward", m_nonEVEBackwardHotkey);
+  m_nonEVEForwardHotkeys = loadHotkeyList(settings, "forward");
+  m_nonEVEBackwardHotkeys = loadHotkeyList(settings, "backward");
   settings.endGroup();
 
   m_closeAllClientsHotkeys.clear();
   settings.beginGroup("closeAllHotkeys");
-  m_closeAllClientsHotkeys =
-      loadHotkeyList(settings, "closeAllClients", m_closeAllClientsHotkey);
+  m_closeAllClientsHotkeys = loadHotkeyList(settings, "closeAllClients");
   settings.endGroup();
+
+  m_profileHotkeys.clear();
+  QStringList profiles = Config::instance().listProfiles();
+  for (const QString &profileName : profiles) {
+    QVector<HotkeyBinding> bindings =
+        Config::instance().getProfileHotkeys(profileName);
+    if (!bindings.isEmpty()) {
+      m_profileHotkeys.insert(profileName, bindings);
+    }
+  }
 
   registerHotkeys();
 }
@@ -768,15 +786,11 @@ void HotkeyManager::saveToConfig() {
 
   settings.beginGroup("hotkeys");
   settings.remove("suspendHotkey");
-  if (!m_suspendHotkeys.isEmpty()) {
-    QStringList suspendBindingStrs;
-    for (const HotkeyBinding &binding : m_suspendHotkeys) {
-      suspendBindingStrs.append(binding.toString());
-    }
-    settings.setValue("suspendHotkey", suspendBindingStrs.join('|'));
-  } else {
-    settings.setValue("suspendHotkey", m_suspendHotkey.toString());
+  QStringList suspendBindingStrs;
+  for (const HotkeyBinding &binding : m_suspendHotkeys) {
+    suspendBindingStrs.append(binding.toString());
   }
+  settings.setValue("suspendHotkey", suspendBindingStrs.join('|'));
   settings.endGroup();
 
   settings.beginGroup("characterHotkeys");
@@ -836,22 +850,17 @@ void HotkeyManager::saveToConfig() {
   settings.endGroup();
 
   settings.beginGroup("notLoggedInHotkeys");
-  saveHotkeyList(settings, "forward", m_notLoggedInForwardHotkeys,
-                 m_notLoggedInForwardHotkey);
-  saveHotkeyList(settings, "backward", m_notLoggedInBackwardHotkeys,
-                 m_notLoggedInBackwardHotkey);
+  saveHotkeyList(settings, "forward", m_notLoggedInForwardHotkeys);
+  saveHotkeyList(settings, "backward", m_notLoggedInBackwardHotkeys);
   settings.endGroup();
 
   settings.beginGroup("nonEVEHotkeys");
-  saveHotkeyList(settings, "forward", m_nonEVEForwardHotkeys,
-                 m_nonEVEForwardHotkey);
-  saveHotkeyList(settings, "backward", m_nonEVEBackwardHotkeys,
-                 m_nonEVEBackwardHotkey);
+  saveHotkeyList(settings, "forward", m_nonEVEForwardHotkeys);
+  saveHotkeyList(settings, "backward", m_nonEVEBackwardHotkeys);
   settings.endGroup();
 
   settings.beginGroup("closeAllHotkeys");
-  saveHotkeyList(settings, "closeAllClients", m_closeAllClientsHotkeys,
-                 m_closeAllClientsHotkey);
+  saveHotkeyList(settings, "closeAllClients", m_closeAllClientsHotkeys);
   settings.endGroup();
 
   settings.sync();
@@ -898,30 +907,23 @@ HotkeyBinding HotkeyBinding::fromString(const QString &str) {
 }
 
 void HotkeyManager::registerProfileHotkeys() {
-  QMap<QString, QPair<int, int>> profileHotkeys =
-      Config::instance().getAllProfileHotkeys();
-
-  for (auto it = profileHotkeys.constBegin(); it != profileHotkeys.constEnd();
-       ++it) {
+  for (auto it = m_profileHotkeys.begin(); it != m_profileHotkeys.end(); ++it) {
     const QString &profileName = it.key();
-    int key = it.value().first;
-    int modifiers = it.value().second;
+    const QVector<HotkeyBinding> &bindings = it.value();
 
-    HotkeyBinding binding;
-    binding.keyCode = key;
-    binding.ctrl = (modifiers & Qt::ControlModifier) != 0;
-    binding.alt = (modifiers & Qt::AltModifier) != 0;
-    binding.shift = (modifiers & Qt::ShiftModifier) != 0;
-    binding.enabled = true;
+    for (const HotkeyBinding &binding : bindings) {
+      if (!binding.enabled)
+        continue;
 
-    int hotkeyId;
-    if (registerHotkey(binding, hotkeyId)) {
-      m_hotkeyIdToProfile.insert(hotkeyId, profileName);
-      qDebug() << "Registered profile hotkey for" << profileName << "with ID"
-               << hotkeyId;
-    } else {
-      qWarning() << "Failed to register profile hotkey for" << profileName
-                 << "- hotkey may already be in use";
+      int hotkeyId;
+      if (registerHotkey(binding, hotkeyId)) {
+        m_hotkeyIdToProfile.insert(hotkeyId, profileName);
+        qDebug() << "Registered profile hotkey for" << profileName << "with ID"
+                 << hotkeyId;
+      } else {
+        qWarning() << "Failed to register profile hotkey for" << profileName
+                   << "- hotkey may already be in use";
+      }
     }
   }
 }
@@ -1000,11 +1002,6 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
         return;
       }
     }
-  } else if (m_suspendHotkey.enabled && m_suspendHotkey.keyCode == vkCode &&
-             m_suspendHotkey.ctrl == ctrl && m_suspendHotkey.alt == alt &&
-             m_suspendHotkey.shift == shift) {
-    toggleSuspended();
-    return;
   }
 
   if (m_suspended) {
@@ -1084,93 +1081,43 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
     }
   }
 
-  if (!m_notLoggedInForwardHotkeys.isEmpty()) {
-    for (const HotkeyBinding &binding : m_notLoggedInForwardHotkeys) {
-      if (binding.enabled && binding.keyCode == vkCode &&
-          binding.ctrl == ctrl && binding.alt == alt &&
-          binding.shift == shift) {
-        emit notLoggedInCycleForwardPressed();
-        return;
-      }
+  for (const HotkeyBinding &binding : m_notLoggedInForwardHotkeys) {
+    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
+        binding.alt == alt && binding.shift == shift) {
+      emit notLoggedInCycleForwardPressed();
+      return;
     }
-  } else if (m_notLoggedInForwardHotkey.enabled &&
-             m_notLoggedInForwardHotkey.keyCode == vkCode &&
-             m_notLoggedInForwardHotkey.ctrl == ctrl &&
-             m_notLoggedInForwardHotkey.alt == alt &&
-             m_notLoggedInForwardHotkey.shift == shift) {
-    emit notLoggedInCycleForwardPressed();
-    return;
   }
 
-  if (!m_notLoggedInBackwardHotkeys.isEmpty()) {
-    for (const HotkeyBinding &binding : m_notLoggedInBackwardHotkeys) {
-      if (binding.enabled && binding.keyCode == vkCode &&
-          binding.ctrl == ctrl && binding.alt == alt &&
-          binding.shift == shift) {
-        emit notLoggedInCycleBackwardPressed();
-        return;
-      }
+  for (const HotkeyBinding &binding : m_notLoggedInBackwardHotkeys) {
+    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
+        binding.alt == alt && binding.shift == shift) {
+      emit notLoggedInCycleBackwardPressed();
+      return;
     }
-  } else if (m_notLoggedInBackwardHotkey.enabled &&
-             m_notLoggedInBackwardHotkey.keyCode == vkCode &&
-             m_notLoggedInBackwardHotkey.ctrl == ctrl &&
-             m_notLoggedInBackwardHotkey.alt == alt &&
-             m_notLoggedInBackwardHotkey.shift == shift) {
-    emit notLoggedInCycleBackwardPressed();
-    return;
   }
 
-  if (!m_nonEVEForwardHotkeys.isEmpty()) {
-    for (const HotkeyBinding &binding : m_nonEVEForwardHotkeys) {
-      if (binding.enabled && binding.keyCode == vkCode &&
-          binding.ctrl == ctrl && binding.alt == alt &&
-          binding.shift == shift) {
-        emit nonEVECycleForwardPressed();
-        return;
-      }
+  for (const HotkeyBinding &binding : m_nonEVEForwardHotkeys) {
+    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
+        binding.alt == alt && binding.shift == shift) {
+      emit nonEVECycleForwardPressed();
+      return;
     }
-  } else if (m_nonEVEForwardHotkey.enabled &&
-             m_nonEVEForwardHotkey.keyCode == vkCode &&
-             m_nonEVEForwardHotkey.ctrl == ctrl &&
-             m_nonEVEForwardHotkey.alt == alt &&
-             m_nonEVEForwardHotkey.shift == shift) {
-    emit nonEVECycleForwardPressed();
-    return;
   }
 
-  if (!m_nonEVEBackwardHotkeys.isEmpty()) {
-    for (const HotkeyBinding &binding : m_nonEVEBackwardHotkeys) {
-      if (binding.enabled && binding.keyCode == vkCode &&
-          binding.ctrl == ctrl && binding.alt == alt &&
-          binding.shift == shift) {
-        emit nonEVECycleBackwardPressed();
-        return;
-      }
+  for (const HotkeyBinding &binding : m_nonEVEBackwardHotkeys) {
+    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
+        binding.alt == alt && binding.shift == shift) {
+      emit nonEVECycleBackwardPressed();
+      return;
     }
-  } else if (m_nonEVEBackwardHotkey.enabled &&
-             m_nonEVEBackwardHotkey.keyCode == vkCode &&
-             m_nonEVEBackwardHotkey.ctrl == ctrl &&
-             m_nonEVEBackwardHotkey.alt == alt &&
-             m_nonEVEBackwardHotkey.shift == shift) {
-    emit nonEVECycleBackwardPressed();
-    return;
   }
 
-  if (!m_closeAllClientsHotkeys.isEmpty()) {
-    for (const HotkeyBinding &binding : m_closeAllClientsHotkeys) {
-      if (binding.enabled && binding.keyCode == vkCode &&
-          binding.ctrl == ctrl && binding.alt == alt &&
-          binding.shift == shift) {
-        emit closeAllClientsRequested();
-        return;
-      }
+  for (const HotkeyBinding &binding : m_closeAllClientsHotkeys) {
+    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
+        binding.alt == alt && binding.shift == shift) {
+      emit closeAllClientsRequested();
+      return;
     }
-  } else if (m_closeAllClientsHotkey.enabled &&
-             m_closeAllClientsHotkey.keyCode == vkCode &&
-             m_closeAllClientsHotkey.ctrl == ctrl &&
-             m_closeAllClientsHotkey.alt == alt &&
-             m_closeAllClientsHotkey.shift == shift) {
-    emit closeAllClientsRequested();
-    return;
   }
 }

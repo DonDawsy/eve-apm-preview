@@ -54,18 +54,22 @@ ConfigDialog::ConfigDialog(QWidget *parent)
 
   if (m_profileHotkeyCapture) {
     QString currentProfile = Config::instance().getCurrentProfileName();
-    QString hotkey = Config::instance().getProfileHotkey(currentProfile);
-    if (!hotkey.isEmpty()) {
-      QMap<QString, QPair<int, int>> allHotkeys =
-          Config::instance().getAllProfileHotkeys();
-      if (allHotkeys.contains(currentProfile)) {
-        QPair<int, int> keyData = allHotkeys[currentProfile];
-        int modifiers = keyData.second;
-        m_profileHotkeyCapture->setHotkey(
-            keyData.first, (modifiers & Qt::ControlModifier) != 0,
-            (modifiers & Qt::AltModifier) != 0,
-            (modifiers & Qt::ShiftModifier) != 0);
+    QVector<HotkeyBinding> hotkeys =
+        Config::instance().getProfileHotkeys(currentProfile);
+
+    if (hotkeys.isEmpty()) {
+      m_profileHotkeyCapture->clearHotkey();
+    } else {
+      QVector<HotkeyCombination> combinations;
+      for (const HotkeyBinding &binding : hotkeys) {
+        HotkeyCombination combo;
+        combo.keyCode = binding.keyCode;
+        combo.ctrl = binding.ctrl;
+        combo.alt = binding.alt;
+        combo.shift = binding.shift;
+        combinations.append(combo);
       }
+      m_profileHotkeyCapture->setHotkeys(combinations);
     }
   }
 
@@ -330,7 +334,6 @@ void ConfigDialog::createAppearancePage() {
   thumbnailSizesInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   thumbnailSizesSectionLayout->addWidget(thumbnailSizesInfoLabel);
 
-  // Create scrollable container for thumbnail size form rows
   m_thumbnailSizesScrollArea = new QScrollArea();
   m_thumbnailSizesScrollArea->setWidgetResizable(true);
   m_thumbnailSizesScrollArea->setFrameShape(QFrame::NoFrame);
@@ -339,9 +342,9 @@ void ConfigDialog::createAppearancePage() {
   m_thumbnailSizesScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   m_thumbnailSizesScrollArea->setSizePolicy(QSizePolicy::Preferred,
                                             QSizePolicy::Preferred);
-  m_thumbnailSizesScrollArea->setMinimumHeight(10); // Minimal height when empty
-  m_thumbnailSizesScrollArea->setMaximumHeight(240); // Max height for ~4 rows
-  m_thumbnailSizesScrollArea->setFixedHeight(10); // Start with minimal height
+  m_thumbnailSizesScrollArea->setMinimumHeight(10); 
+  m_thumbnailSizesScrollArea->setMaximumHeight(240); 
+  m_thumbnailSizesScrollArea->setFixedHeight(10); 
   m_thumbnailSizesScrollArea->setStyleSheet(
       "QScrollArea { background-color: transparent; border: none; }");
 
@@ -469,7 +472,6 @@ void ConfigDialog::createAppearancePage() {
   charColorsInfoTop->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   charColorsSectionLayout->addWidget(charColorsInfoTop);
 
-  // Character Colors scroll area with inline forms
   m_characterColorsScrollArea = new QScrollArea();
   m_characterColorsScrollArea->setWidgetResizable(true);
   m_characterColorsScrollArea->setHorizontalScrollBarPolicy(
@@ -556,7 +558,6 @@ void ConfigDialog::createAppearancePage() {
   hiddenCharactersLabel->setStyleSheet(StyleSheet::getSubLabelStyleSheet());
   thumbnailVisibilitySectionLayout->addWidget(hiddenCharactersLabel);
 
-  // Hidden Characters scroll area with inline forms
   m_hiddenCharactersScrollArea = new QScrollArea();
   m_hiddenCharactersScrollArea->setWidgetResizable(true);
   m_hiddenCharactersScrollArea->setHorizontalScrollBarPolicy(
@@ -944,7 +945,6 @@ void ConfigDialog::createHotkeysPage() {
   charInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   charHotkeysSectionLayout->addWidget(charInfoLabel);
 
-  // Create scrollable container for character hotkey form rows
   m_characterHotkeysScrollArea = new QScrollArea();
   m_characterHotkeysScrollArea->setWidgetResizable(true);
   m_characterHotkeysScrollArea->setFrameShape(QFrame::NoFrame);
@@ -1011,7 +1011,6 @@ void ConfigDialog::createHotkeysPage() {
   cycleInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   cycleGroupsSectionLayout->addWidget(cycleInfoLabel);
 
-  // Create scroll area for cycle groups
   m_cycleGroupsScrollArea = new QScrollArea();
   m_cycleGroupsScrollArea->setWidgetResizable(true);
   m_cycleGroupsScrollArea->setFrameShape(QFrame::NoFrame);
@@ -1371,7 +1370,6 @@ void ConfigDialog::createBehaviorPage() {
       "color: #ffffff; font-size: 13px; margin-top: 10px;");
   windowSectionLayout->addWidget(m_neverMinimizeLabel);
 
-  // Never Minimize scroll area with inline forms
   m_neverMinimizeScrollArea = new QScrollArea();
   m_neverMinimizeScrollArea->setWidgetResizable(true);
   m_neverMinimizeScrollArea->setHorizontalScrollBarPolicy(
@@ -1605,7 +1603,6 @@ void ConfigDialog::createBehaviorPage() {
   extraPreviewsInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   clientFilterSectionLayout->addWidget(extraPreviewsInfoLabel);
 
-  // Process Names scroll area with inline forms
   m_processNamesScrollArea = new QScrollArea();
   m_processNamesScrollArea->setWidgetResizable(true);
   m_processNamesScrollArea->setHorizontalScrollBarPolicy(
@@ -2425,77 +2422,14 @@ void ConfigDialog::setupBindings() {
       [&config]() { return config.overlayBackgroundOpacity(); },
       [&config](int value) { config.setOverlayBackgroundOpacity(value); }, 70));
 
-  // Never Minimize now uses inline forms - handled manually in
-  // loadSettings/saveSettings (no binding needed)
 
-  // Hidden Characters now uses inline forms - handled manually in
-  // loadSettings/saveSettings (no binding needed)
 
-  // Process Names now uses inline forms - handled manually in
-  // loadSettings/saveSettings (no binding needed)
 
-  // Character colors now use inline forms - handled manually in
-  // loadSettings/saveSettings (no binding needed)
 
   HotkeyManager *hotkeyMgr = HotkeyManager::instance();
   if (hotkeyMgr) {
-    // Character hotkeys now use inline forms - handled manually in
-    // loadSettings/saveSettings
 
-    // Cycle groups now use inline forms - handled manually in
-    // loadSettings/saveSettings
 
-    m_bindingManager.addBinding(BindingHelpers::bindHotkeyCapture(
-        m_suspendHotkeyCapture,
-        [hotkeyMgr]() { return hotkeyMgr->getSuspendHotkey(); },
-        [hotkeyMgr](const HotkeyBinding &hk) {
-          hotkeyMgr->setSuspendHotkey(hk);
-        },
-        HotkeyBinding(0, false, false, false, false)));
-
-    m_bindingManager.addBinding(BindingHelpers::bindHotkeyCapture(
-        m_notLoggedInForwardCapture,
-        [hotkeyMgr]() { return hotkeyMgr->getNotLoggedInForwardHotkey(); },
-        [hotkeyMgr](const HotkeyBinding &hk) {
-          hotkeyMgr->setNotLoggedInCycleHotkeys(
-              hk, hotkeyMgr->getNotLoggedInBackwardHotkey());
-        },
-        HotkeyBinding(0, false, false, false, false)));
-
-    m_bindingManager.addBinding(BindingHelpers::bindHotkeyCapture(
-        m_notLoggedInBackwardCapture,
-        [hotkeyMgr]() { return hotkeyMgr->getNotLoggedInBackwardHotkey(); },
-        [hotkeyMgr](const HotkeyBinding &hk) {
-          hotkeyMgr->setNotLoggedInCycleHotkeys(
-              hotkeyMgr->getNotLoggedInForwardHotkey(), hk);
-        },
-        HotkeyBinding(0, false, false, false, false)));
-
-    m_bindingManager.addBinding(BindingHelpers::bindHotkeyCapture(
-        m_nonEVEForwardCapture,
-        [hotkeyMgr]() { return hotkeyMgr->getNonEVEForwardHotkey(); },
-        [hotkeyMgr](const HotkeyBinding &hk) {
-          hotkeyMgr->setNonEVECycleHotkeys(
-              hk, hotkeyMgr->getNonEVEBackwardHotkey());
-        },
-        HotkeyBinding(0, false, false, false, false)));
-
-    m_bindingManager.addBinding(BindingHelpers::bindHotkeyCapture(
-        m_nonEVEBackwardCapture,
-        [hotkeyMgr]() { return hotkeyMgr->getNonEVEBackwardHotkey(); },
-        [hotkeyMgr](const HotkeyBinding &hk) {
-          hotkeyMgr->setNonEVECycleHotkeys(hotkeyMgr->getNonEVEForwardHotkey(),
-                                           hk);
-        },
-        HotkeyBinding(0, false, false, false, false)));
-
-    m_bindingManager.addBinding(BindingHelpers::bindHotkeyCapture(
-        m_closeAllClientsCapture,
-        [hotkeyMgr]() { return hotkeyMgr->getCloseAllClientsHotkey(); },
-        [hotkeyMgr](const HotkeyBinding &hk) {
-          hotkeyMgr->setCloseAllClientsHotkey(hk);
-        },
-        HotkeyBinding(0, false, false, false, false)));
   }
 
   m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
@@ -2641,6 +2575,98 @@ void ConfigDialog::loadSettings() {
 
   m_bindingManager.loadAll();
 
+  HotkeyManager *hotkeyMgr = HotkeyManager::instance();
+  if (hotkeyMgr) {
+    QVector<HotkeyBinding> suspendBindings = hotkeyMgr->getSuspendHotkeys();
+    if (!suspendBindings.isEmpty()) {
+      QVector<HotkeyCombination> suspendCombos;
+      for (const HotkeyBinding &binding : suspendBindings) {
+        suspendCombos.append(HotkeyCombination(
+            binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+            binding.getModifiers() & MOD_ALT,
+            binding.getModifiers() & MOD_SHIFT));
+      }
+      m_suspendHotkeyCapture->setHotkeys(suspendCombos);
+    } else {
+      m_suspendHotkeyCapture->clearHotkey();
+    }
+
+    QVector<HotkeyBinding> closeAllBindings =
+        hotkeyMgr->getCloseAllClientsHotkeys();
+    if (!closeAllBindings.isEmpty()) {
+      QVector<HotkeyCombination> closeAllCombos;
+      for (const HotkeyBinding &binding : closeAllBindings) {
+        closeAllCombos.append(HotkeyCombination(
+            binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+            binding.getModifiers() & MOD_ALT,
+            binding.getModifiers() & MOD_SHIFT));
+      }
+      m_closeAllClientsCapture->setHotkeys(closeAllCombos);
+    } else {
+      m_closeAllClientsCapture->clearHotkey();
+    }
+
+    QVector<HotkeyBinding> notLoggedInFwdBindings =
+        hotkeyMgr->getNotLoggedInForwardHotkeys();
+    if (!notLoggedInFwdBindings.isEmpty()) {
+      QVector<HotkeyCombination> notLoggedInFwdCombos;
+      for (const HotkeyBinding &binding : notLoggedInFwdBindings) {
+        notLoggedInFwdCombos.append(HotkeyCombination(
+            binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+            binding.getModifiers() & MOD_ALT,
+            binding.getModifiers() & MOD_SHIFT));
+      }
+      m_notLoggedInForwardCapture->setHotkeys(notLoggedInFwdCombos);
+    } else {
+      m_notLoggedInForwardCapture->clearHotkey();
+    }
+
+    QVector<HotkeyBinding> notLoggedInBwdBindings =
+        hotkeyMgr->getNotLoggedInBackwardHotkeys();
+    if (!notLoggedInBwdBindings.isEmpty()) {
+      QVector<HotkeyCombination> notLoggedInBwdCombos;
+      for (const HotkeyBinding &binding : notLoggedInBwdBindings) {
+        notLoggedInBwdCombos.append(HotkeyCombination(
+            binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+            binding.getModifiers() & MOD_ALT,
+            binding.getModifiers() & MOD_SHIFT));
+      }
+      m_notLoggedInBackwardCapture->setHotkeys(notLoggedInBwdCombos);
+    } else {
+      m_notLoggedInBackwardCapture->clearHotkey();
+    }
+
+    QVector<HotkeyBinding> nonEVEFwdBindings =
+        hotkeyMgr->getNonEVEForwardHotkeys();
+    if (!nonEVEFwdBindings.isEmpty()) {
+      QVector<HotkeyCombination> nonEVEFwdCombos;
+      for (const HotkeyBinding &binding : nonEVEFwdBindings) {
+        nonEVEFwdCombos.append(HotkeyCombination(
+            binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+            binding.getModifiers() & MOD_ALT,
+            binding.getModifiers() & MOD_SHIFT));
+      }
+      m_nonEVEForwardCapture->setHotkeys(nonEVEFwdCombos);
+    } else {
+      m_nonEVEForwardCapture->clearHotkey();
+    }
+
+    QVector<HotkeyBinding> nonEVEBwdBindings =
+        hotkeyMgr->getNonEVEBackwardHotkeys();
+    if (!nonEVEBwdBindings.isEmpty()) {
+      QVector<HotkeyCombination> nonEVEBwdCombos;
+      for (const HotkeyBinding &binding : nonEVEBwdBindings) {
+        nonEVEBwdCombos.append(HotkeyCombination(
+            binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+            binding.getModifiers() & MOD_ALT,
+            binding.getModifiers() & MOD_SHIFT));
+      }
+      m_nonEVEBackwardCapture->setHotkeys(nonEVEBwdCombos);
+    } else {
+      m_nonEVEBackwardCapture->clearHotkey();
+    }
+  }
+
   m_chatLogDirectoryEdit->setText(config.chatLogDirectory());
 
   m_gameLogDirectoryEdit->setText(config.gameLogDirectory());
@@ -2758,7 +2784,6 @@ void ConfigDialog::loadSettings() {
     }
   }
 
-  // Clear existing thumbnail size form rows
   while (m_thumbnailSizesLayout->count() > 1) {
     QLayoutItem *item = m_thumbnailSizesLayout->takeAt(0);
     if (item->widget()) {
@@ -2767,7 +2792,6 @@ void ConfigDialog::loadSettings() {
     delete item;
   }
 
-  // Load custom thumbnail sizes as form rows
   QHash<QString, QSize> customSizes = config.getAllCustomThumbnailSizes();
   for (auto it = customSizes.constBegin(); it != customSizes.constEnd(); ++it) {
     QWidget *formRow = createThumbnailSizeFormRow(it.key(), it.value().width(),
@@ -2776,41 +2800,73 @@ void ConfigDialog::loadSettings() {
     m_thumbnailSizesLayout->insertWidget(count - 1, formRow);
   }
 
-  // Add one empty row if no thumbnail sizes exist
   if (customSizes.isEmpty()) {
     QWidget *formRow = createThumbnailSizeFormRow();
     int count = m_thumbnailSizesLayout->count();
     m_thumbnailSizesLayout->insertWidget(count - 1, formRow);
   }
 
-  // Update scroll area height after loading
   updateThumbnailSizesScrollHeight();
 
-  // Load character hotkeys as form rows
-  HotkeyManager *hotkeyMgr = HotkeyManager::instance();
+  while (m_characterHotkeysLayout->count() > 1) {
+    QLayoutItem *item = m_characterHotkeysLayout->takeAt(0);
+    if (item->widget()) {
+      item->widget()->deleteLater();
+    }
+    delete item;
+  }
+
   if (hotkeyMgr) {
-    QHash<QString, HotkeyBinding> characterHotkeys =
-        hotkeyMgr->getAllCharacterHotkeys();
-    for (auto it = characterHotkeys.constBegin();
-         it != characterHotkeys.constEnd(); ++it) {
-      QWidget *formRow = createCharacterHotkeyFormRow(
-          it.key(), it.value().keyCode, it.value().getModifiers());
+    QHash<QString, QVector<HotkeyBinding>> characterMultiHotkeys =
+        hotkeyMgr->getAllCharacterMultiHotkeys();
+    for (auto it = characterMultiHotkeys.constBegin();
+         it != characterMultiHotkeys.constEnd(); ++it) {
+      const QVector<HotkeyBinding> &bindings = it.value();
+
+      QWidget *formRow;
+      if (!bindings.isEmpty()) {
+        formRow =
+            createCharacterHotkeyFormRow(it.key(), bindings.first().keyCode,
+                                         bindings.first().getModifiers());
+
+        if (bindings.size() > 1) {
+          HotkeyCapture *capture = formRow->findChild<HotkeyCapture *>();
+          if (capture) {
+            QVector<HotkeyCombination> combos;
+            for (const HotkeyBinding &binding : bindings) {
+              combos.append(HotkeyCombination(
+                  binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+                  binding.getModifiers() & MOD_ALT,
+                  binding.getModifiers() & MOD_SHIFT));
+            }
+            capture->setHotkeys(combos);
+          }
+        }
+      } else {
+        formRow = createCharacterHotkeyFormRow(it.key());
+      }
+
       int count = m_characterHotkeysLayout->count();
       m_characterHotkeysLayout->insertWidget(count - 1, formRow);
     }
 
-    // Add one empty row if no character hotkeys exist
-    if (characterHotkeys.isEmpty()) {
+    if (characterMultiHotkeys.isEmpty()) {
       QWidget *formRow = createCharacterHotkeyFormRow();
       int count = m_characterHotkeysLayout->count();
       m_characterHotkeysLayout->insertWidget(count - 1, formRow);
     }
 
-    // Update scroll area height after loading
     updateCharacterHotkeysScrollHeight();
   }
 
-  // Load cycle groups as form rows
+  while (m_cycleGroupsLayout->count() > 1) {
+    QLayoutItem *item = m_cycleGroupsLayout->takeAt(0);
+    if (item->widget()) {
+      item->widget()->deleteLater();
+    }
+    delete item;
+  }
+
   if (hotkeyMgr) {
     QHash<QString, CycleGroup> cycleGroups = hotkeyMgr->getAllCycleGroups();
     for (auto it = cycleGroups.constBegin(); it != cycleGroups.constEnd();
@@ -2818,28 +2874,73 @@ void ConfigDialog::loadSettings() {
       const CycleGroup &group = it.value();
       QString characters = group.characterNames.join(", ");
 
+      int backwardKey = group.backwardBindings.isEmpty()
+                            ? 0
+                            : group.backwardBindings.first().keyCode;
+      int backwardMods = group.backwardBindings.isEmpty()
+                             ? 0
+                             : group.backwardBindings.first().getModifiers();
+      int forwardKey = group.forwardBindings.isEmpty()
+                           ? 0
+                           : group.forwardBindings.first().keyCode;
+      int forwardMods = group.forwardBindings.isEmpty()
+                            ? 0
+                            : group.forwardBindings.first().getModifiers();
+
       QWidget *formRow = createCycleGroupFormRow(
-          group.groupName, group.backwardBinding.keyCode,
-          group.backwardBinding.getModifiers(), group.forwardBinding.keyCode,
-          group.forwardBinding.getModifiers(), characters,
-          group.includeNotLoggedIn, group.noLoop);
+          group.groupName, backwardKey, backwardMods, forwardKey, forwardMods,
+          characters, group.includeNotLoggedIn, group.noLoop);
+
+      QList<HotkeyCapture *> captures =
+          formRow->findChildren<HotkeyCapture *>();
+      if (captures.size() >= 2) {
+        HotkeyCapture *backwardCapture = captures[0];
+        HotkeyCapture *forwardCapture = captures[1];
+
+        if (group.backwardBindings.size() > 1) {
+          QVector<HotkeyCombination> backwardCombos;
+          for (const HotkeyBinding &binding : group.backwardBindings) {
+            backwardCombos.append(HotkeyCombination(
+                binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+                binding.getModifiers() & MOD_ALT,
+                binding.getModifiers() & MOD_SHIFT));
+          }
+          backwardCapture->setHotkeys(backwardCombos);
+        }
+
+        if (group.forwardBindings.size() > 1) {
+          QVector<HotkeyCombination> forwardCombos;
+          for (const HotkeyBinding &binding : group.forwardBindings) {
+            forwardCombos.append(HotkeyCombination(
+                binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+                binding.getModifiers() & MOD_ALT,
+                binding.getModifiers() & MOD_SHIFT));
+          }
+          forwardCapture->setHotkeys(forwardCombos);
+        }
+      }
 
       int count = m_cycleGroupsLayout->count();
       m_cycleGroupsLayout->insertWidget(count - 1, formRow);
     }
 
-    // Add one empty row if no cycle groups exist
     if (cycleGroups.isEmpty()) {
       QWidget *formRow = createCycleGroupFormRow();
       int count = m_cycleGroupsLayout->count();
       m_cycleGroupsLayout->insertWidget(count - 1, formRow);
     }
 
-    // Update scroll area height after loading
     updateCycleGroupsScrollHeight();
   }
 
-  // Load character colors from config
+  while (m_characterColorsLayout->count() > 1) {
+    QLayoutItem *item = m_characterColorsLayout->takeAt(0);
+    if (item->widget()) {
+      item->widget()->deleteLater();
+    }
+    delete item;
+  }
+
   QHash<QString, QColor> characterColors = config.getAllCharacterBorderColors();
   for (auto it = characterColors.constBegin(); it != characterColors.constEnd();
        ++it) {
@@ -2851,7 +2952,6 @@ void ConfigDialog::loadSettings() {
     m_characterColorsLayout->insertWidget(count - 1, formRow);
   }
 
-  // Add one empty row if no character colors exist
   if (characterColors.isEmpty()) {
     QWidget *formRow = createCharacterColorFormRow();
     int count = m_characterColorsLayout->count();
@@ -2860,7 +2960,14 @@ void ConfigDialog::loadSettings() {
 
   updateCharacterColorsScrollHeight();
 
-  // Load never minimize characters from config
+  while (m_neverMinimizeLayout->count() > 1) {
+    QLayoutItem *item = m_neverMinimizeLayout->takeAt(0);
+    if (item->widget()) {
+      item->widget()->deleteLater();
+    }
+    delete item;
+  }
+
   QStringList neverMinimize = config.neverMinimizeCharacters();
   for (const QString &charName : neverMinimize) {
     QWidget *formRow = createNeverMinimizeFormRow(charName);
@@ -2868,7 +2975,6 @@ void ConfigDialog::loadSettings() {
     m_neverMinimizeLayout->insertWidget(count - 1, formRow);
   }
 
-  // Add one empty row if no never minimize characters exist
   if (neverMinimize.isEmpty()) {
     QWidget *formRow = createNeverMinimizeFormRow();
     int count = m_neverMinimizeLayout->count();
@@ -2877,7 +2983,14 @@ void ConfigDialog::loadSettings() {
 
   updateNeverMinimizeScrollHeight();
 
-  // Load hidden characters from config
+  while (m_hiddenCharactersLayout->count() > 1) {
+    QLayoutItem *item = m_hiddenCharactersLayout->takeAt(0);
+    if (item->widget()) {
+      item->widget()->deleteLater();
+    }
+    delete item;
+  }
+
   QStringList hiddenChars = config.hiddenCharacters();
   for (const QString &charName : hiddenChars) {
     QWidget *formRow = createHiddenCharactersFormRow(charName);
@@ -2885,7 +2998,6 @@ void ConfigDialog::loadSettings() {
     m_hiddenCharactersLayout->insertWidget(count - 1, formRow);
   }
 
-  // Add one empty row if no hidden characters exist
   if (hiddenChars.isEmpty()) {
     QWidget *formRow = createHiddenCharactersFormRow();
     int count = m_hiddenCharactersLayout->count();
@@ -2894,7 +3006,14 @@ void ConfigDialog::loadSettings() {
 
   updateHiddenCharactersScrollHeight();
 
-  // Load process names from config
+  while (m_processNamesLayout->count() > 1) {
+    QLayoutItem *item = m_processNamesLayout->takeAt(0);
+    if (item->widget()) {
+      item->widget()->deleteLater();
+    }
+    delete item;
+  }
+
   QStringList processNames = config.processNames();
   for (const QString &processName : processNames) {
     QWidget *formRow = createProcessNamesFormRow(processName);
@@ -2902,7 +3021,6 @@ void ConfigDialog::loadSettings() {
     m_processNamesLayout->insertWidget(count - 1, formRow);
   }
 
-  // Add one empty row if no process names exist
   if (processNames.isEmpty()) {
     QWidget *formRow = createProcessNamesFormRow();
     int count = m_processNamesLayout->count();
@@ -2914,6 +3032,62 @@ void ConfigDialog::loadSettings() {
 
 void ConfigDialog::saveSettings() {
   m_bindingManager.saveAll();
+
+  HotkeyManager *hotkeyMgr = HotkeyManager::instance();
+  if (hotkeyMgr) {
+    QVector<HotkeyBinding> suspendBindings;
+    QVector<HotkeyCombination> suspendCombos =
+        m_suspendHotkeyCapture->getHotkeys();
+    for (const HotkeyCombination &combo : suspendCombos) {
+      suspendBindings.append(
+          HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+    }
+    hotkeyMgr->setSuspendHotkeys(suspendBindings);
+
+    QVector<HotkeyBinding> closeAllBindings;
+    QVector<HotkeyCombination> closeAllCombos =
+        m_closeAllClientsCapture->getHotkeys();
+    for (const HotkeyCombination &combo : closeAllCombos) {
+      closeAllBindings.append(
+          HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+    }
+    hotkeyMgr->setCloseAllClientsHotkeys(closeAllBindings);
+
+    QVector<HotkeyBinding> notLoggedInFwdBindings;
+    QVector<HotkeyCombination> notLoggedInFwdCombos =
+        m_notLoggedInForwardCapture->getHotkeys();
+    for (const HotkeyCombination &combo : notLoggedInFwdCombos) {
+      notLoggedInFwdBindings.append(
+          HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+    }
+
+    QVector<HotkeyBinding> notLoggedInBwdBindings;
+    QVector<HotkeyCombination> notLoggedInBwdCombos =
+        m_notLoggedInBackwardCapture->getHotkeys();
+    for (const HotkeyCombination &combo : notLoggedInBwdCombos) {
+      notLoggedInBwdBindings.append(
+          HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+    }
+    hotkeyMgr->setNotLoggedInCycleHotkeys(notLoggedInFwdBindings,
+                                          notLoggedInBwdBindings);
+
+    QVector<HotkeyBinding> nonEVEFwdBindings;
+    QVector<HotkeyCombination> nonEVEFwdCombos =
+        m_nonEVEForwardCapture->getHotkeys();
+    for (const HotkeyCombination &combo : nonEVEFwdCombos) {
+      nonEVEFwdBindings.append(
+          HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+    }
+
+    QVector<HotkeyBinding> nonEVEBwdBindings;
+    QVector<HotkeyCombination> nonEVEBwdCombos =
+        m_nonEVEBackwardCapture->getHotkeys();
+    for (const HotkeyCombination &combo : nonEVEBwdCombos) {
+      nonEVEBwdBindings.append(
+          HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+    }
+    hotkeyMgr->setNonEVECycleHotkeys(nonEVEFwdBindings, nonEVEBwdBindings);
+  }
 
   HotkeyManager::instance()->saveToConfig();
 
@@ -2935,7 +3109,6 @@ void ConfigDialog::saveSettings() {
     cfg.removeThumbnailSize(charName);
   }
 
-  // Save thumbnail sizes from form rows
   for (int i = 0; i < m_thumbnailSizesLayout->count() - 1; ++i) {
     QWidget *rowWidget =
         qobject_cast<QWidget *>(m_thumbnailSizesLayout->itemAt(i)->widget());
@@ -2962,17 +3135,13 @@ void ConfigDialog::saveSettings() {
     cfg.setThumbnailSize(charName, size);
   }
 
-  // Save character hotkeys from form rows
-  HotkeyManager *hotkeyMgr = HotkeyManager::instance();
   if (hotkeyMgr) {
-    // Clear existing character hotkeys
     QHash<QString, HotkeyBinding> existing =
         hotkeyMgr->getAllCharacterHotkeys();
     for (auto it = existing.constBegin(); it != existing.constEnd(); ++it) {
       hotkeyMgr->removeCharacterHotkey(it.key());
     }
 
-    // Add hotkeys from form rows
     for (int i = 0; i < m_characterHotkeysLayout->count() - 1; ++i) {
       QWidget *rowWidget = qobject_cast<QWidget *>(
           m_characterHotkeysLayout->itemAt(i)->widget());
@@ -2992,24 +3161,23 @@ void ConfigDialog::saveSettings() {
         continue;
       }
 
-      int keyCode = hotkeyCapture->getKeyCode();
-      if (keyCode != 0) {
-        HotkeyBinding binding(keyCode, hotkeyCapture->getCtrl(),
-                              hotkeyCapture->getAlt(),
-                              hotkeyCapture->getShift());
-        hotkeyMgr->setCharacterHotkey(charName, binding);
+      QVector<HotkeyCombination> hotkeyCombos = hotkeyCapture->getHotkeys();
+      if (!hotkeyCombos.isEmpty()) {
+        QVector<HotkeyBinding> bindings;
+        for (const HotkeyCombination &combo : hotkeyCombos) {
+          bindings.append(
+              HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+        }
+        hotkeyMgr->setCharacterHotkeys(charName, bindings);
       }
     }
 
-    // Save cycle groups from form rows
-    // Clear existing cycle groups
     QHash<QString, CycleGroup> existingGroups = hotkeyMgr->getAllCycleGroups();
     for (auto it = existingGroups.constBegin(); it != existingGroups.constEnd();
          ++it) {
       hotkeyMgr->removeCycleGroup(it.key());
     }
 
-    // Add groups from form rows
     for (int i = 0; i < m_cycleGroupsLayout->count() - 1; ++i) {
       QWidget *rowWidget =
           qobject_cast<QWidget *>(m_cycleGroupsLayout->itemAt(i)->widget());
@@ -3058,7 +3226,6 @@ void ConfigDialog::saveSettings() {
       CycleGroup group;
       group.groupName = groupName;
 
-      // Get character list from button property
       if (charactersButton) {
         QStringList charList =
             charactersButton->property("characterList").toStringList();
@@ -3070,22 +3237,30 @@ void ConfigDialog::saveSettings() {
         }
       }
 
-      int backwardKey = backwardCapture->getKeyCode();
-      if (backwardKey != 0) {
-        group.backwardBinding = HotkeyBinding(
-            backwardKey, backwardCapture->getCtrl(), backwardCapture->getAlt(),
-            backwardCapture->getShift());
-      }
-
-      int forwardKey = forwardCapture->getKeyCode();
-      if (forwardKey != 0) {
-        group.forwardBinding =
-            HotkeyBinding(forwardKey, forwardCapture->getCtrl(),
-                          forwardCapture->getAlt(), forwardCapture->getShift());
-      }
-
       group.includeNotLoggedIn = includeNotLoggedInCheck->isChecked();
       group.noLoop = noLoopCheck->isChecked();
+
+      QVector<HotkeyCombination> backwardCombos = backwardCapture->getHotkeys();
+      for (const HotkeyCombination &combo : backwardCombos) {
+        group.backwardBindings.append(
+            HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+      }
+      if (!backwardCombos.isEmpty()) {
+        const HotkeyCombination &first = backwardCombos.first();
+        group.backwardBinding =
+            HotkeyBinding(first.keyCode, first.ctrl, first.alt, first.shift);
+      }
+
+      QVector<HotkeyCombination> forwardCombos = forwardCapture->getHotkeys();
+      for (const HotkeyCombination &combo : forwardCombos) {
+        group.forwardBindings.append(
+            HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+      }
+      if (!forwardCombos.isEmpty()) {
+        const HotkeyCombination &first = forwardCombos.first();
+        group.forwardBinding =
+            HotkeyBinding(first.keyCode, first.ctrl, first.alt, first.shift);
+      }
 
       hotkeyMgr->createCycleGroup(group);
     }
@@ -3093,17 +3268,14 @@ void ConfigDialog::saveSettings() {
     hotkeyMgr->saveToConfig();
   }
 
-  // Save character colors from form rows
   Config &config = Config::instance();
 
-  // Clear existing character colors
   QHash<QString, QColor> existingColors = config.getAllCharacterBorderColors();
   for (auto it = existingColors.constBegin(); it != existingColors.constEnd();
        ++it) {
     config.removeCharacterBorderColor(it.key());
   }
 
-  // Add colors from form rows
   for (int i = 0; i < m_characterColorsLayout->count() - 1; ++i) {
     QWidget *rowWidget =
         qobject_cast<QWidget *>(m_characterColorsLayout->itemAt(i)->widget());
@@ -3118,7 +3290,6 @@ void ConfigDialog::saveSettings() {
     if (charName.isEmpty())
       continue;
 
-    // Find color button
     QPushButton *colorButton = nullptr;
     QList<QPushButton *> buttons = rowWidget->findChildren<QPushButton *>();
     for (QPushButton *btn : buttons) {
@@ -3134,7 +3305,6 @@ void ConfigDialog::saveSettings() {
     }
   }
 
-  // Save never minimize characters from form rows
   QStringList neverMinimize;
   for (int i = 0; i < m_neverMinimizeLayout->count() - 1; ++i) {
     QWidget *rowWidget =
@@ -3153,7 +3323,6 @@ void ConfigDialog::saveSettings() {
   }
   config.setNeverMinimizeCharacters(neverMinimize);
 
-  // Save hidden characters from form rows
   QStringList hiddenChars;
   for (int i = 0; i < m_hiddenCharactersLayout->count() - 1; ++i) {
     QWidget *rowWidget =
@@ -3172,7 +3341,6 @@ void ConfigDialog::saveSettings() {
   }
   config.setHiddenCharacters(hiddenChars);
 
-  // Save process names from form rows
   QStringList processNames;
   for (int i = 0; i < m_processNamesLayout->count() - 1; ++i) {
     QWidget *rowWidget =
@@ -3425,7 +3593,6 @@ QWidget *ConfigDialog::createThumbnailSizeFormRow(const QString &characterName,
   rowLayout->setContentsMargins(8, 4, 8, 4);
   rowLayout->setSpacing(8);
 
-  // Character name field
   QLineEdit *nameEdit = new QLineEdit();
   nameEdit->setText(characterName);
   nameEdit->setPlaceholderText("Character Name");
@@ -3433,7 +3600,6 @@ QWidget *ConfigDialog::createThumbnailSizeFormRow(const QString &characterName,
   nameEdit->setMinimumWidth(150);
   rowLayout->addWidget(nameEdit, 1);
 
-  // Width field
   QLabel *widthLabel = new QLabel("Width:");
   widthLabel->setStyleSheet("QLabel { color: #ffffff; background-color: "
                             "transparent; border: none; }");
@@ -3447,7 +3613,6 @@ QWidget *ConfigDialog::createThumbnailSizeFormRow(const QString &characterName,
   widthSpin->setFixedWidth(100);
   rowLayout->addWidget(widthSpin);
 
-  // Height field
   QLabel *heightLabel = new QLabel("Height:");
   heightLabel->setStyleSheet("QLabel { color: #ffffff; background-color: "
                              "transparent; border: none; }");
@@ -3462,7 +3627,6 @@ QWidget *ConfigDialog::createThumbnailSizeFormRow(const QString &characterName,
   heightSpin->setFixedWidth(100);
   rowLayout->addWidget(heightSpin);
 
-  // Delete button
   QPushButton *deleteButton = new QPushButton("×");
   deleteButton->setFixedSize(32, 32);
   deleteButton->setStyleSheet("QPushButton {"
@@ -3487,7 +3651,6 @@ QWidget *ConfigDialog::createThumbnailSizeFormRow(const QString &characterName,
   connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
     m_thumbnailSizesLayout->removeWidget(rowWidget);
     rowWidget->deleteLater();
-    // Update scroll area height after deletion
     QTimer::singleShot(0, this,
                        &ConfigDialog::updateThumbnailSizesScrollHeight);
   });
@@ -3498,19 +3661,13 @@ QWidget *ConfigDialog::createThumbnailSizeFormRow(const QString &characterName,
 }
 
 void ConfigDialog::updateThumbnailSizesScrollHeight() {
-  // Count actual form rows (excluding the stretch at the end)
   int rowCount = m_thumbnailSizesLayout->count() - 1;
 
   if (rowCount <= 0) {
-    // No rows, use minimal height to avoid blank space
     m_thumbnailSizesScrollArea->setFixedHeight(10);
   } else {
-    // Calculate height based on number of rows
-    // Each row: ~40px content + 8px spacing = 48px per row
-    // Add some padding for the first/last rows
     int calculatedHeight = (rowCount * 48) + 10;
 
-    // Clamp between min and max
     int finalHeight = qMin(240, qMax(50, calculatedHeight));
     m_thumbnailSizesScrollArea->setFixedHeight(finalHeight);
   }
@@ -3528,7 +3685,6 @@ ConfigDialog::createCharacterHotkeyFormRow(const QString &characterName,
   rowLayout->setContentsMargins(8, 4, 8, 4);
   rowLayout->setSpacing(8);
 
-  // Character name field
   QLineEdit *nameEdit = new QLineEdit();
   nameEdit->setText(characterName);
   nameEdit->setPlaceholderText("Character Name");
@@ -3536,13 +3692,11 @@ ConfigDialog::createCharacterHotkeyFormRow(const QString &characterName,
   nameEdit->setMinimumWidth(150);
   rowLayout->addWidget(nameEdit, 1);
 
-  // Hotkey label
   QLabel *hotkeyLabel = new QLabel("Hotkey:");
   hotkeyLabel->setStyleSheet("QLabel { color: #ffffff; background-color: "
                              "transparent; border: none; }");
   rowLayout->addWidget(hotkeyLabel);
 
-  // Hotkey capture field
   HotkeyCapture *hotkeyCapture = new HotkeyCapture();
   hotkeyCapture->setFixedWidth(180);
   hotkeyCapture->setStyleSheet(
@@ -3559,7 +3713,6 @@ ConfigDialog::createCharacterHotkeyFormRow(const QString &characterName,
 
   rowLayout->addWidget(hotkeyCapture);
 
-  // Clear hotkey button
   QPushButton *clearButton = new QPushButton("Clear");
   clearButton->setFixedHeight(28);
   clearButton->setStyleSheet("QPushButton {"
@@ -3586,7 +3739,6 @@ ConfigDialog::createCharacterHotkeyFormRow(const QString &characterName,
 
   rowLayout->addWidget(clearButton);
 
-  // Delete button
   QPushButton *deleteButton = new QPushButton("×");
   deleteButton->setFixedSize(32, 32);
   deleteButton->setStyleSheet("QPushButton {"
@@ -3670,20 +3822,16 @@ QWidget *ConfigDialog::createCycleGroupFormRow(
                            "border-radius: 4px; padding: 8px; }");
   rowWidget->setObjectName("cycleGroupRow");
 
-  // Main horizontal layout: content area + delete button
   QHBoxLayout *topLayout = new QHBoxLayout(rowWidget);
   topLayout->setContentsMargins(8, 8, 8, 8);
   topLayout->setSpacing(8);
 
-  // Content area with 2-row vertical layout
   QVBoxLayout *contentLayout = new QVBoxLayout();
   contentLayout->setSpacing(4);
 
-  // First row: Group name, Characters, Hotkeys
   QHBoxLayout *firstRowLayout = new QHBoxLayout();
   firstRowLayout->setSpacing(8);
 
-  // Group name field
   QLineEdit *nameEdit = new QLineEdit();
   nameEdit->setText(groupName);
   nameEdit->setPlaceholderText("Group Name");
@@ -3692,7 +3840,6 @@ QWidget *ConfigDialog::createCycleGroupFormRow(
   nameEdit->setMaximumWidth(100);
   firstRowLayout->addWidget(nameEdit);
 
-  // Characters button
   QPushButton *charactersButton = new QPushButton();
   QStringList charList;
   if (!characters.isEmpty()) {
@@ -3713,7 +3860,6 @@ QWidget *ConfigDialog::createCycleGroupFormRow(
           &ConfigDialog::onEditCycleGroupCharacters);
   firstRowLayout->addWidget(charactersButton, 1);
 
-  // Backward hotkey label and capture
   QLabel *backwardLabel = new QLabel("Back:");
   backwardLabel->setStyleSheet(
       "QLabel { color: #ffffff; background-color: transparent; border: none; "
@@ -3733,7 +3879,6 @@ QWidget *ConfigDialog::createCycleGroupFormRow(
           &ConfigDialog::onHotkeyChanged);
   firstRowLayout->addWidget(backwardCapture);
 
-  // Clear backward button
   QPushButton *clearBackwardButton = new QPushButton("Clear");
   clearBackwardButton->setFixedHeight(28);
   clearBackwardButton->setStyleSheet("QPushButton {"
@@ -3757,7 +3902,6 @@ QWidget *ConfigDialog::createCycleGroupFormRow(
           [backwardCapture]() { backwardCapture->clearHotkey(); });
   firstRowLayout->addWidget(clearBackwardButton);
 
-  // Forward hotkey label and capture
   QLabel *forwardLabel = new QLabel("Fwd:");
   forwardLabel->setStyleSheet(
       "QLabel { color: #ffffff; background-color: transparent; border: none; "
@@ -3777,7 +3921,6 @@ QWidget *ConfigDialog::createCycleGroupFormRow(
           &ConfigDialog::onHotkeyChanged);
   firstRowLayout->addWidget(forwardCapture);
 
-  // Clear forward button
   QPushButton *clearForwardButton = new QPushButton("Clear");
   clearForwardButton->setFixedHeight(28);
   clearForwardButton->setStyleSheet("QPushButton {"
@@ -3803,12 +3946,10 @@ QWidget *ConfigDialog::createCycleGroupFormRow(
 
   contentLayout->addLayout(firstRowLayout);
 
-  // Second row: Checkboxes
   QHBoxLayout *secondRowLayout = new QHBoxLayout();
   secondRowLayout->setSpacing(16);
   secondRowLayout->setContentsMargins(4, 0, 4, 0);
 
-  // Include Not Logged In checkbox
   QCheckBox *includeNotLoggedInCheck =
       new QCheckBox("Include Not-Logged-In Clients");
   includeNotLoggedInCheck->setChecked(includeNotLoggedIn);
@@ -3818,7 +3959,6 @@ QWidget *ConfigDialog::createCycleGroupFormRow(
       "Include not-logged-in EVE clients in this cycle group");
   secondRowLayout->addWidget(includeNotLoggedInCheck);
 
-  // No Loop checkbox
   QCheckBox *noLoopCheck = new QCheckBox("Don't Loop Back to Start");
   noLoopCheck->setChecked(noLoop);
   noLoopCheck->setStyleSheet(StyleSheet::getDialogCheckBoxStyleSheet());
@@ -3832,7 +3972,6 @@ QWidget *ConfigDialog::createCycleGroupFormRow(
 
   topLayout->addLayout(contentLayout);
 
-  // Delete button - vertically centered between both rows
   QPushButton *deleteButton = new QPushButton("×");
   deleteButton->setFixedSize(32, 32);
   deleteButton->setStyleSheet("QPushButton {"
@@ -3877,14 +4016,12 @@ QWidget *ConfigDialog::createCharacterColorFormRow(const QString &characterName,
   rowLayout->setContentsMargins(8, 4, 8, 4);
   rowLayout->setSpacing(8);
 
-  // Character name field
   QLineEdit *nameEdit = new QLineEdit();
   nameEdit->setText(characterName);
   nameEdit->setPlaceholderText("Character Name");
   nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
   rowLayout->addWidget(nameEdit, 1);
 
-  // Color picker button
   QPushButton *colorButton = new QPushButton();
   colorButton->setFixedSize(150, 32);
   colorButton->setCursor(Qt::PointingHandCursor);
@@ -3894,7 +4031,6 @@ QWidget *ConfigDialog::createCharacterColorFormRow(const QString &characterName,
           &ConfigDialog::onCharacterColorButtonClicked);
   rowLayout->addWidget(colorButton);
 
-  // Delete button
   QPushButton *deleteButton = new QPushButton("×");
   deleteButton->setFixedSize(32, 32);
   deleteButton->setStyleSheet("QPushButton {"
@@ -3935,9 +4071,7 @@ void ConfigDialog::updateCharacterColorsScrollHeight() {
     if (rowCount <= 0) {
       m_characterColorsScrollArea->setFixedHeight(10);
     } else {
-      // Each character color form row is ~48px tall (with spacing)
       int calculatedHeight = (rowCount * 48) + 10;
-      // Max 4 visible rows: 4 * 48 + 10 = 202
       int finalHeight = qMin(202, qMax(50, calculatedHeight));
       m_characterColorsScrollArea->setFixedHeight(finalHeight);
     }
@@ -3955,14 +4089,12 @@ ConfigDialog::createNeverMinimizeFormRow(const QString &characterName) {
   rowLayout->setContentsMargins(8, 4, 8, 4);
   rowLayout->setSpacing(8);
 
-  // Character name field
   QLineEdit *nameEdit = new QLineEdit();
   nameEdit->setText(characterName);
   nameEdit->setPlaceholderText("Character Name");
   nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
   rowLayout->addWidget(nameEdit, 1);
 
-  // Delete button
   QPushButton *deleteButton = new QPushButton("×");
   deleteButton->setFixedSize(32, 32);
   deleteButton->setStyleSheet("QPushButton {"
@@ -4002,9 +4134,7 @@ void ConfigDialog::updateNeverMinimizeScrollHeight() {
     if (rowCount <= 0) {
       m_neverMinimizeScrollArea->setFixedHeight(10);
     } else {
-      // Each never minimize form row is ~48px tall (with spacing)
       int calculatedHeight = (rowCount * 48) + 10;
-      // Max 4 visible rows: 4 * 48 + 10 = 202
       int finalHeight = qMin(202, qMax(50, calculatedHeight));
       m_neverMinimizeScrollArea->setFixedHeight(finalHeight);
     }
@@ -4022,14 +4152,12 @@ ConfigDialog::createHiddenCharactersFormRow(const QString &characterName) {
   rowLayout->setContentsMargins(8, 4, 8, 4);
   rowLayout->setSpacing(8);
 
-  // Character name field
   QLineEdit *nameEdit = new QLineEdit();
   nameEdit->setText(characterName);
   nameEdit->setPlaceholderText("Character Name");
   nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
   rowLayout->addWidget(nameEdit, 1);
 
-  // Delete button
   QPushButton *deleteButton = new QPushButton("×");
   deleteButton->setFixedSize(32, 32);
   deleteButton->setStyleSheet("QPushButton {"
@@ -4070,9 +4198,7 @@ void ConfigDialog::updateHiddenCharactersScrollHeight() {
     if (rowCount <= 0) {
       m_hiddenCharactersScrollArea->setFixedHeight(10);
     } else {
-      // Each hidden characters form row is ~48px tall (with spacing)
       int calculatedHeight = (rowCount * 48) + 10;
-      // Max 4 visible rows: 4 * 48 + 10 = 202
       int finalHeight = qMin(202, qMax(50, calculatedHeight));
       m_hiddenCharactersScrollArea->setFixedHeight(finalHeight);
     }
@@ -4089,14 +4215,12 @@ QWidget *ConfigDialog::createProcessNamesFormRow(const QString &processName) {
   rowLayout->setContentsMargins(8, 4, 8, 4);
   rowLayout->setSpacing(8);
 
-  // Process name field
   QLineEdit *nameEdit = new QLineEdit();
   nameEdit->setText(processName);
   nameEdit->setPlaceholderText("Process Name (e.g., example.exe)");
   nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
   rowLayout->addWidget(nameEdit, 1);
 
-  // Delete button
   QPushButton *deleteButton = new QPushButton("×");
   deleteButton->setFixedSize(32, 32);
   deleteButton->setStyleSheet("QPushButton {"
@@ -4136,9 +4260,7 @@ void ConfigDialog::updateProcessNamesScrollHeight() {
     if (rowCount <= 0) {
       m_processNamesScrollArea->setFixedHeight(10);
     } else {
-      // Each process names form row is ~48px tall (with spacing)
       int calculatedHeight = (rowCount * 48) + 10;
-      // Max 4 visible rows: 4 * 48 + 10 = 202
       int finalHeight = qMin(202, qMax(50, calculatedHeight));
       m_processNamesScrollArea->setFixedHeight(finalHeight);
     }
@@ -4152,9 +4274,7 @@ void ConfigDialog::updateCycleGroupsScrollHeight() {
     if (rowCount <= 0) {
       m_cycleGroupsScrollArea->setFixedHeight(10);
     } else {
-      // Each cycle group form row is ~85px tall (2-row layout with spacing)
       int calculatedHeight = (rowCount * 85) + 10;
-      // Max 2 visible groups: 2 * 85 + 10 = 180
       int finalHeight = qMin(180, qMax(50, calculatedHeight));
       m_cycleGroupsScrollArea->setFixedHeight(finalHeight);
     }
@@ -4203,7 +4323,6 @@ void ConfigDialog::onPopulateFromOpenWindows() {
 
   QSet<QString> existingCharacters;
   if (!clearExisting) {
-    // Collect existing character names from form rows
     for (int i = 0; i < m_characterHotkeysLayout->count() - 1; ++i) {
       QWidget *rowWidget = qobject_cast<QWidget *>(
           m_characterHotkeysLayout->itemAt(i)->widget());
@@ -4215,7 +4334,6 @@ void ConfigDialog::onPopulateFromOpenWindows() {
       }
     }
   } else {
-    // Clear all existing rows
     while (m_characterHotkeysLayout->count() > 1) {
       QLayoutItem *item = m_characterHotkeysLayout->takeAt(0);
       if (item->widget()) {
@@ -4556,7 +4674,6 @@ void ConfigDialog::onPopulateNeverMinimize() {
       }
     }
   } else {
-    // Clear all existing form rows
     while (m_neverMinimizeLayout->count() > 1) {
       QLayoutItem *item = m_neverMinimizeLayout->takeAt(0);
       if (item->widget()) {
@@ -4665,7 +4782,6 @@ void ConfigDialog::onPopulateHiddenCharacters() {
 
   QSet<QString> existingCharacters;
   if (!clearExisting) {
-    // Collect existing character names from form rows
     for (int i = 0; i < m_hiddenCharactersLayout->count() - 1; ++i) {
       QWidget *rowWidget = qobject_cast<QWidget *>(
           m_hiddenCharactersLayout->itemAt(i)->widget());
@@ -4681,7 +4797,6 @@ void ConfigDialog::onPopulateHiddenCharacters() {
       }
     }
   } else {
-    // Clear all form rows
     while (m_hiddenCharactersLayout->count() > 1) {
       QLayoutItem *item = m_hiddenCharactersLayout->takeAt(0);
       if (item->widget()) {
@@ -4800,7 +4915,6 @@ void ConfigDialog::onPopulateCharacterColors() {
       }
     }
   } else {
-    // Clear all existing form rows
     while (m_characterColorsLayout->count() > 1) {
       QLayoutItem *item = m_characterColorsLayout->takeAt(0);
       if (item->widget()) {
@@ -4944,30 +5058,23 @@ void ConfigDialog::onAssignUniqueColors() {
 void ConfigDialog::onAddThumbnailSize() {
   QWidget *formRow = createThumbnailSizeFormRow();
 
-  // Insert before the stretch at the end
   int count = m_thumbnailSizesLayout->count();
   m_thumbnailSizesLayout->insertWidget(count - 1, formRow);
 
-  // Force layout to update immediately
   m_thumbnailSizesContainer->updateGeometry();
   m_thumbnailSizesLayout->activate();
 
-  // Focus the name field for immediate editing and select all text
   QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
   if (nameEdit) {
     nameEdit->setFocus();
     nameEdit->selectAll();
   }
 
-  // Update scroll area height to fit new row count
   updateThumbnailSizesScrollHeight();
 
-  // Scroll to the new widget after layout updates
   QTimer::singleShot(10, this, [this, formRow]() {
-    // Ensure widget is visible with some margin
     m_thumbnailSizesScrollArea->ensureWidgetVisible(formRow, 10, 10);
 
-    // Alternative: scroll to bottom if ensureWidgetVisible doesn't work
     QScrollBar *scrollBar = m_thumbnailSizesScrollArea->verticalScrollBar();
     if (scrollBar) {
       scrollBar->setValue(scrollBar->maximum());
@@ -5033,7 +5140,6 @@ void ConfigDialog::onPopulateThumbnailSizes() {
 
   QSet<QString> existingCharacters;
   if (!clearExisting) {
-    // Collect existing character names from form rows
     for (int i = 0; i < m_thumbnailSizesLayout->count() - 1; ++i) {
       QWidget *rowWidget =
           qobject_cast<QWidget *>(m_thumbnailSizesLayout->itemAt(i)->widget());
@@ -5045,7 +5151,6 @@ void ConfigDialog::onPopulateThumbnailSizes() {
       }
     }
   } else {
-    // Clear all existing rows
     while (m_thumbnailSizesLayout->count() > 1) {
       QLayoutItem *item = m_thumbnailSizesLayout->takeAt(0);
       if (item->widget()) {
@@ -5080,7 +5185,6 @@ void ConfigDialog::onPopulateThumbnailSizes() {
     addedCount++;
   }
 
-  // Update scroll area height after populating
   updateThumbnailSizesScrollHeight();
 
   QString resultMsg = clearExisting ? QString("Replaced with %1 character%2.")
@@ -5094,12 +5198,9 @@ void ConfigDialog::onPopulateThumbnailSizes() {
 }
 
 void ConfigDialog::onRemoveThumbnailSize() {
-  // This method is no longer needed since each row has its own delete button
-  // kept for compatibility but does nothing
 }
 
 void ConfigDialog::onResetThumbnailSizesToDefault() {
-  // Count actual form rows (excluding the stretch)
   int rowCount = m_thumbnailSizesLayout->count() - 1;
 
   if (rowCount == 0) {
@@ -5113,7 +5214,6 @@ void ConfigDialog::onResetThumbnailSizesToDefault() {
       QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
 
   if (reply == QMessageBox::Yes) {
-    // Remove all form rows (keep the stretch at the end)
     while (m_thumbnailSizesLayout->count() > 1) {
       QLayoutItem *item = m_thumbnailSizesLayout->takeAt(0);
       if (item->widget()) {
@@ -5122,7 +5222,6 @@ void ConfigDialog::onResetThumbnailSizesToDefault() {
       delete item;
     }
 
-    // Update scroll area height after reset
     updateThumbnailSizesScrollHeight();
   }
 }
@@ -5266,7 +5365,6 @@ void ConfigDialog::onPopulateProcessNames() {
     }
 
     QSet<QString> existingProcesses;
-    // Collect existing process names from form rows
     for (int i = 0; i < m_processNamesLayout->count() - 1; ++i) {
       QWidget *rowWidget =
           qobject_cast<QWidget *>(m_processNamesLayout->itemAt(i)->widget());
@@ -5467,7 +5565,6 @@ void ConfigDialog::onResetHotkeysDefaults() {
     m_suspendHotkeyCapture->setHotkey(0, false, false, false);
     m_closeAllClientsCapture->setHotkey(0, false, false, false);
 
-    // Clear all character hotkey form rows
     while (m_characterHotkeysLayout->count() > 1) {
       QLayoutItem *item = m_characterHotkeysLayout->takeAt(0);
       if (item->widget()) {
@@ -5477,7 +5574,6 @@ void ConfigDialog::onResetHotkeysDefaults() {
     }
     updateCharacterHotkeysScrollHeight();
 
-    // Clear all cycle group form rows
     while (m_cycleGroupsLayout->count() > 1) {
       QLayoutItem *item = m_cycleGroupsLayout->takeAt(0);
       if (item->widget()) {
@@ -5512,7 +5608,6 @@ void ConfigDialog::onResetBehaviorDefaults() {
     m_saveClientLocationCheck->setChecked(
         Config::DEFAULT_WINDOW_SAVE_CLIENT_LOCATION);
 
-    // Clear never minimize characters
     while (m_neverMinimizeLayout->count() > 1) {
       QLayoutItem *item = m_neverMinimizeLayout->takeAt(0);
       if (item->widget()) {
@@ -7172,7 +7267,6 @@ void ConfigDialog::copyLegacySettings(const QString &category,
       m_rememberPositionsCheck->setChecked(true);
     }
   } else if (category == "Hotkeys & Cycle Groups") {
-    // Clear cycle groups layout for legacy migration
     while (m_cycleGroupsLayout->count() > 1) {
       QLayoutItem *item = m_cycleGroupsLayout->takeAt(0);
       if (item->widget()) {
@@ -7296,7 +7390,6 @@ void ConfigDialog::copyLegacySettings(const QString &category,
         characterList.append(it.value());
       }
 
-      // Convert legacy hotkeys
       int forwardVkCode = 0;
       int backwardVkCode = 0;
 
@@ -7308,7 +7401,6 @@ void ConfigDialog::copyLegacySettings(const QString &category,
         backwardVkCode = legacyKeyToVirtualKey(backwardHotkey);
       }
 
-      // Create inline form row for this cycle group
       QString characters = characterList.join(", ");
       QWidget *formRow = createCycleGroupFormRow(
           QString("Cycle Group %1").arg(i), backwardVkCode, 0, forwardVkCode, 0,
@@ -7318,7 +7410,6 @@ void ConfigDialog::copyLegacySettings(const QString &category,
       m_cycleGroupsLayout->insertWidget(count - 1, formRow);
     }
 
-    // Update scroll area height after legacy migration
     updateCycleGroupsScrollHeight();
 
     bool hasWildcard = false;
@@ -7375,7 +7466,6 @@ void ConfigDialog::copyLegacySettings(const QString &category,
         }
       }
 
-      // Update scroll area height after legacy migration
       updateCharacterHotkeysScrollHeight();
     }
   }
@@ -7501,36 +7591,32 @@ void ConfigDialog::createProfileToolbar() {
   m_profileHotkeyCapture->setFixedWidth(150);
   m_profileHotkeyCapture->setStyleSheet(
       StyleSheet::getHotkeyCaptureStandaloneStyleSheet());
-  connect(m_profileHotkeyCapture, &HotkeyCapture::hotkeyChanged, this,
-          [this]() {
-            QString currentProfile = Config::instance().getCurrentProfileName();
-            int key = m_profileHotkeyCapture->getKeyCode();
+  connect(
+      m_profileHotkeyCapture, &HotkeyCapture::hotkeyChanged, this, [this]() {
+        QString currentProfile = Config::instance().getCurrentProfileName();
 
-            if (key == 0) {
-              Config::instance().clearProfileHotkey(currentProfile);
-              onHotkeyChanged();
-              return;
-            }
+        QVector<HotkeyCombination> combinations =
+            m_profileHotkeyCapture->getHotkeys();
 
-            int modifiers = 0;
-            if (m_profileHotkeyCapture->getCtrl())
-              modifiers |= Qt::ControlModifier;
-            if (m_profileHotkeyCapture->getAlt())
-              modifiers |= Qt::AltModifier;
-            if (m_profileHotkeyCapture->getShift())
-              modifiers |= Qt::ShiftModifier;
+        if (combinations.isEmpty()) {
+          Config::instance().clearProfileHotkey(currentProfile);
+          HotkeyManager::instance()->setProfileHotkeys(
+              currentProfile, QVector<HotkeyBinding>());
+          onHotkeyChanged();
+          return;
+        }
 
-            HotkeyBinding binding;
-            binding.keyCode = key;
-            binding.ctrl = (modifiers & Qt::ControlModifier) != 0;
-            binding.alt = (modifiers & Qt::AltModifier) != 0;
-            binding.shift = (modifiers & Qt::ShiftModifier) != 0;
-            binding.enabled = true;
+        QVector<HotkeyBinding> bindings;
+        for (const HotkeyCombination &combo : combinations) {
+          bindings.append(HotkeyBinding{combo.keyCode, combo.ctrl, combo.alt,
+                                        combo.shift, true});
+        }
 
-            Config::instance().setProfileHotkey(currentProfile, key, modifiers);
+        Config::instance().setProfileHotkeys(currentProfile, bindings);
+        HotkeyManager::instance()->setProfileHotkeys(currentProfile, bindings);
 
-            onHotkeyChanged();
-          });
+        onHotkeyChanged();
+      });
   toolbarLayout->addWidget(m_profileHotkeyCapture);
 
   m_clearProfileHotkeyButton = new QPushButton("Clear");
@@ -7674,7 +7760,6 @@ void ConfigDialog::switchProfile(const QString &profileName) {
 
   saveSettings();
   Config::instance().save();
-  HotkeyManager::instance()->saveToConfig();
 
   if (Config::instance().loadProfile(profileName)) {
     HotkeyManager::instance()->loadFromConfig();
@@ -7684,20 +7769,22 @@ void ConfigDialog::switchProfile(const QString &profileName) {
     updateProfileDropdown();
 
     if (m_profileHotkeyCapture) {
-      QString hotkey = Config::instance().getProfileHotkey(profileName);
-      if (hotkey.isEmpty()) {
+      QVector<HotkeyBinding> hotkeys =
+          Config::instance().getProfileHotkeys(profileName);
+
+      if (hotkeys.isEmpty()) {
         m_profileHotkeyCapture->clearHotkey();
       } else {
-        QMap<QString, QPair<int, int>> allHotkeys =
-            Config::instance().getAllProfileHotkeys();
-        if (allHotkeys.contains(profileName)) {
-          QPair<int, int> keyData = allHotkeys[profileName];
-          int modifiers = keyData.second;
-          m_profileHotkeyCapture->setHotkey(
-              keyData.first, (modifiers & Qt::ControlModifier) != 0,
-              (modifiers & Qt::AltModifier) != 0,
-              (modifiers & Qt::ShiftModifier) != 0);
+        QVector<HotkeyCombination> combinations;
+        for (const HotkeyBinding &binding : hotkeys) {
+          HotkeyCombination combo;
+          combo.keyCode = binding.keyCode;
+          combo.ctrl = binding.ctrl;
+          combo.alt = binding.alt;
+          combo.shift = binding.shift;
+          combinations.append(combo);
         }
+        m_profileHotkeyCapture->setHotkeys(combinations);
       }
     }
 
@@ -7720,20 +7807,22 @@ void ConfigDialog::onExternalProfileSwitch(const QString &profileName) {
     updateProfileDropdown();
 
     if (m_profileHotkeyCapture) {
-      QString hotkey = Config::instance().getProfileHotkey(profileName);
-      if (hotkey.isEmpty()) {
+      QVector<HotkeyBinding> hotkeys =
+          Config::instance().getProfileHotkeys(profileName);
+
+      if (hotkeys.isEmpty()) {
         m_profileHotkeyCapture->clearHotkey();
       } else {
-        QMap<QString, QPair<int, int>> allHotkeys =
-            Config::instance().getAllProfileHotkeys();
-        if (allHotkeys.contains(profileName)) {
-          QPair<int, int> keyData = allHotkeys[profileName];
-          int modifiers = keyData.second;
-          m_profileHotkeyCapture->setHotkey(
-              keyData.first, (modifiers & Qt::ControlModifier) != 0,
-              (modifiers & Qt::AltModifier) != 0,
-              (modifiers & Qt::ShiftModifier) != 0);
+        QVector<HotkeyCombination> combinations;
+        for (const HotkeyBinding &binding : hotkeys) {
+          HotkeyCombination combo;
+          combo.keyCode = binding.keyCode;
+          combo.ctrl = binding.ctrl;
+          combo.alt = binding.alt;
+          combo.shift = binding.shift;
+          combinations.append(combo);
         }
+        m_profileHotkeyCapture->setHotkeys(combinations);
       }
     }
   }
@@ -8323,8 +8412,8 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
     QList<HotkeyCapture *> hotkeyCaptures =
         rowWidget->findChildren<HotkeyCapture *>();
     if (hotkeyCaptures.size() >= 2) {
-      markIfConflicting(hotkeyCaptures[0]); // backward
-      markIfConflicting(hotkeyCaptures[1]); // forward
+      markIfConflicting(hotkeyCaptures[0]); 
+      markIfConflicting(hotkeyCaptures[1]); 
     }
   }
 
@@ -8376,8 +8465,8 @@ void ConfigDialog::clearHotkeyConflictVisuals() {
     QList<HotkeyCapture *> hotkeyCaptures =
         rowWidget->findChildren<HotkeyCapture *>();
     if (hotkeyCaptures.size() >= 2) {
-      clearConflict(hotkeyCaptures[0]); // backward
-      clearConflict(hotkeyCaptures[1]); // forward
+      clearConflict(hotkeyCaptures[0]); 
+      clearConflict(hotkeyCaptures[1]); 
     }
   }
 

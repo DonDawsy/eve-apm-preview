@@ -111,15 +111,12 @@ void ThumbnailWidget::setActive(bool active) {
 }
 
 void ThumbnailWidget::closeImmediately() {
-  // Close and hide the overlay widget first (it's an independent top-level
-  // window)
   if (m_overlayWidget) {
     m_overlayWidget->setUpdatesEnabled(false);
     m_overlayWidget->close();
     m_overlayWidget->hide();
   }
 
-  // Stop all timers
   if (m_updateTimer) {
     m_updateTimer->stop();
   }
@@ -127,7 +124,6 @@ void ThumbnailWidget::closeImmediately() {
     m_combatMessageTimer->stop();
   }
 
-  // Disable updates and close this widget
   setUpdatesEnabled(false);
   close();
 }

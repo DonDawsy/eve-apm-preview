@@ -4,6 +4,7 @@
 #include <QHash>
 #include <QObject>
 #include <QPointer>
+#include <QSet>
 #include <QString>
 #include <QVector>
 #include <Windows.h>
@@ -87,8 +88,8 @@ public:
   bool isSuspended() const { return m_suspended; }
   void toggleSuspended();
 
-  void setSuspendHotkey(const HotkeyBinding &binding);
-  HotkeyBinding getSuspendHotkey() const { return m_suspendHotkey; }
+  void setSuspendHotkeys(const QVector<HotkeyBinding> &bindings);
+  QVector<HotkeyBinding> getSuspendHotkeys() const { return m_suspendHotkeys; }
 
   void setCharacterHotkey(const QString &characterName,
                           const HotkeyBinding &binding);
@@ -117,30 +118,37 @@ public:
 
   void setNotLoggedInCycleHotkeys(const HotkeyBinding &forwardKey,
                                   const HotkeyBinding &backwardKey);
-  HotkeyBinding getNotLoggedInForwardHotkey() const {
-    return m_notLoggedInForwardHotkey;
+  void setNotLoggedInCycleHotkeys(const QVector<HotkeyBinding> &forwardKeys,
+                                  const QVector<HotkeyBinding> &backwardKeys);
+  QVector<HotkeyBinding> getNotLoggedInForwardHotkeys() const {
+    return m_notLoggedInForwardHotkeys;
   }
-  HotkeyBinding getNotLoggedInBackwardHotkey() const {
-    return m_notLoggedInBackwardHotkey;
+  QVector<HotkeyBinding> getNotLoggedInBackwardHotkeys() const {
+    return m_notLoggedInBackwardHotkeys;
   }
 
-  void setNonEVECycleHotkeys(const HotkeyBinding &forwardKey,
+  void setNonEVECycleHotkeys(const QVector<HotkeyBinding> &forwardKeys,
                              const HotkeyBinding &backwardKey);
-  HotkeyBinding getNonEVEForwardHotkey() const { return m_nonEVEForwardHotkey; }
-  HotkeyBinding getNonEVEBackwardHotkey() const {
-    return m_nonEVEBackwardHotkey;
+  void setNonEVECycleHotkeys(const QVector<HotkeyBinding> &forwardKeys,
+                             const QVector<HotkeyBinding> &backwardKeys);
+  QVector<HotkeyBinding> getNonEVEForwardHotkeys() const {
+    return m_nonEVEForwardHotkeys;
+  }
+  QVector<HotkeyBinding> getNonEVEBackwardHotkeys() const {
+    return m_nonEVEBackwardHotkeys;
   }
 
-  void setCloseAllClientsHotkey(const HotkeyBinding &binding);
-  HotkeyBinding getCloseAllClientsHotkey() const {
-    return m_closeAllClientsHotkey;
+  void setCloseAllClientsHotkeys(const QVector<HotkeyBinding> &bindings);
+  QVector<HotkeyBinding> getCloseAllClientsHotkeys() const {
+    return m_closeAllClientsHotkeys;
   }
 
+  void setProfileHotkeys(const QString &profileName,
+                         const QVector<HotkeyBinding> &bindings);
+  QVector<HotkeyBinding> getProfileHotkeys(const QString &profileName) const;
   void registerProfileHotkeys();
   void unregisterProfileHotkeys();
 
-  /// Uninstall the low-level mouse hook (should be called before application
-  /// exit)
   void uninstallMouseHook();
 
   void loadFromConfig();
@@ -174,33 +182,27 @@ private:
   QHash<int, bool> m_hotkeyIdIsForward;
   QHash<int, int> m_wildcardAliases;
   QHash<int, QString> m_hotkeyIdToProfile;
+  QHash<QString, QVector<HotkeyBinding>> m_profileHotkeys;
 
   QHash<QString, HWND> m_characterWindows;
   QHash<QString, CycleGroup> m_cycleGroups;
 
-  HotkeyBinding m_suspendHotkey;
   QVector<HotkeyBinding> m_suspendHotkeys;
-  int m_suspendHotkeyId;
   QVector<int> m_suspendHotkeyIds;
   bool m_suspended;
 
-  HotkeyBinding m_notLoggedInForwardHotkey;
-  HotkeyBinding m_notLoggedInBackwardHotkey;
   QVector<HotkeyBinding> m_notLoggedInForwardHotkeys;
   QVector<HotkeyBinding> m_notLoggedInBackwardHotkeys;
-  int m_notLoggedInForwardHotkeyId;
-  int m_notLoggedInBackwardHotkeyId;
+  QSet<int> m_notLoggedInForwardHotkeyIds;
+  QSet<int> m_notLoggedInBackwardHotkeyIds;
 
-  HotkeyBinding m_nonEVEForwardHotkey;
-  HotkeyBinding m_nonEVEBackwardHotkey;
   QVector<HotkeyBinding> m_nonEVEForwardHotkeys;
   QVector<HotkeyBinding> m_nonEVEBackwardHotkeys;
-  int m_nonEVEForwardHotkeyId;
-  int m_nonEVEBackwardHotkeyId;
+  QSet<int> m_nonEVEForwardHotkeyIds;
+  QSet<int> m_nonEVEBackwardHotkeyIds;
 
-  HotkeyBinding m_closeAllClientsHotkey;
   QVector<HotkeyBinding> m_closeAllClientsHotkeys;
-  int m_closeAllClientsHotkeyId;
+  QSet<int> m_closeAllClientsHotkeyIds;
 
   int m_nextHotkeyId;
 
@@ -218,15 +220,14 @@ private:
   bool isMouseButton(int keyCode) const;
   void checkMouseButtonBindings(int vkCode, bool ctrl, bool alt, bool shift);
 
+  void registerHotkeyList(const QVector<HotkeyBinding> &multiHotkeys);
   void registerHotkeyList(const QVector<HotkeyBinding> &multiHotkeys,
-                          const HotkeyBinding &legacyHotkey,
-                          int &legacyHotkeyId);
+                          QSet<int> &outHotkeyIds);
   void unregisterAndReset(int &hotkeyId);
   void saveHotkeyList(QSettings &settings, const QString &key,
-                      const QVector<HotkeyBinding> &multiHotkeys,
-                      const HotkeyBinding &legacyHotkey);
-  QVector<HotkeyBinding> loadHotkeyList(QSettings &settings, const QString &key,
-                                        HotkeyBinding &outLegacyHotkey);
+                      const QVector<HotkeyBinding> &multiHotkeys);
+  QVector<HotkeyBinding> loadHotkeyList(QSettings &settings,
+                                        const QString &key);
 };
 
 #endif

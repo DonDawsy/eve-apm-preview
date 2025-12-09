@@ -1,4 +1,5 @@
 #include "config.h"
+#include "hotkeymanager.h"
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
@@ -1208,34 +1209,69 @@ bool Config::renameProfile(const QString &oldName, const QString &newName) {
   }
 }
 
-QString Config::getProfileHotkey(const QString &profileName) const {
+QVector<HotkeyBinding>
+Config::getProfileHotkeys(const QString &profileName) const {
+  QVector<HotkeyBinding> hotkeys;
+
   if (!m_globalSettings) {
-    return QString();
+    return hotkeys;
   }
 
   QString key = QString("ProfileHotkeys/%1").arg(profileName);
-  return m_globalSettings->value(key, QString()).toString();
+  QString hotkeyString = m_globalSettings->value(key, QString()).toString();
+
+  if (hotkeyString.isEmpty()) {
+    return hotkeys;
+  }
+
+  QStringList hotkeyParts = hotkeyString.split('|', Qt::SkipEmptyParts);
+
+  for (const QString &part : hotkeyParts) {
+    QStringList components = part.split(',');
+    if (components.size() >= 4) {
+      int keyCode = components[0].toInt();
+      bool ctrl = components[1].toInt() != 0;
+      bool alt = components[2].toInt() != 0;
+      bool shift = components[3].toInt() != 0;
+
+      if (keyCode != 0) {
+        hotkeys.append(HotkeyBinding{keyCode, ctrl, alt, shift, true});
+      }
+    }
+  }
+
+  return hotkeys;
 }
 
-void Config::setProfileHotkey(const QString &profileName, int key,
-                              int modifiers) {
+void Config::setProfileHotkeys(const QString &profileName,
+                               const QVector<HotkeyBinding> &hotkeys) {
   if (!m_globalSettings) {
     return;
   }
 
   if (!profileExists(profileName)) {
-    qWarning() << "Cannot set hotkey for non-existent profile:" << profileName;
+    qWarning() << "Cannot set hotkeys for non-existent profile:" << profileName;
     return;
   }
 
-  QString hotkeyString = QString("%1,%2").arg(key).arg(modifiers);
+  QStringList hotkeyParts;
+  for (const HotkeyBinding &binding : hotkeys) {
+    if (binding.keyCode != 0) {
+      hotkeyParts.append(QString("%1,%2,%3,%4")
+                             .arg(binding.keyCode)
+                             .arg(binding.ctrl ? 1 : 0)
+                             .arg(binding.alt ? 1 : 0)
+                             .arg(binding.shift ? 1 : 0));
+    }
+  }
+
+  QString hotkeyString = hotkeyParts.join('|');
 
   QString settingsKey = QString("ProfileHotkeys/%1").arg(profileName);
   m_globalSettings->setValue(settingsKey, hotkeyString);
   m_globalSettings->sync();
 
-  qDebug() << "Set hotkey for profile" << profileName << "to VK" << key
-           << "with modifiers" << modifiers;
+  qDebug() << "Set" << hotkeys.size() << "hotkey(s) for profile" << profileName;
 }
 
 void Config::clearProfileHotkey(const QString &profileName) {
@@ -1248,34 +1284,6 @@ void Config::clearProfileHotkey(const QString &profileName) {
   m_globalSettings->sync();
 
   qDebug() << "Cleared hotkey for profile" << profileName;
-}
-
-QMap<QString, QPair<int, int>> Config::getAllProfileHotkeys() const {
-  QMap<QString, QPair<int, int>> hotkeys;
-
-  if (!m_globalSettings) {
-    return hotkeys;
-  }
-
-  m_globalSettings->beginGroup("ProfileHotkeys");
-  QStringList profileNames = m_globalSettings->childKeys();
-  m_globalSettings->endGroup();
-
-  for (const QString &profileName : profileNames) {
-    QString hotkeyString = getProfileHotkey(profileName);
-    if (hotkeyString.isEmpty()) {
-      continue;
-    }
-
-    QStringList parts = hotkeyString.split(',');
-    if (parts.size() == 2) {
-      int key = parts[0].toInt();
-      int modifiers = parts[1].toInt();
-      hotkeys[profileName] = qMakePair(key, modifiers);
-    }
-  }
-
-  return hotkeys;
 }
 
 bool Config::enableChatLogMonitoring() const {

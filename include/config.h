@@ -11,7 +11,10 @@
 #include <QSettings>
 #include <QString>
 #include <QStringList>
+#include <QVector>
 #include <memory>
+
+struct HotkeyBinding;
 
 class Config {
 public:
@@ -213,10 +216,10 @@ public:
   bool renameProfile(const QString &oldName, const QString &newName);
   bool profileExists(const QString &profileName) const;
 
-  QString getProfileHotkey(const QString &profileName) const;
-  void setProfileHotkey(const QString &profileName, int key, int modifiers);
+  QVector<HotkeyBinding> getProfileHotkeys(const QString &profileName) const;
+  void setProfileHotkeys(const QString &profileName,
+                         const QVector<HotkeyBinding> &hotkeys);
   void clearProfileHotkey(const QString &profileName);
-  QMap<QString, QPair<int, int>> getAllProfileHotkeys() const;
 
   static constexpr const char *DEFAULT_OVERLAY_FONT_FAMILY = "Segoe UI";
   static constexpr int DEFAULT_OVERLAY_FONT_SIZE = 10;

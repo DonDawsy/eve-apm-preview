@@ -255,8 +255,6 @@ MainWindow::~MainWindow() {
     UnhookWinEvent(m_moveSizeEndHook);
   }
 
-  // Close all thumbnails and their overlays before deletion to prevent visual
-  // artifacts
   for (ThumbnailWidget *thumbnail : thumbnails) {
     if (thumbnail) {
       thumbnail->closeImmediately();
@@ -1832,7 +1830,6 @@ void MainWindow::reloadThumbnails() {
   qDebug() << "MainWindow: Refreshing windows after reload";
   refreshWindows();
 
-  // Reinitialize chatlog monitoring to refresh system names
   if (m_chatLogReader && m_chatLogReader->isMonitoring()) {
     QStringList characterNames = m_characterToWindow.keys();
     if (!characterNames.isEmpty()) {
@@ -1844,21 +1841,16 @@ void MainWindow::reloadThumbnails() {
 }
 
 void MainWindow::exitApplication() {
-  // Immediately close all thumbnails and overlays to prevent visual artifacts
   for (ThumbnailWidget *thumbnail : thumbnails) {
     if (thumbnail) {
-      // Close thumbnail and its overlay widget immediately
       thumbnail->closeImmediately();
     }
   }
 
-  // Uninstall mouse hook before quitting to prevent mouse lag during shutdown
   if (hotkeyManager) {
     hotkeyManager->uninstallMouseHook();
   }
 
-  // Use QTimer::singleShot to defer the quit until after this event is
-  // processed
   QTimer::singleShot(0, []() { QCoreApplication::quit(); });
 }
 
