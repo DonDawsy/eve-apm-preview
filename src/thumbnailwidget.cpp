@@ -110,6 +110,28 @@ void ThumbnailWidget::setActive(bool active) {
   }
 }
 
+void ThumbnailWidget::closeImmediately() {
+  // Close and hide the overlay widget first (it's an independent top-level
+  // window)
+  if (m_overlayWidget) {
+    m_overlayWidget->setUpdatesEnabled(false);
+    m_overlayWidget->close();
+    m_overlayWidget->hide();
+  }
+
+  // Stop all timers
+  if (m_updateTimer) {
+    m_updateTimer->stop();
+  }
+  if (m_combatMessageTimer) {
+    m_combatMessageTimer->stop();
+  }
+
+  // Disable updates and close this widget
+  setUpdatesEnabled(false);
+  close();
+}
+
 void ThumbnailWidget::updateOverlays() {
   const Config &cfg = Config::instance();
   m_overlays.clear();

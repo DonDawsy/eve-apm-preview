@@ -255,6 +255,14 @@ MainWindow::~MainWindow() {
     UnhookWinEvent(m_moveSizeEndHook);
   }
 
+  // Close all thumbnails and their overlays before deletion to prevent visual
+  // artifacts
+  for (ThumbnailWidget *thumbnail : thumbnails) {
+    if (thumbnail) {
+      thumbnail->closeImmediately();
+    }
+  }
+
   qDeleteAll(thumbnails);
   thumbnails.clear();
 }
@@ -1835,7 +1843,24 @@ void MainWindow::reloadThumbnails() {
   }
 }
 
-void MainWindow::exitApplication() { QCoreApplication::quit(); }
+void MainWindow::exitApplication() {
+  // Immediately close all thumbnails and overlays to prevent visual artifacts
+  for (ThumbnailWidget *thumbnail : thumbnails) {
+    if (thumbnail) {
+      // Close thumbnail and its overlay widget immediately
+      thumbnail->closeImmediately();
+    }
+  }
+
+  // Uninstall mouse hook before quitting to prevent mouse lag during shutdown
+  if (hotkeyManager) {
+    hotkeyManager->uninstallMouseHook();
+  }
+
+  // Use QTimer::singleShot to defer the quit until after this event is
+  // processed
+  QTimer::singleShot(0, []() { QCoreApplication::quit(); });
+}
 
 void MainWindow::onCharacterSystemChanged(const QString &characterName,
                                           const QString &systemName) {

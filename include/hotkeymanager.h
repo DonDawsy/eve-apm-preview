@@ -139,6 +139,10 @@ public:
   void registerProfileHotkeys();
   void unregisterProfileHotkeys();
 
+  /// Uninstall the low-level mouse hook (should be called before application
+  /// exit)
+  void uninstallMouseHook();
+
   void loadFromConfig();
   void saveToConfig();
 
@@ -209,7 +213,6 @@ private:
   void unregisterHotkey(int hotkeyId);
 
   void installMouseHook();
-  void uninstallMouseHook();
   static LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam,
                                             LPARAM lParam);
   bool isMouseButton(int keyCode) const;

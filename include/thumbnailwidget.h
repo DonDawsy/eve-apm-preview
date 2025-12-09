@@ -25,6 +25,9 @@ public:
   void updateOverlays();
   quintptr getWindowId() const { return m_windowId; }
 
+  /// Immediately close this thumbnail and its overlay widget
+  void closeImmediately();
+
   void setCharacterName(const QString &characterName);
   QString getCharacterName() const { return m_characterName; }
 
