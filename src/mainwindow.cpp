@@ -1823,6 +1823,16 @@ void MainWindow::reloadThumbnails() {
 
   qDebug() << "MainWindow: Refreshing windows after reload";
   refreshWindows();
+
+  // Reinitialize chatlog monitoring to refresh system names
+  if (m_chatLogReader && m_chatLogReader->isMonitoring()) {
+    QStringList characterNames = m_characterToWindow.keys();
+    if (!characterNames.isEmpty()) {
+      m_chatLogReader->setCharacterNames(characterNames);
+      m_chatLogReader->refreshMonitoring();
+      qDebug() << "MainWindow: ChatLog monitoring refreshed after reload";
+    }
+  }
 }
 
 void MainWindow::exitApplication() { QCoreApplication::quit(); }
