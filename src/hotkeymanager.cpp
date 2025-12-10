@@ -270,7 +270,9 @@ bool HotkeyManager::registerHotkeys() {
 
   registerProfileHotkeys();
 
-  installMouseHook();
+  if (hasMouseButtonHotkeys()) {
+    installMouseHook();
+  }
 
   return true;
 }
@@ -939,6 +941,88 @@ bool HotkeyManager::isMouseButton(int keyCode) const {
   return keyCode == VK_XBUTTON1 || keyCode == VK_XBUTTON2;
 }
 
+bool HotkeyManager::hasMouseButtonHotkeys() const {
+  for (const HotkeyBinding &binding : m_characterHotkeys.values()) {
+    if (binding.enabled && isMouseButton(binding.keyCode)) {
+      return true;
+    }
+  }
+
+  for (const QVector<HotkeyBinding> &bindings :
+       m_characterMultiHotkeys.values()) {
+    for (const HotkeyBinding &binding : bindings) {
+      if (binding.enabled && isMouseButton(binding.keyCode)) {
+        return true;
+      }
+    }
+  }
+
+  for (const CycleGroup &group : m_cycleGroups.values()) {
+    if (group.forwardBinding.enabled &&
+        isMouseButton(group.forwardBinding.keyCode)) {
+      return true;
+    }
+    if (group.backwardBinding.enabled &&
+        isMouseButton(group.backwardBinding.keyCode)) {
+      return true;
+    }
+    for (const HotkeyBinding &binding : group.forwardBindings) {
+      if (binding.enabled && isMouseButton(binding.keyCode)) {
+        return true;
+      }
+    }
+    for (const HotkeyBinding &binding : group.backwardBindings) {
+      if (binding.enabled && isMouseButton(binding.keyCode)) {
+        return true;
+      }
+    }
+  }
+
+  for (const HotkeyBinding &binding : m_notLoggedInForwardHotkeys) {
+    if (binding.enabled && isMouseButton(binding.keyCode)) {
+      return true;
+    }
+  }
+  for (const HotkeyBinding &binding : m_notLoggedInBackwardHotkeys) {
+    if (binding.enabled && isMouseButton(binding.keyCode)) {
+      return true;
+    }
+  }
+
+  for (const HotkeyBinding &binding : m_nonEVEForwardHotkeys) {
+    if (binding.enabled && isMouseButton(binding.keyCode)) {
+      return true;
+    }
+  }
+  for (const HotkeyBinding &binding : m_nonEVEBackwardHotkeys) {
+    if (binding.enabled && isMouseButton(binding.keyCode)) {
+      return true;
+    }
+  }
+
+  for (const HotkeyBinding &binding : m_closeAllClientsHotkeys) {
+    if (binding.enabled && isMouseButton(binding.keyCode)) {
+      return true;
+    }
+  }
+
+  for (const HotkeyBinding &binding : m_suspendHotkeys) {
+    if (binding.enabled && isMouseButton(binding.keyCode)) {
+      return true;
+    }
+  }
+
+  for (const QVector<HotkeyBinding> &bindings : m_profileHotkeys.values()) {
+    for (const HotkeyBinding &binding : bindings) {
+      if (binding.enabled && isMouseButton(binding.keyCode)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 void HotkeyManager::installMouseHook() {
   if (s_mouseHook == nullptr && !s_instance.isNull()) {
     s_mouseHook = SetWindowsHookEx(WH_MOUSE_LL, LowLevelMouseProc,
@@ -955,34 +1039,34 @@ void HotkeyManager::uninstallMouseHook() {
 
 LRESULT CALLBACK HotkeyManager::LowLevelMouseProc(int nCode, WPARAM wParam,
                                                   LPARAM lParam) {
-  if (nCode == HC_ACTION && !s_instance.isNull()) {
-    if (!s_instance->m_suspended) {
-      if (wParam == WM_XBUTTONUP) {
-        MSLLHOOKSTRUCT *pMouse = reinterpret_cast<MSLLHOOKSTRUCT *>(lParam);
-        int xButton = HIWORD(pMouse->mouseData);
+  if (nCode != HC_ACTION || wParam != WM_XBUTTONUP) {
+    return CallNextHookEx(s_mouseHook, nCode, wParam, lParam);
+  }
 
-        int vkCode = 0;
-        if (xButton == XBUTTON1) {
-          vkCode = VK_XBUTTON1;
-        } else if (xButton == XBUTTON2) {
-          vkCode = VK_XBUTTON2;
-        }
+  if (!s_instance.isNull() && !s_instance->m_suspended) {
+    MSLLHOOKSTRUCT *pMouse = reinterpret_cast<MSLLHOOKSTRUCT *>(lParam);
+    int xButton = HIWORD(pMouse->mouseData);
 
-        if (vkCode != 0) {
-          bool ctrl = GetKeyState(VK_CONTROL) & 0x8000;
-          bool alt = GetKeyState(VK_MENU) & 0x8000;
-          bool shift = GetKeyState(VK_SHIFT) & 0x8000;
+    int vkCode = 0;
+    if (xButton == XBUTTON1) {
+      vkCode = VK_XBUTTON1;
+    } else if (xButton == XBUTTON2) {
+      vkCode = VK_XBUTTON2;
+    }
 
-          QMetaObject::invokeMethod(
-              s_instance.data(),
-              [instance = s_instance, vkCode, ctrl, alt, shift]() {
-                if (!instance.isNull()) {
-                  instance->checkMouseButtonBindings(vkCode, ctrl, alt, shift);
-                }
-              },
-              Qt::QueuedConnection);
-        }
-      }
+    if (vkCode != 0) {
+      bool ctrl = GetKeyState(VK_CONTROL) & 0x8000;
+      bool alt = GetKeyState(VK_MENU) & 0x8000;
+      bool shift = GetKeyState(VK_SHIFT) & 0x8000;
+
+      QMetaObject::invokeMethod(
+          s_instance.data(),
+          [instance = s_instance, vkCode, ctrl, alt, shift]() {
+            if (!instance.isNull()) {
+              instance->checkMouseButtonBindings(vkCode, ctrl, alt, shift);
+            }
+          },
+          Qt::QueuedConnection);
     }
   }
 

@@ -218,6 +218,7 @@ private:
   static LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam,
                                             LPARAM lParam);
   bool isMouseButton(int keyCode) const;
+  bool hasMouseButtonHotkeys() const;
   void checkMouseButtonBindings(int vkCode, bool ctrl, bool alt, bool shift);
 
   void registerHotkeyList(const QVector<HotkeyBinding> &multiHotkeys);

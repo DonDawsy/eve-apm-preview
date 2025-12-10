@@ -2793,13 +2793,11 @@ void ConfigDialog::loadSettings() {
     if (index >= 0) {
       styleCombo->setCurrentIndex(index);
     }
-    // Enable/disable based on checkbox state
     if (m_eventBorderCheckBoxes.contains(eventType)) {
       styleCombo->setEnabled(m_eventBorderCheckBoxes[eventType]->isChecked());
     }
   }
 
-  // Load active border style
   BorderStyle activeStyle = config.activeBorderStyle();
   int activeIndex =
       m_activeBorderStyleCombo->findData(static_cast<int>(activeStyle));

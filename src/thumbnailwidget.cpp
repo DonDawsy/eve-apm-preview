@@ -724,7 +724,6 @@ void OverlayWidget::setActiveState(bool active) {
   }
   m_isActive = active;
 
-  // Start/stop animation for active borders with animated styles
   if (active) {
     const Config &cfg = Config::instance();
     BorderStyle style = cfg.activeBorderStyle();
@@ -737,7 +736,6 @@ void OverlayWidget::setActiveState(bool active) {
       m_borderAnimationTimer->start();
     }
   } else if (!m_hasCombatEvent) {
-    // Only stop animation if no combat event is active
     m_borderAnimationTimer->stop();
   }
 
@@ -1023,7 +1021,6 @@ void OverlayWidget::drawFadedEdgesBorder(QPainter &painter, const QRectF &rect,
 
   qreal fadeLength = qMin(rect.width(), rect.height()) * 0.25;
 
-  // Top edge with gradient fade
   QLinearGradient topGradient(rect.topLeft(),
                               QPointF(rect.left() + fadeLength, rect.top()));
   QColor transparent = color;
@@ -1036,13 +1033,11 @@ void OverlayWidget::drawFadedEdgesBorder(QPainter &painter, const QRectF &rect,
   painter.drawLine(rect.topLeft(),
                    QPointF(rect.left() + fadeLength, rect.top()));
 
-  // Solid middle section
   QPen solidPen(color, width);
   painter.setPen(solidPen);
   painter.drawLine(QPointF(rect.left() + fadeLength, rect.top()),
                    QPointF(rect.right() - fadeLength, rect.top()));
 
-  // Right fade
   QLinearGradient rightFade(QPointF(rect.right() - fadeLength, rect.top()),
                             rect.topRight());
   rightFade.setColorAt(0, color);
@@ -1052,7 +1047,6 @@ void OverlayWidget::drawFadedEdgesBorder(QPainter &painter, const QRectF &rect,
   painter.drawLine(QPointF(rect.right() - fadeLength, rect.top()),
                    rect.topRight());
 
-  // Draw all four sides with fade effect
   painter.setPen(solidPen);
   painter.drawLine(rect.topRight(), rect.bottomRight());
   painter.drawLine(rect.bottomRight(), rect.bottomLeft());
@@ -1071,25 +1065,21 @@ void OverlayWidget::drawCornerAccentsBorder(QPainter &painter,
 
   qreal accentLength = qMin(rect.width(), rect.height()) * 0.15;
 
-  // Top-left corner
   painter.drawLine(rect.topLeft(),
                    QPointF(rect.left() + accentLength, rect.top()));
   painter.drawLine(rect.topLeft(),
                    QPointF(rect.left(), rect.top() + accentLength));
 
-  // Top-right corner
   painter.drawLine(rect.topRight(),
                    QPointF(rect.right() - accentLength, rect.top()));
   painter.drawLine(rect.topRight(),
                    QPointF(rect.right(), rect.top() + accentLength));
 
-  // Bottom-right corner
   painter.drawLine(rect.bottomRight(),
                    QPointF(rect.right() - accentLength, rect.bottom()));
   painter.drawLine(rect.bottomRight(),
                    QPointF(rect.right(), rect.bottom() - accentLength));
 
-  // Bottom-left corner
   painter.drawLine(rect.bottomLeft(),
                    QPointF(rect.left() + accentLength, rect.bottom()));
   painter.drawLine(rect.bottomLeft(),
@@ -1115,14 +1105,10 @@ void OverlayWidget::drawNeonBorder(QPainter &painter, const QRectF &rect,
   painter.setRenderHint(QPainter::Antialiasing, true);
   painter.setBrush(Qt::NoBrush);
 
-  // Cycle through colors for neon effect with clean looping
-  // For smooth cycling: 100 phase units should complete integer full cycles
-  // Using 3.6 means 100 phase units = 360 degrees = 1 complete hue cycle
   QColor neonColor = color;
   int hue = (color.hue() + static_cast<int>(m_animationPhase * 3.6)) % 360;
   neonColor.setHsv(hue, 255, 255);
 
-  // Draw multiple glow layers for neon effect
   for (int i = 4; i >= 0; --i) {
     qreal glowWidth = width + i * 2.0;
     QColor glowColor = neonColor;
@@ -1134,7 +1120,6 @@ void OverlayWidget::drawNeonBorder(QPainter &painter, const QRectF &rect,
     painter.drawRect(rect);
   }
 
-  // Draw bright core
   QPen corePen(neonColor.lighter(150), width);
   corePen.setJoinStyle(Qt::RoundJoin);
   painter.setPen(corePen);
@@ -1146,21 +1131,17 @@ void OverlayWidget::drawShimmerBorder(QPainter &painter, const QRectF &rect,
   painter.setRenderHint(QPainter::Antialiasing, false);
   painter.setBrush(Qt::NoBrush);
 
-  // Draw base border
   QPen basePen(color, width);
   basePen.setJoinStyle(Qt::MiterJoin);
   painter.setPen(basePen);
   painter.drawRect(rect);
 
-  // Add shimmer sparkles at random positions
   painter.setRenderHint(QPainter::Antialiasing, true);
   qreal perimeter = (rect.width() + rect.height()) * 2.0;
 
-  // Create sparkles based on animation phase
   for (int i = 0; i < 8; ++i) {
     qreal sparklePos =
         fmod(m_animationPhase * 3.0 + i * (perimeter / 8.0), perimeter);
-    // Use proper 2*PI cycle for intensity: 100 phase units = one full cycle
     qreal sparkleIntensity =
         qAbs(qSin((m_animationPhase + i * 12.5) * 0.062831853));
 
@@ -1208,7 +1189,6 @@ void OverlayWidget::drawThickThinBorder(QPainter &painter, const QRectF &rect,
   int thickWidth = width * 2;
   int thinWidth = width;
 
-  // Helper to draw dashed line with alternating widths
   auto drawSegmentedEdge = [&](const QPointF &start, const QPointF &end) {
     qreal dx = end.x() - start.x();
     qreal dy = end.y() - start.y();
@@ -1233,7 +1213,6 @@ void OverlayWidget::drawThickThinBorder(QPainter &painter, const QRectF &rect,
     }
   };
 
-  // Draw all four edges with alternating thick/thin pattern
   drawSegmentedEdge(rect.topLeft(), rect.topRight());
   drawSegmentedEdge(rect.topRight(), rect.bottomRight());
   drawSegmentedEdge(rect.bottomRight(), rect.bottomLeft());
@@ -1249,21 +1228,18 @@ void OverlayWidget::drawElectricArcBorder(QPainter &painter, const QRectF &rect,
   qreal segmentLength = 8.0;
   qreal jitter = 2.0;
 
-  // Helper to create jagged path along an edge
   auto createJaggedEdge = [&](const QPointF &start, const QPointF &end) {
     qreal dx = end.x() - start.x();
     qreal dy = end.y() - start.y();
     qreal length = qSqrt(dx * dx + dy * dy);
     qreal ux = dx / length;
     qreal uy = dy / length;
-    qreal nx = -uy; // Normal perpendicular
+    qreal nx = -uy; 
     qreal ny = ux;
 
     qreal pos = 0;
     path.moveTo(start);
 
-    // Use animation phase to make it look alive with clean looping
-    // Normalize to 2*PI per cycle: phase 0-100 maps to 0-2*PI
     qreal animOffset = m_animationPhase * 0.062831853;
 
     while (pos < length) {
@@ -1284,7 +1260,6 @@ void OverlayWidget::drawElectricArcBorder(QPainter &painter, const QRectF &rect,
   createJaggedEdge(rect.bottomRight(), rect.bottomLeft());
   createJaggedEdge(rect.bottomLeft(), rect.topLeft());
 
-  // Draw with glow for electric effect
   QColor glowColor = color.lighter(150);
   for (int i = 2; i >= 0; --i) {
     QColor layerColor = glowColor;
@@ -1304,8 +1279,6 @@ void OverlayWidget::drawRainbowBorder(QPainter &painter, const QRectF &rect,
 
   qreal perimeter = (rect.width() + rect.height()) * 2.0;
   qreal segmentLength = 5.0;
-  // For clean looping: 100 phase units should complete integer full cycles
-  // Using 3.6 means 100 phase units = 360 degrees = 1 complete hue cycle
   int hueOffset = static_cast<int>(m_animationPhase * 3.6) % 360;
 
   auto drawColorfulEdge = [&](const QPointF &start, const QPointF &end,
@@ -1320,7 +1293,6 @@ void OverlayWidget::drawRainbowBorder(QPainter &painter, const QRectF &rect,
     while (pos < length) {
       qreal segLen = qMin(segmentLength, length - pos);
 
-      // Calculate hue based on position around perimeter
       int hue =
           (hueOffset + static_cast<int>((startPos + pos) / perimeter * 360)) %
           360;
@@ -1357,12 +1329,9 @@ void OverlayWidget::drawBreathingGlowBorder(QPainter &painter,
   painter.setRenderHint(QPainter::Antialiasing, true);
   painter.setBrush(Qt::NoBrush);
 
-  // Smooth breathing using sine wave with clean looping
-  // Use 2*PI for one complete breath cycle per 100 phase units
   qreal breath =
-      (qSin(m_animationPhase * 0.062831853) + 1.0) * 0.5; // 0.0 to 1.0
+      (qSin(m_animationPhase * 0.062831853) + 1.0) * 0.5; 
 
-  // Calculate glow intensity and spread
   int glowLayers = 6;
   qreal maxSpread = width * 3 * breath;
 
@@ -1380,7 +1349,6 @@ void OverlayWidget::drawBreathingGlowBorder(QPainter &painter,
     painter.drawRect(rect);
   }
 
-  // Draw solid core
   QPen corePen(color, width);
   corePen.setJoinStyle(Qt::RoundJoin);
   painter.setPen(corePen);
@@ -1392,7 +1360,6 @@ void OverlayWidget::drawDoubleGlowBorder(QPainter &painter, const QRectF &rect,
   painter.setRenderHint(QPainter::Antialiasing, true);
   painter.setBrush(Qt::NoBrush);
 
-  // Inner glow
   for (int i = 3; i >= 0; --i) {
     QColor innerGlow = color.lighter(130);
     innerGlow.setAlpha(100 - i * 20);
@@ -1402,7 +1369,6 @@ void OverlayWidget::drawDoubleGlowBorder(QPainter &painter, const QRectF &rect,
     painter.drawRect(rect);
   }
 
-  // Outer glow
   for (int i = 4; i >= 0; --i) {
     QColor outerGlow = color;
     outerGlow.setAlpha(80 - i * 15);
@@ -1412,7 +1378,6 @@ void OverlayWidget::drawDoubleGlowBorder(QPainter &painter, const QRectF &rect,
     painter.drawRect(rect);
   }
 
-  // Core
   QPen corePen(color.lighter(120), width);
   corePen.setJoinStyle(Qt::RoundJoin);
   painter.setPen(corePen);
@@ -1438,7 +1403,7 @@ void OverlayWidget::drawZigzagBorder(QPainter &painter, const QRectF &rect,
     qreal length = qSqrt(dx * dx + dy * dy);
     qreal ux = dx / length;
     qreal uy = dy / length;
-    qreal nx = -uy; // Normal perpendicular
+    qreal nx = -uy; 
     qreal ny = ux;
 
     QPainterPath path;

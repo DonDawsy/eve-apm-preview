@@ -75,7 +75,6 @@ ChatLogWorker::~ChatLogWorker() {
 void ChatLogWorker::setCharacterNames(const QStringList &characters) {
   QMutexLocker locker(&m_mutex);
 
-  // Clean up mining timers for characters that are no longer in the list
   QSet<QString> newCharacterSet =
       QSet<QString>(characters.begin(), characters.end());
   QSet<QString> oldCharacterSet =

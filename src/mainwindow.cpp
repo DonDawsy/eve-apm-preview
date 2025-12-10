@@ -255,7 +255,6 @@ MainWindow::~MainWindow() {
     UnhookWinEvent(m_moveSizeEndHook);
   }
 
-  // Clean up location refresh timers
   for (auto it = m_locationRefreshTimers.begin();
        it != m_locationRefreshTimers.end(); ++it) {
     if (it.value()) {
@@ -291,6 +290,12 @@ void CALLBACK MainWindow::WindowEventProc(HWINEVENTHOOK, DWORD event, HWND hwnd,
   }
 
   if (!s_instance.isNull()) {
+    if (event == EVENT_OBJECT_LOCATIONCHANGE) {
+      if (!s_instance->thumbnails.contains(hwnd)) {
+        return;
+      }
+    }
+
     if (event == EVENT_OBJECT_CREATE || event == EVENT_OBJECT_DESTROY) {
       s_instance->m_needsEnumeration = true;
       QMetaObject::invokeMethod(s_instance.data(), "refreshWindows",
@@ -1476,7 +1481,6 @@ void MainWindow::onGroupDragStarted(quintptr windowId) {
     ThumbnailWidget *thumb = it.value();
     m_groupDragInitialPositions.insert(thumb->getWindowId(), thumb->pos());
 
-    // Hide overlays for all thumbnails during group drag
     thumb->hideOverlay();
   }
 }
@@ -1524,7 +1528,6 @@ void MainWindow::onGroupDragEnded(quintptr) {
       }
     }
 
-    // Show overlays again after group drag ends
     thumb->showOverlay();
   }
 
