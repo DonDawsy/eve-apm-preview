@@ -379,6 +379,11 @@ void ThumbnailWidget::mousePressEvent(QMouseEvent *event) {
         m_updateTimer->stop();
       }
 
+      // Pause overlay animations during drag to improve performance
+      if (m_overlayWidget) {
+        m_overlayWidget->pauseAnimations();
+      }
+
       emit groupDragStarted(m_windowId);
       event->accept();
       return;
@@ -399,6 +404,8 @@ void ThumbnailWidget::mousePressEvent(QMouseEvent *event) {
 
     if (m_overlayWidget) {
       m_overlayWidget->hide();
+      // Pause overlay animations during drag to improve performance
+      m_overlayWidget->pauseAnimations();
     }
 
     event->accept();
@@ -442,6 +449,8 @@ void ThumbnailWidget::mouseMoveEvent(QMouseEvent *event) {
 
       if (m_overlayWidget) {
         m_overlayWidget->hide();
+        // Pause overlay animations during drag to improve performance
+        m_overlayWidget->pauseAnimations();
       }
     }
 
@@ -497,6 +506,8 @@ void ThumbnailWidget::mouseReleaseEvent(QMouseEvent *event) {
         m_overlayWidget->move(pos());
         m_overlayWidget->show();
         m_overlayWidget->raise();
+        // Resume overlay animations after drag completes
+        m_overlayWidget->resumeAnimations();
       }
     }
     m_isDragging = false;
@@ -514,6 +525,8 @@ void ThumbnailWidget::mouseReleaseEvent(QMouseEvent *event) {
         m_overlayWidget->move(pos());
         m_overlayWidget->show();
         m_overlayWidget->raise();
+        // Resume overlay animations after drag completes
+        m_overlayWidget->resumeAnimations();
       }
     }
     m_isDragging = false;
@@ -796,6 +809,39 @@ void OverlayWidget::updateWindowFlags(bool alwaysOnTop) {
 void OverlayWidget::invalidateCache() {
   m_overlayDirty = true;
   update();
+}
+
+void OverlayWidget::pauseAnimations() {
+  if (!m_animationsPaused && m_borderAnimationTimer->isActive()) {
+    m_borderAnimationTimer->stop();
+    m_animationsPaused = true;
+  }
+}
+
+void OverlayWidget::resumeAnimations() {
+  if (m_animationsPaused) {
+    m_animationsPaused = false;
+
+    // Determine if animations should be running based on current state
+    const Config &cfg = Config::instance();
+
+    bool needsAnimation = false;
+
+    if (m_hasCombatEvent && cfg.combatEventBorderHighlight(m_combatEventType)) {
+      needsAnimation = true;
+    } else if (m_isActive) {
+      BorderStyle style = cfg.activeBorderStyle();
+      needsAnimation =
+          (style == BorderStyle::Dashed || style == BorderStyle::Neon ||
+           style == BorderStyle::Shimmer || style == BorderStyle::ElectricArc ||
+           style == BorderStyle::Rainbow ||
+           style == BorderStyle::BreathingGlow);
+    }
+
+    if (needsAnimation) {
+      m_borderAnimationTimer->start();
+    }
+  }
 }
 
 void OverlayWidget::paintEvent(QPaintEvent *) {
@@ -1234,7 +1280,7 @@ void OverlayWidget::drawElectricArcBorder(QPainter &painter, const QRectF &rect,
     qreal length = qSqrt(dx * dx + dy * dy);
     qreal ux = dx / length;
     qreal uy = dy / length;
-    qreal nx = -uy; 
+    qreal nx = -uy;
     qreal ny = ux;
 
     qreal pos = 0;
@@ -1329,8 +1375,7 @@ void OverlayWidget::drawBreathingGlowBorder(QPainter &painter,
   painter.setRenderHint(QPainter::Antialiasing, true);
   painter.setBrush(Qt::NoBrush);
 
-  qreal breath =
-      (qSin(m_animationPhase * 0.062831853) + 1.0) * 0.5; 
+  qreal breath = (qSin(m_animationPhase * 0.062831853) + 1.0) * 0.5;
 
   int glowLayers = 6;
   qreal maxSpread = width * 3 * breath;
@@ -1403,7 +1448,7 @@ void OverlayWidget::drawZigzagBorder(QPainter &painter, const QRectF &rect,
     qreal length = qSqrt(dx * dx + dy * dy);
     qreal ux = dx / length;
     qreal uy = dy / length;
-    qreal nx = -uy; 
+    qreal nx = -uy;
     qreal ny = ux;
 
     QPainterPath path;

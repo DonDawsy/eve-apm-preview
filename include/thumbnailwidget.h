@@ -115,6 +115,8 @@ public:
   void setCombatEventState(bool hasCombatEvent, const QString &eventType);
   void updateWindowFlags(bool alwaysOnTop);
   void invalidateCache();
+  void pauseAnimations();
+  void resumeAnimations();
 
 protected:
   void paintEvent(QPaintEvent *event) override;
@@ -133,6 +135,7 @@ private:
 
   QTimer *m_borderAnimationTimer = nullptr;
   qreal m_animationPhase = 0.0;
+  bool m_animationsPaused = false;
 
   void drawOverlays(QPainter &painter);
   void renderOverlaysToCache();

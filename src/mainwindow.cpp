@@ -551,6 +551,10 @@ void MainWindow::refreshWindows() {
 
       m_needsMappingUpdate = true;
 
+      // Update snapping list immediately after inserting new thumbnail
+      // to ensure smooth dragging performance from the start
+      updateSnappingLists();
+
       QPoint savedPos(-1, -1);
       bool hasSavedPosition = false;
       if (rememberPos) {
@@ -570,12 +574,8 @@ void MainWindow::refreshWindows() {
         shouldHide = cfg.isCharacterHidden(characterName);
       }
 
-      if (shouldHide) {
-        thumbWidget->hide();
-      } else {
-        thumbWidget->show();
-      }
-
+      // Position the thumbnail BEFORE showing it to avoid overlay flicker
+      // and unnecessary redraws at incorrect positions
       if (hasSavedPosition) {
         QRect thumbRect(savedPos, QSize(actualThumbWidth, actualThumbHeight));
         QScreen *targetScreen = nullptr;
@@ -623,6 +623,13 @@ void MainWindow::refreshWindows() {
 
         thumbWidget->move(xOffset, yOffset);
         xOffset += thumbWidth + margin;
+      }
+
+      // Show/hide the thumbnail AFTER positioning to avoid flicker
+      if (shouldHide) {
+        thumbWidget->hide();
+      } else {
+        thumbWidget->show();
       }
     } else {
       QString lastTitle = m_lastKnownTitles.value(window.handle, "");
@@ -1483,6 +1490,16 @@ void MainWindow::onGroupDragStarted(quintptr windowId) {
 
     thumb->hideOverlay();
   }
+
+  // Pause all overlay animations during group drag to improve performance
+  for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
+    ThumbnailWidget *thumb = it.value();
+    if (thumb->getWindowId() != windowId) {
+      // The dragged thumbnail's overlay is already paused in mousePressEvent
+      // Only pause the other thumbnails' overlays here
+      thumb->hideOverlay();
+    }
+  }
 }
 
 void MainWindow::onGroupDragMoved(quintptr windowId, QPoint delta) {
@@ -1502,6 +1519,13 @@ void MainWindow::onGroupDragMoved(quintptr windowId, QPoint delta) {
 
 void MainWindow::onGroupDragEnded(quintptr) {
   Config &cfg = Config::instance();
+
+  // Resume all overlay animations after group drag completes
+  for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
+    ThumbnailWidget *thumb = it.value();
+    thumb->showOverlay();
+  }
+
   if (!cfg.rememberPositions()) {
     m_groupDragInitialPositions.clear();
     return;
@@ -1527,8 +1551,6 @@ void MainWindow::onGroupDragEnded(quintptr) {
         cfg.setThumbnailPosition(uniqueId, thumb->pos());
       }
     }
-
-    thumb->showOverlay();
   }
 
   m_groupDragInitialPositions.clear();
