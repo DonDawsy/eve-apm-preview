@@ -802,8 +802,8 @@ void OverlayWidget::paintEvent(QPaintEvent *) {
     painter.setRenderHint(QPainter::Antialiasing, false);
 
     qreal halfWidth = borderWidth / 2.0;
-    painter.drawRect(QRectF(halfWidth, halfWidth, width() - borderWidth,
-                            height() - borderWidth));
+    painter.drawRect(QRectF(halfWidth, halfWidth, width() - 2 * halfWidth,
+                            height() - 2 * halfWidth));
   } else if (shouldDrawActiveBorder) {
     QColor borderColor = cfg.getCharacterBorderColor(m_characterName);
     if (!borderColor.isValid()) {
@@ -819,8 +819,8 @@ void OverlayWidget::paintEvent(QPaintEvent *) {
     painter.setRenderHint(QPainter::Antialiasing, false);
 
     qreal halfWidth = borderWidth / 2.0;
-    painter.drawRect(QRectF(halfWidth, halfWidth, width() - borderWidth,
-                            height() - borderWidth));
+    painter.drawRect(QRectF(halfWidth, halfWidth, width() - 2 * halfWidth,
+                            height() - 2 * halfWidth));
   }
 }
 
