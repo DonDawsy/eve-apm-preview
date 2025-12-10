@@ -6,6 +6,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QRegularExpression>
+#include <QSet>
 #include <QStandardPaths>
 #include <QTextStream>
 #include <QTimer>
@@ -73,6 +74,24 @@ ChatLogWorker::~ChatLogWorker() {
 
 void ChatLogWorker::setCharacterNames(const QStringList &characters) {
   QMutexLocker locker(&m_mutex);
+
+  // Clean up mining timers for characters that are no longer in the list
+  QSet<QString> newCharacterSet =
+      QSet<QString>(characters.begin(), characters.end());
+  QSet<QString> oldCharacterSet =
+      QSet<QString>(m_characterNames.begin(), m_characterNames.end());
+  QSet<QString> removedCharacters = oldCharacterSet - newCharacterSet;
+
+  for (const QString &characterName : removedCharacters) {
+    QTimer *timer = m_miningTimers.value(characterName, nullptr);
+    if (timer) {
+      timer->stop();
+      timer->deleteLater();
+      m_miningTimers.remove(characterName);
+    }
+    m_miningActiveState.remove(characterName);
+  }
+
   m_characterNames = characters;
 }
 
