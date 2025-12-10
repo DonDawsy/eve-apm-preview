@@ -1,6 +1,7 @@
 #ifndef THUMBNAILWIDGET_H
 #define THUMBNAILWIDGET_H
 
+#include "borderstyle.h"
 #include "overlayinfo.h"
 #include <QLabel>
 #include <QPixmap>
@@ -131,10 +132,42 @@ private:
   QSize m_lastOverlaySize;
 
   QTimer *m_borderAnimationTimer = nullptr;
-  qreal m_dashOffset = 0.0;
+  qreal m_animationPhase = 0.0;
 
   void drawOverlays(QPainter &painter);
   void renderOverlaysToCache();
+  void drawBorderWithStyle(QPainter &painter, const QRectF &rect,
+                           const QColor &color, int width, BorderStyle style);
+  void drawSolidBorder(QPainter &painter, const QRectF &rect,
+                       const QColor &color, int width);
+  void drawDashedBorder(QPainter &painter, const QRectF &rect,
+                        const QColor &color, int width);
+  void drawDottedBorder(QPainter &painter, const QRectF &rect,
+                        const QColor &color, int width);
+  void drawDashDotBorder(QPainter &painter, const QRectF &rect,
+                         const QColor &color, int width);
+  void drawFadedEdgesBorder(QPainter &painter, const QRectF &rect,
+                            const QColor &color, int width);
+  void drawCornerAccentsBorder(QPainter &painter, const QRectF &rect,
+                               const QColor &color, int width);
+  void drawRoundedCornersBorder(QPainter &painter, const QRectF &rect,
+                                const QColor &color, int width);
+  void drawNeonBorder(QPainter &painter, const QRectF &rect,
+                      const QColor &color, int width);
+  void drawShimmerBorder(QPainter &painter, const QRectF &rect,
+                         const QColor &color, int width);
+  void drawThickThinBorder(QPainter &painter, const QRectF &rect,
+                           const QColor &color, int width);
+  void drawElectricArcBorder(QPainter &painter, const QRectF &rect,
+                             const QColor &color, int width);
+  void drawRainbowBorder(QPainter &painter, const QRectF &rect,
+                         const QColor &color, int width);
+  void drawBreathingGlowBorder(QPainter &painter, const QRectF &rect,
+                               const QColor &color, int width);
+  void drawDoubleGlowBorder(QPainter &painter, const QRectF &rect,
+                            const QColor &color, int width);
+  void drawZigzagBorder(QPainter &painter, const QRectF &rect,
+                        const QColor &color, int width);
 };
 
 #endif

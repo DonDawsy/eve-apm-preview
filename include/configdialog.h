@@ -238,6 +238,8 @@ private:
   QLabel *m_highlightColorLabel;
   QSpinBox *m_highlightBorderWidthSpin;
   QLabel *m_highlightBorderWidthLabel;
+  QComboBox *m_activeBorderStyleCombo;
+  QLabel *m_activeBorderStyleLabel;
   QColor m_highlightColor;
   QScrollArea *m_characterColorsScrollArea;
   QWidget *m_characterColorsContainer;
@@ -311,6 +313,7 @@ private:
   QMap<QString, QPushButton *> m_eventColorButtons;
   QMap<QString, QSpinBox *> m_eventDurationSpins;
   QMap<QString, QCheckBox *> m_eventBorderCheckBoxes;
+  QMap<QString, QComboBox *> m_eventBorderStyleCombos;
   QMap<QString, QLabel *> m_eventDurationLabels;
   QLabel *m_miningTimeoutLabel;
 

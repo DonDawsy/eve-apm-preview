@@ -434,10 +434,48 @@ void ConfigDialog::createAppearancePage() {
   m_highlightBorderWidthSpin->setFixedWidth(150);
   m_highlightBorderWidthSpin->setStyleSheet(StyleSheet::getSpinBoxStyleSheet());
 
+  m_activeBorderStyleLabel = new QLabel("Border style:");
+  m_activeBorderStyleLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_activeBorderStyleCombo = new QComboBox();
+  m_activeBorderStyleCombo->addItem("Solid",
+                                    static_cast<int>(BorderStyle::Solid));
+  m_activeBorderStyleCombo->addItem("Dashed",
+                                    static_cast<int>(BorderStyle::Dashed));
+  m_activeBorderStyleCombo->addItem("Dotted",
+                                    static_cast<int>(BorderStyle::Dotted));
+  m_activeBorderStyleCombo->addItem("Dash-Dot",
+                                    static_cast<int>(BorderStyle::DashDot));
+  m_activeBorderStyleCombo->addItem("Faded Edges",
+                                    static_cast<int>(BorderStyle::FadedEdges));
+  m_activeBorderStyleCombo->addItem(
+      "Corner Accents", static_cast<int>(BorderStyle::CornerAccents));
+  m_activeBorderStyleCombo->addItem(
+      "Rounded Corners", static_cast<int>(BorderStyle::RoundedCorners));
+  m_activeBorderStyleCombo->addItem("Neon",
+                                    static_cast<int>(BorderStyle::Neon));
+  m_activeBorderStyleCombo->addItem("Shimmer",
+                                    static_cast<int>(BorderStyle::Shimmer));
+  m_activeBorderStyleCombo->addItem("Thick/Thin",
+                                    static_cast<int>(BorderStyle::ThickThin));
+  m_activeBorderStyleCombo->addItem("Electric Arc",
+                                    static_cast<int>(BorderStyle::ElectricArc));
+  m_activeBorderStyleCombo->addItem("Rainbow",
+                                    static_cast<int>(BorderStyle::Rainbow));
+  m_activeBorderStyleCombo->addItem(
+      "Breathing Glow", static_cast<int>(BorderStyle::BreathingGlow));
+  m_activeBorderStyleCombo->addItem("Double Glow",
+                                    static_cast<int>(BorderStyle::DoubleGlow));
+  m_activeBorderStyleCombo->addItem("Zigzag",
+                                    static_cast<int>(BorderStyle::Zigzag));
+  m_activeBorderStyleCombo->setFixedWidth(150);
+  m_activeBorderStyleCombo->setStyleSheet(StyleSheet::getComboBoxStyleSheet());
+
   highlightGrid->addWidget(m_highlightColorLabel, 0, 0, Qt::AlignLeft);
   highlightGrid->addWidget(m_highlightColorButton, 0, 1);
   highlightGrid->addWidget(m_highlightBorderWidthLabel, 1, 0, Qt::AlignLeft);
   highlightGrid->addWidget(m_highlightBorderWidthSpin, 1, 1);
+  highlightGrid->addWidget(m_activeBorderStyleLabel, 2, 0, Qt::AlignLeft);
+  highlightGrid->addWidget(m_activeBorderStyleCombo, 2, 1);
 
   highlightSectionLayout->addLayout(highlightGrid);
 
@@ -449,6 +487,8 @@ void ConfigDialog::createAppearancePage() {
             m_highlightColorButton->setEnabled(checked);
             m_highlightBorderWidthLabel->setEnabled(checked);
             m_highlightBorderWidthSpin->setEnabled(checked);
+            m_activeBorderStyleLabel->setEnabled(checked);
+            m_activeBorderStyleCombo->setEnabled(checked);
           });
 
   QWidget *charColorsSection = new QWidget();
@@ -1902,13 +1942,52 @@ void ConfigDialog::createDataSourcesPage() {
 
     QCheckBox *borderCheck = new QCheckBox("Border");
     borderCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
-    borderCheck->setToolTip(
-        "Show colored dashed border when this event occurs");
-    connect(borderCheck, &QCheckBox::toggled, this, [eventType](bool checked) {
-      Config::instance().setCombatEventBorderHighlight(eventType, checked);
-    });
+    borderCheck->setToolTip("Show colored border when this event occurs");
+    connect(borderCheck, &QCheckBox::toggled, this,
+            [this, eventType](bool checked) {
+              Config::instance().setCombatEventBorderHighlight(eventType,
+                                                               checked);
+              if (m_eventBorderStyleCombos.contains(eventType)) {
+                m_eventBorderStyleCombos[eventType]->setEnabled(checked);
+              }
+            });
     m_eventBorderCheckBoxes[eventType] = borderCheck;
     rowLayout->addWidget(borderCheck);
+
+    rowLayout->addSpacing(10);
+
+    QComboBox *styleCombo = new QComboBox();
+    styleCombo->setStyleSheet(StyleSheet::getComboBoxStyleSheet());
+    styleCombo->addItem("Solid", static_cast<int>(BorderStyle::Solid));
+    styleCombo->addItem("Dashed", static_cast<int>(BorderStyle::Dashed));
+    styleCombo->addItem("Dotted", static_cast<int>(BorderStyle::Dotted));
+    styleCombo->addItem("Dash-Dot", static_cast<int>(BorderStyle::DashDot));
+    styleCombo->addItem("Faded", static_cast<int>(BorderStyle::FadedEdges));
+    styleCombo->addItem("Corners",
+                        static_cast<int>(BorderStyle::CornerAccents));
+    styleCombo->addItem("Rounded",
+                        static_cast<int>(BorderStyle::RoundedCorners));
+    styleCombo->addItem("Neon", static_cast<int>(BorderStyle::Neon));
+    styleCombo->addItem("Shimmer", static_cast<int>(BorderStyle::Shimmer));
+    styleCombo->addItem("Thick/Thin", static_cast<int>(BorderStyle::ThickThin));
+    styleCombo->addItem("Electric Arc",
+                        static_cast<int>(BorderStyle::ElectricArc));
+    styleCombo->addItem("Rainbow", static_cast<int>(BorderStyle::Rainbow));
+    styleCombo->addItem("Breathing Glow",
+                        static_cast<int>(BorderStyle::BreathingGlow));
+    styleCombo->addItem("Double Glow",
+                        static_cast<int>(BorderStyle::DoubleGlow));
+    styleCombo->addItem("Zigzag", static_cast<int>(BorderStyle::Zigzag));
+    styleCombo->setFixedWidth(110);
+    styleCombo->setToolTip("Border style for this event");
+    connect(styleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this, eventType, styleCombo](int index) {
+              BorderStyle style =
+                  static_cast<BorderStyle>(styleCombo->itemData(index).toInt());
+              Config::instance().setCombatBorderStyle(eventType, style);
+            });
+    m_eventBorderStyleCombos[eventType] = styleCombo;
+    rowLayout->addWidget(styleCombo);
 
     rowLayout->addStretch();
     combatSectionLayout->addLayout(rowLayout);
@@ -1943,6 +2022,11 @@ void ConfigDialog::createDataSourcesPage() {
               }
               if (m_eventBorderCheckBoxes.contains(eventType)) {
                 m_eventBorderCheckBoxes[eventType]->setEnabled(enable);
+              }
+              if (m_eventBorderStyleCombos.contains(eventType)) {
+                bool borderEnabled =
+                    enable && m_eventBorderCheckBoxes[eventType]->isChecked();
+                m_eventBorderStyleCombos[eventType]->setEnabled(borderEnabled);
               }
             });
   };
@@ -2020,6 +2104,12 @@ void ConfigDialog::createDataSourcesPage() {
               }
               if (m_eventBorderCheckBoxes.contains(eventType)) {
                 m_eventBorderCheckBoxes[eventType]->setEnabled(eventEnabled);
+              }
+              if (m_eventBorderStyleCombos.contains(eventType)) {
+                bool borderEnabled =
+                    eventEnabled &&
+                    m_eventBorderCheckBoxes[eventType]->isChecked();
+                m_eventBorderStyleCombos[eventType]->setEnabled(borderEnabled);
               }
             }
           });
@@ -2359,6 +2449,14 @@ void ConfigDialog::setupBindings() {
       [&config]() { return config.highlightBorderWidth(); },
       [&config](int value) { config.setHighlightBorderWidth(value); }, 3));
 
+  m_bindingManager.addBinding(BindingHelpers::bindComboBox(
+      m_activeBorderStyleCombo,
+      [&config]() { return static_cast<int>(config.activeBorderStyle()); },
+      [&config](int value) {
+        config.setActiveBorderStyle(static_cast<BorderStyle>(value));
+      },
+      static_cast<int>(BorderStyle::Solid)));
+
   m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
       m_showCharacterNameCheck,
       [&config]() { return config.showCharacterName(); },
@@ -2684,6 +2782,29 @@ void ConfigDialog::loadSettings() {
     QString eventType = it.key();
     QCheckBox *borderCheck = it.value();
     borderCheck->setChecked(config.combatEventBorderHighlight(eventType));
+  }
+
+  for (auto it = m_eventBorderStyleCombos.constBegin();
+       it != m_eventBorderStyleCombos.constEnd(); ++it) {
+    QString eventType = it.key();
+    QComboBox *styleCombo = it.value();
+    BorderStyle style = config.combatBorderStyle(eventType);
+    int index = styleCombo->findData(static_cast<int>(style));
+    if (index >= 0) {
+      styleCombo->setCurrentIndex(index);
+    }
+    // Enable/disable based on checkbox state
+    if (m_eventBorderCheckBoxes.contains(eventType)) {
+      styleCombo->setEnabled(m_eventBorderCheckBoxes[eventType]->isChecked());
+    }
+  }
+
+  // Load active border style
+  BorderStyle activeStyle = config.activeBorderStyle();
+  int activeIndex =
+      m_activeBorderStyleCombo->findData(static_cast<int>(activeStyle));
+  if (activeIndex >= 0) {
+    m_activeBorderStyleCombo->setCurrentIndex(activeIndex);
   }
 
   m_snapDistanceLabel->setEnabled(config.enableSnapping());
@@ -5510,6 +5631,9 @@ void ConfigDialog::onResetAppearanceDefaults() {
     updateColorButton(m_highlightColorButton, m_highlightColor);
     m_highlightBorderWidthSpin->setValue(
         Config::DEFAULT_UI_HIGHLIGHT_BORDER_WIDTH);
+    m_activeBorderStyleCombo->setCurrentIndex(
+        m_activeBorderStyleCombo->findData(
+            Config::DEFAULT_ACTIVE_BORDER_STYLE));
 
     m_showCharacterNameCheck->setChecked(
         Config::DEFAULT_OVERLAY_SHOW_CHARACTER);

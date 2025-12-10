@@ -1,6 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "borderstyle.h"
 #include <QColor>
 #include <QFont>
 #include <QHash>
@@ -31,6 +32,9 @@ public:
 
   int highlightBorderWidth() const;
   void setHighlightBorderWidth(int width);
+
+  BorderStyle activeBorderStyle() const;
+  void setActiveBorderStyle(BorderStyle style);
 
   int thumbnailWidth() const;
   void setThumbnailWidth(int width);
@@ -200,6 +204,9 @@ public:
   bool combatEventBorderHighlight(const QString &eventType) const;
   void setCombatEventBorderHighlight(const QString &eventType, bool enabled);
 
+  BorderStyle combatBorderStyle(const QString &eventType) const;
+  void setCombatBorderStyle(const QString &eventType, BorderStyle style);
+
   int miningTimeoutSeconds() const;
   void setMiningTimeoutSeconds(int seconds);
 
@@ -236,6 +243,8 @@ public:
   static constexpr const char *DEFAULT_UI_HIGHLIGHT_COLOR = "#FFFFFF";
   static constexpr int DEFAULT_UI_HIGHLIGHT_BORDER_WIDTH = 2;
   static constexpr bool DEFAULT_UI_HIDE_ACTIVE_THUMBNAIL = false;
+  static constexpr int DEFAULT_ACTIVE_BORDER_STYLE =
+      static_cast<int>(BorderStyle::Solid);
 
   static constexpr int DEFAULT_THUMBNAIL_WIDTH = 240;
   static constexpr int DEFAULT_THUMBNAIL_HEIGHT = 135;
@@ -284,6 +293,8 @@ public:
   static constexpr const char *DEFAULT_COMBAT_MESSAGE_COLOR = "#FFFFFF";
   static constexpr int DEFAULT_MINING_TIMEOUT_SECONDS = 30;
   static constexpr bool DEFAULT_COMBAT_EVENT_BORDER_HIGHLIGHT = false;
+  static constexpr int DEFAULT_COMBAT_BORDER_STYLE =
+      static_cast<int>(BorderStyle::Dashed);
   static inline QStringList DEFAULT_COMBAT_MESSAGE_EVENT_TYPES() {
     return QStringList{"fleet_invite", "follow_warp",    "regroup",
                        "compression",  "mining_started", "mining_stopped"};
@@ -299,6 +310,7 @@ private:
   mutable bool m_cachedHideActiveThumbnail;
   mutable QColor m_cachedHighlightColor;
   mutable int m_cachedHighlightBorderWidth;
+  mutable BorderStyle m_cachedActiveBorderStyle;
 
   mutable int m_cachedThumbnailWidth;
   mutable int m_cachedThumbnailHeight;
@@ -352,6 +364,7 @@ private:
   mutable QMap<QString, QColor> m_cachedCombatEventColors;
   mutable QMap<QString, int> m_cachedCombatEventDurations;
   mutable QMap<QString, bool> m_cachedCombatEventBorderHighlights;
+  mutable QMap<QString, BorderStyle> m_cachedCombatBorderStyles;
   mutable QStringList m_cachedEnabledCombatEventTypes;
   mutable int m_cachedMiningTimeoutSeconds;
 
@@ -384,6 +397,8 @@ private:
   static constexpr const char *KEY_UI_HIGHLIGHT_COLOR = "ui/highlightColor";
   static constexpr const char *KEY_UI_HIGHLIGHT_BORDER_WIDTH =
       "ui/highlightBorderWidth";
+  static constexpr const char *KEY_UI_ACTIVE_BORDER_STYLE =
+      "ui/activeBorderStyle";
 
   static constexpr const char *KEY_THUMBNAIL_WIDTH = "thumbnail/width";
   static constexpr const char *KEY_THUMBNAIL_HEIGHT = "thumbnail/height";
@@ -478,6 +493,9 @@ private:
   static inline QString
   combatEventBorderHighlightKey(const QString &eventType) {
     return QString("combatMessages/borderHighlights/%1").arg(eventType);
+  }
+  static inline QString combatBorderStyleKey(const QString &eventType) {
+    return QString("combatMessages/borderStyles/%1").arg(eventType);
   }
 
   static inline QMap<QString, QString> DEFAULT_EVENT_COLORS() {

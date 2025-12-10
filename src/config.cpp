@@ -61,6 +61,9 @@ void Config::loadCacheFromSettings() {
                                      ->value(KEY_UI_HIGHLIGHT_BORDER_WIDTH,
                                              DEFAULT_UI_HIGHLIGHT_BORDER_WIDTH)
                                      .toInt();
+  m_cachedActiveBorderStyle = static_cast<BorderStyle>(
+      m_settings->value(KEY_UI_ACTIVE_BORDER_STYLE, DEFAULT_ACTIVE_BORDER_STYLE)
+          .toInt());
 
   m_cachedThumbnailWidth =
       m_settings->value(KEY_THUMBNAIL_WIDTH, DEFAULT_THUMBNAIL_WIDTH).toInt();
@@ -242,6 +245,7 @@ void Config::loadCacheFromSettings() {
   m_cachedCombatEventColors.clear();
   m_cachedCombatEventDurations.clear();
   m_cachedCombatEventBorderHighlights.clear();
+  m_cachedCombatBorderStyles.clear();
   QStringList eventTypes = DEFAULT_COMBAT_MESSAGE_EVENT_TYPES();
   for (const QString &eventType : eventTypes) {
     QString colorKey = combatEventColorKey(eventType);
@@ -258,6 +262,10 @@ void Config::loadCacheFromSettings() {
     m_cachedCombatEventBorderHighlights[eventType] =
         m_settings->value(borderKey, DEFAULT_COMBAT_EVENT_BORDER_HIGHLIGHT)
             .toBool();
+
+    QString styleKey = combatBorderStyleKey(eventType);
+    m_cachedCombatBorderStyles[eventType] = static_cast<BorderStyle>(
+        m_settings->value(styleKey, DEFAULT_COMBAT_BORDER_STYLE).toInt());
   }
 
   m_cachedEnabledCombatEventTypes =
@@ -343,6 +351,15 @@ int Config::highlightBorderWidth() const {
 void Config::setHighlightBorderWidth(int width) {
   m_settings->setValue(KEY_UI_HIGHLIGHT_BORDER_WIDTH, width);
   m_cachedHighlightBorderWidth = width;
+}
+
+BorderStyle Config::activeBorderStyle() const {
+  return m_cachedActiveBorderStyle;
+}
+
+void Config::setActiveBorderStyle(BorderStyle style) {
+  m_settings->setValue(KEY_UI_ACTIVE_BORDER_STYLE, static_cast<int>(style));
+  m_cachedActiveBorderStyle = style;
 }
 
 int Config::thumbnailWidth() const { return m_cachedThumbnailWidth; }
@@ -1428,4 +1445,15 @@ void Config::setCombatEventBorderHighlight(const QString &eventType,
   QString key = combatEventBorderHighlightKey(eventType);
   m_settings->setValue(key, enabled);
   m_cachedCombatEventBorderHighlights[eventType] = enabled;
+}
+
+BorderStyle Config::combatBorderStyle(const QString &eventType) const {
+  return m_cachedCombatBorderStyles.value(
+      eventType, static_cast<BorderStyle>(DEFAULT_COMBAT_BORDER_STYLE));
+}
+
+void Config::setCombatBorderStyle(const QString &eventType, BorderStyle style) {
+  QString key = combatBorderStyleKey(eventType);
+  m_settings->setValue(key, static_cast<int>(style));
+  m_cachedCombatBorderStyles[eventType] = style;
 }
