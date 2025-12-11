@@ -339,6 +339,8 @@ QString HotkeyCapture::keyCodeToString(int keyCode) const {
     return "Numpad .";
   case VK_DIVIDE:
     return "Numpad /";
+  case VK_MBUTTON:
+    return "Mouse3";
   case VK_XBUTTON1:
     return "Mouse4";
   case VK_XBUTTON2:
@@ -461,35 +463,38 @@ LRESULT CALLBACK HotkeyCapture::LowLevelMouseProc(int nCode, WPARAM wParam,
                                                   LPARAM lParam) {
   if (nCode == HC_ACTION && s_activeInstance != nullptr &&
       s_activeInstance->m_capturing) {
-    if (wParam == WM_XBUTTONUP) {
+    int vkCode = 0;
+
+    if (wParam == WM_MBUTTONUP) {
+      vkCode = VK_MBUTTON;
+    } else if (wParam == WM_XBUTTONUP) {
       MSLLHOOKSTRUCT *pMouse = reinterpret_cast<MSLLHOOKSTRUCT *>(lParam);
       int xButton = HIWORD(pMouse->mouseData);
 
-      int vkCode = 0;
       if (xButton == XBUTTON1) {
         vkCode = VK_XBUTTON1;
       } else if (xButton == XBUTTON2) {
         vkCode = VK_XBUTTON2;
       }
+    }
 
-      if (vkCode != 0) {
-        bool ctrl = GetKeyState(VK_CONTROL) & 0x8000;
-        bool alt = GetKeyState(VK_MENU) & 0x8000;
-        bool shift = GetKeyState(VK_SHIFT) & 0x8000;
+    if (vkCode != 0) {
+      bool ctrl = GetKeyState(VK_CONTROL) & 0x8000;
+      bool alt = GetKeyState(VK_MENU) & 0x8000;
+      bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 
-        QMetaObject::invokeMethod(
-            s_activeInstance,
-            [instance = s_activeInstance, vkCode, ctrl, alt, shift]() {
-              if (instance && instance->m_capturing) {
-                instance->m_capturing = false;
-                instance->uninstallKeyboardHook();
-                instance->uninstallMouseHook();
+      QMetaObject::invokeMethod(
+          s_activeInstance,
+          [instance = s_activeInstance, vkCode, ctrl, alt, shift]() {
+            if (instance && instance->m_capturing) {
+              instance->m_capturing = false;
+              instance->uninstallKeyboardHook();
+              instance->uninstallMouseHook();
 
-                instance->addHotkey(vkCode, ctrl, alt, shift);
-              }
-            },
-            Qt::QueuedConnection);
-      }
+              instance->addHotkey(vkCode, ctrl, alt, shift);
+            }
+          },
+          Qt::QueuedConnection);
     }
   }
 

@@ -938,7 +938,8 @@ void HotkeyManager::unregisterProfileHotkeys() {
 }
 
 bool HotkeyManager::isMouseButton(int keyCode) const {
-  return keyCode == VK_XBUTTON1 || keyCode == VK_XBUTTON2;
+  return keyCode == VK_MBUTTON || keyCode == VK_XBUTTON1 ||
+         keyCode == VK_XBUTTON2;
 }
 
 bool HotkeyManager::hasMouseButtonHotkeys() const {
@@ -1039,19 +1040,25 @@ void HotkeyManager::uninstallMouseHook() {
 
 LRESULT CALLBACK HotkeyManager::LowLevelMouseProc(int nCode, WPARAM wParam,
                                                   LPARAM lParam) {
-  if (nCode != HC_ACTION || wParam != WM_XBUTTONUP) {
+  if (nCode != HC_ACTION ||
+      (wParam != WM_MBUTTONUP && wParam != WM_XBUTTONUP)) {
     return CallNextHookEx(s_mouseHook, nCode, wParam, lParam);
   }
 
   if (!s_instance.isNull() && !s_instance->m_suspended) {
-    MSLLHOOKSTRUCT *pMouse = reinterpret_cast<MSLLHOOKSTRUCT *>(lParam);
-    int xButton = HIWORD(pMouse->mouseData);
-
     int vkCode = 0;
-    if (xButton == XBUTTON1) {
-      vkCode = VK_XBUTTON1;
-    } else if (xButton == XBUTTON2) {
-      vkCode = VK_XBUTTON2;
+
+    if (wParam == WM_MBUTTONUP) {
+      vkCode = VK_MBUTTON;
+    } else if (wParam == WM_XBUTTONUP) {
+      MSLLHOOKSTRUCT *pMouse = reinterpret_cast<MSLLHOOKSTRUCT *>(lParam);
+      int xButton = HIWORD(pMouse->mouseData);
+
+      if (xButton == XBUTTON1) {
+        vkCode = VK_XBUTTON1;
+      } else if (xButton == XBUTTON2) {
+        vkCode = VK_XBUTTON2;
+      }
     }
 
     if (vkCode != 0) {
