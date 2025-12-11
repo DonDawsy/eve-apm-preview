@@ -158,8 +158,6 @@ public:
   HWND getWindowForCharacter(const QString &characterName) const;
   QString getCharacterForWindow(HWND hwnd) const;
 
-  static bool nativeEventFilter(void *message, long *result);
-
 signals:
   void characterHotkeyPressed(QString characterName);
   void characterHotkeyCyclePressed(QVector<QString> characterNames);

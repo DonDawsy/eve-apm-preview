@@ -1,22 +1,12 @@
 #include "hotkeymanager.h"
 #include "mainwindow.h"
 #include "version.h"
-#include <QAbstractNativeEventFilter>
 #include <QApplication>
 #include <QMessageBox>
 #include <Windows.h>
 #include <dwmapi.h>
 
 #pragma comment(lib, "dwmapi.lib")
-
-class HotkeyEventFilter : public QAbstractNativeEventFilter {
-public:
-  bool nativeEventFilter(const QByteArray &, void *message,
-                         qintptr *result) override {
-    return HotkeyManager::nativeEventFilter(message,
-                                            reinterpret_cast<long *>(result));
-  }
-};
 
 int main(int argc, char *argv[]) {
   int exitCode = 0;
@@ -58,9 +48,6 @@ int main(int argc, char *argv[]) {
     }
 
     app.setQuitOnLastWindowClosed(false);
-
-    HotkeyEventFilter hotkeyFilter;
-    app.installNativeEventFilter(&hotkeyFilter);
 
     MainWindow manager;
 
