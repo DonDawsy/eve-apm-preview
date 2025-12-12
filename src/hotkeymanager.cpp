@@ -370,6 +370,61 @@ static bool isForegroundWindowEVEClient() {
   return false;
 }
 
+/// Checks if the window under the mouse cursor is an EVE client or application
+/// thumbnail. This is used for mouse hotkey filtering.
+static bool isMouseOverEVEClientOrThumbnail() {
+  POINT pt;
+  if (!GetCursorPos(&pt)) {
+    return false;
+  }
+
+  HWND windowUnderMouse = WindowFromPoint(pt);
+  if (!windowUnderMouse) {
+    return false;
+  }
+
+  // Check if it's one of our thumbnail windows
+  // Thumbnail windows have class name "Qt660QWindowIcon" or similar
+  wchar_t className[256];
+  if (GetClassNameW(windowUnderMouse, className, 256)) {
+    QString classNameStr = QString::fromWCharArray(className);
+    if (classNameStr.startsWith("Qt") || classNameStr.contains("QWindow") ||
+        classNameStr == "EVEAPMPreviewHotkeyWindow") {
+      return true;
+    }
+  }
+
+  // Check if it's an EVE client window by process name
+  DWORD processId = 0;
+  GetWindowThreadProcessId(windowUnderMouse, &processId);
+
+  HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,
+                                FALSE, processId);
+  if (!hProcess) {
+    return false;
+  }
+
+  wchar_t processNameBuffer[MAX_PATH];
+  QString processName;
+  if (GetModuleBaseNameW(hProcess, NULL, processNameBuffer, MAX_PATH)) {
+    processName = QString::fromWCharArray(processNameBuffer);
+  }
+  CloseHandle(hProcess);
+
+  if (processName.isEmpty()) {
+    return false;
+  }
+
+  QStringList allowedProcessNames = Config::instance().processNames();
+  for (const QString &allowedName : allowedProcessNames) {
+    if (processName.compare(allowedName, Qt::CaseInsensitive) == 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 void HotkeyManager::setSuspended(bool suspended) {
   if (m_suspended == suspended)
     return;
@@ -1161,11 +1216,15 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
     return;
   }
 
+  // For mouse hotkeys, check if the mouse is over an EVE client or thumbnail
+  // when the "only when EVE focused" setting is enabled
   bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
-  if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
+  if (onlyWhenEVEFocused && !isMouseOverEVEClientOrThumbnail()) {
     return;
   }
 
+  // Check character hotkeys (multi-hotkeys contains all bindings, including
+  // single ones)
   for (auto it = m_characterMultiHotkeys.begin();
        it != m_characterMultiHotkeys.end(); ++it) {
     const QString &characterName = it.key();
@@ -1181,18 +1240,7 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
     }
   }
 
-  for (auto it = m_characterHotkeys.begin(); it != m_characterHotkeys.end();
-       ++it) {
-    const QString &characterName = it.key();
-    const HotkeyBinding &binding = it.value();
-
-    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
-        binding.alt == alt && binding.shift == shift) {
-      emit characterHotkeyPressed(characterName);
-      return;
-    }
-  }
-
+  // Check cycle group hotkeys
   for (auto it = m_cycleGroups.begin(); it != m_cycleGroups.end(); ++it) {
     const QString &groupName = it.key();
     const CycleGroup &group = it.value();
