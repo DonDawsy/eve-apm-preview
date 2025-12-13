@@ -314,8 +314,13 @@ void Config::loadCacheFromSettings() {
   QStringList clientCharNames = m_settings->childKeys();
   for (const QString &characterName : clientCharNames) {
     QRect rect = m_settings->value(characterName).toRect();
+    qDebug() << "Loading client window rect for" << characterName << ":" << rect
+             << "isValid:" << rect.isValid() << "isEmpty:" << rect.isEmpty();
     if (rect.isValid()) {
       m_cachedClientWindowRects[characterName] = rect;
+      qDebug() << "  -> Cached successfully";
+    } else {
+      qDebug() << "  -> Rejected (invalid)";
     }
   }
   m_settings->endGroup();
@@ -539,6 +544,8 @@ QRect Config::getClientWindowRect(const QString &characterName) const {
 void Config::setClientWindowRect(const QString &characterName,
                                  const QRect &rect) {
   QString key = QString("clientWindowRects/%1").arg(characterName);
+  qDebug() << "Saving client window rect for" << characterName << ":" << rect
+           << "isValid:" << rect.isValid() << "isEmpty:" << rect.isEmpty();
   m_settings->setValue(key, rect);
   m_cachedClientWindowRects[characterName] = rect;
 }

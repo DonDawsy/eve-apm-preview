@@ -438,6 +438,8 @@ void MainWindow::refreshWindows() {
       m_lastKnownTitles.remove(removedWindow);
       invalidateCycleIndicesForWindow(removedWindow);
       cleanupLocationRefreshTimer(removedWindow);
+      m_clientLocationMoveAttempted.remove(removedWindow);
+      m_clientLocationRetryCount.remove(removedWindow);
       it.value()->deleteLater();
       it = thumbnails.erase(it);
     } else {
@@ -1651,6 +1653,7 @@ void MainWindow::applySettings() {
   m_notLoggedInCycleIndex = -1;
   m_nonEVECycleIndex = -1;
   m_clientLocationMoveAttempted.clear();
+  m_clientLocationRetryCount.clear();
 
   hotkeyManager->loadFromConfig();
 
@@ -1852,6 +1855,7 @@ void MainWindow::reloadThumbnails() {
   m_characterHotkeyCycleIndex.clear();
   m_lastActivatedCharacterHotkeyWindow.clear();
   m_clientLocationMoveAttempted.clear();
+  m_clientLocationRetryCount.clear();
   m_lastKnownTitles.clear();
   m_windowProcessNames.clear();
   m_windowsBeingMoved.clear();
@@ -2106,34 +2110,97 @@ bool MainWindow::tryRestoreClientLocation(HWND hwnd,
   const Config &cfg = Config::instance();
 
   if (!cfg.saveClientLocation()) {
+    qDebug() << "tryRestoreClientLocation: saveClientLocation is disabled";
     return false;
   }
 
   if (m_clientLocationMoveAttempted.value(hwnd, false)) {
+    qDebug() << "tryRestoreClientLocation: already attempted for"
+             << characterName;
     return false;
   }
 
   QRect savedRect = cfg.getClientWindowRect(characterName);
+  qDebug() << "tryRestoreClientLocation: attempting to restore" << characterName
+           << "to" << savedRect;
 
   if (!isWindowRectValid(savedRect)) {
-    qDebug() << "Saved window location for" << characterName
-             << "is invalid or off-screen";
+    qDebug() << "tryRestoreClientLocation: Saved window location for"
+             << characterName << "is invalid or off-screen";
     m_clientLocationMoveAttempted[hwnd] = true;
     return false;
+  }
+
+  // Get current position to compare
+  RECT currentRect;
+  if (GetWindowRect(hwnd, &currentRect)) {
+    qDebug() << "tryRestoreClientLocation: current position is"
+             << QRect(currentRect.left, currentRect.top,
+                      currentRect.right - currentRect.left,
+                      currentRect.bottom - currentRect.top);
   }
 
   BOOL result = SetWindowPos(hwnd, nullptr, savedRect.x(), savedRect.y(),
                              savedRect.width(), savedRect.height(),
                              SWP_NOZORDER | SWP_NOACTIVATE);
 
-  m_clientLocationMoveAttempted[hwnd] = true;
-
-  if (result) {
-    qDebug() << "Restored window location for" << characterName << "to"
-             << savedRect;
-    return true;
-  } else {
-    qDebug() << "Failed to restore window location for" << characterName;
+  if (!result) {
+    DWORD error = GetLastError();
+    qDebug() << "tryRestoreClientLocation: SetWindowPos failed for"
+             << characterName << "with error code" << error;
+    m_clientLocationMoveAttempted[hwnd] = true;
     return false;
   }
+
+  qDebug() << "tryRestoreClientLocation: SetWindowPos succeeded for"
+           << characterName;
+
+  // Schedule a verification check after a short delay
+  QTimer *verifyTimer = new QTimer(this);
+  verifyTimer->setSingleShot(true);
+  verifyTimer->setInterval(500); // Check after 500ms
+
+  connect(verifyTimer, &QTimer::timeout, this,
+          [this, hwnd, characterName, savedRect]() {
+            if (!IsWindow(hwnd)) {
+              return;
+            }
+
+            RECT actualRect;
+            if (GetWindowRect(hwnd, &actualRect)) {
+              QRect actual(actualRect.left, actualRect.top,
+                           actualRect.right - actualRect.left,
+                           actualRect.bottom - actualRect.top);
+
+              int deltaX = abs(actual.x() - savedRect.x());
+              int deltaY = abs(actual.y() - savedRect.y());
+
+              qDebug() << "Verification: Position after 500ms:" << actual
+                       << "Delta from target:" << deltaX << deltaY;
+
+              // If window moved from target position at all, retry
+              if (deltaX > 0 || deltaY > 0) {
+                int retryCount = m_clientLocationRetryCount.value(hwnd, 0);
+                if (retryCount < 3) {
+                  qDebug() << "Window position drifted, attempting retry"
+                           << (retryCount + 1);
+                  m_clientLocationRetryCount[hwnd] = retryCount + 1;
+                  m_clientLocationMoveAttempted[hwnd] = false;
+                  tryRestoreClientLocation(hwnd, characterName);
+                } else {
+                  qDebug() << "Maximum retry attempts reached for"
+                           << characterName;
+                  m_clientLocationRetryCount.remove(hwnd);
+                }
+              } else {
+                qDebug() << "Position verified successfully for"
+                         << characterName;
+                m_clientLocationRetryCount.remove(hwnd);
+              }
+            }
+          });
+
+  verifyTimer->start();
+  m_clientLocationMoveAttempted[hwnd] = true;
+  return true;
 }

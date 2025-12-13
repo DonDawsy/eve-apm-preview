@@ -79,6 +79,8 @@ private:
   QHash<QString, HWND> m_lastActivatedCharacterHotkeyWindow;
 
   QHash<HWND, bool> m_clientLocationMoveAttempted;
+  QHash<HWND, int> m_clientLocationRetryCount;
+  QHash<HWND, QTimer *> m_clientLocationRetryTimers;
 
   QVector<HWND> m_notLoggedInWindows;
   int m_notLoggedInCycleIndex;
