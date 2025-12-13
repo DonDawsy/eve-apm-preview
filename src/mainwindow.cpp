@@ -956,7 +956,14 @@ void MainWindow::updateActiveWindow() {
   bool hideActive = cfg.hideActiveClientThumbnail();
   bool highlightActive = cfg.highlightActiveWindow();
 
-  if (activeWindow == m_lastActiveWindow && !hideActive) {
+  // Only skip update if nothing has changed (same active window and hideActive
+  // setting) We need to update if hideActive changed even if the active window
+  // is the same
+  static bool lastHideActive = false;
+  bool hideActiveChanged = (lastHideActive != hideActive);
+  lastHideActive = hideActive;
+
+  if (activeWindow == m_lastActiveWindow && !hideActiveChanged) {
     return;
   }
 
