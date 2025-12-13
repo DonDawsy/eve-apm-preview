@@ -3016,6 +3016,11 @@ void ConfigDialog::loadSettings() {
         HotkeyCapture *backwardCapture = captures[0];
         HotkeyCapture *forwardCapture = captures[1];
 
+        qDebug() << "ConfigDialog::loadSettings() - Loading cycle group"
+                 << group.groupName
+                 << "backward bindings:" << group.backwardBindings.size()
+                 << "forward bindings:" << group.forwardBindings.size();
+
         if (group.backwardBindings.size() > 1) {
           QVector<HotkeyCombination> backwardCombos;
           for (const HotkeyBinding &binding : group.backwardBindings) {
@@ -3023,6 +3028,7 @@ void ConfigDialog::loadSettings() {
                 binding.keyCode, binding.getModifiers() & MOD_CONTROL,
                 binding.getModifiers() & MOD_ALT,
                 binding.getModifiers() & MOD_SHIFT));
+            qDebug() << "  Loading backward hotkey:" << binding.toString();
           }
           backwardCapture->setHotkeys(backwardCombos);
         }
@@ -3034,6 +3040,7 @@ void ConfigDialog::loadSettings() {
                 binding.keyCode, binding.getModifiers() & MOD_CONTROL,
                 binding.getModifiers() & MOD_ALT,
                 binding.getModifiers() & MOD_SHIFT));
+            qDebug() << "  Loading forward hotkey:" << binding.toString();
           }
           forwardCapture->setHotkeys(forwardCombos);
         }
@@ -3376,9 +3383,15 @@ void ConfigDialog::saveSettings() {
       group.noLoop = noLoopCheck->isChecked();
 
       QVector<HotkeyCombination> backwardCombos = backwardCapture->getHotkeys();
+      qDebug() << "ConfigDialog::saveSettings() - Cycle group" << groupName
+               << "backward hotkeys:" << backwardCombos.size();
       for (const HotkeyCombination &combo : backwardCombos) {
         group.backwardBindings.append(
             HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+        qDebug() << "  Added backward hotkey:"
+                 << HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt,
+                                  combo.shift)
+                        .toString();
       }
       if (!backwardCombos.isEmpty()) {
         const HotkeyCombination &first = backwardCombos.first();
@@ -3387,9 +3400,15 @@ void ConfigDialog::saveSettings() {
       }
 
       QVector<HotkeyCombination> forwardCombos = forwardCapture->getHotkeys();
+      qDebug() << "ConfigDialog::saveSettings() - Cycle group" << groupName
+               << "forward hotkeys:" << forwardCombos.size();
       for (const HotkeyCombination &combo : forwardCombos) {
         group.forwardBindings.append(
             HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+        qDebug() << "  Added forward hotkey:"
+                 << HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt,
+                                  combo.shift)
+                        .toString();
       }
       if (!forwardCombos.isEmpty()) {
         const HotkeyCombination &first = forwardCombos.first();

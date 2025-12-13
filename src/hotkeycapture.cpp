@@ -433,8 +433,11 @@ LRESULT CALLBACK HotkeyCapture::LowLevelKeyboardProc(int nCode, WPARAM wParam,
         return 1;
       }
 
+      // Filter out all modifier keys (both generic and left/right specific)
       if (vkCode != VK_CONTROL && vkCode != VK_MENU && vkCode != VK_SHIFT &&
-          vkCode != VK_LWIN && vkCode != VK_RWIN) {
+          vkCode != VK_LWIN && vkCode != VK_RWIN && vkCode != VK_LSHIFT &&
+          vkCode != VK_RSHIFT && vkCode != VK_LCONTROL &&
+          vkCode != VK_RCONTROL && vkCode != VK_LMENU && vkCode != VK_RMENU) {
 
         if (!s_activeInstance->m_capturing) {
           return 1;
