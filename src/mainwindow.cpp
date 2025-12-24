@@ -1619,6 +1619,10 @@ void MainWindow::showSettings() {
 
     hotkeyManager->setSuspended(false);
 
+    // Reinstall mouse hook in case HotkeyCapture uninstalled it while capturing
+    // mouse buttons
+    hotkeyManager->registerHotkeys();
+
     for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
       it.value()->forceOverlayRender();
     }
@@ -2167,7 +2171,7 @@ bool MainWindow::tryRestoreClientLocation(HWND hwnd,
 
   QTimer *verifyTimer = new QTimer(this);
   verifyTimer->setSingleShot(true);
-  verifyTimer->setInterval(500); 
+  verifyTimer->setInterval(500);
 
   connect(verifyTimer, &QTimer::timeout, this,
           [this, hwnd, characterName, savedRect]() {

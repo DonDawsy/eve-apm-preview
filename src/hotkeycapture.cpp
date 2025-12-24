@@ -10,7 +10,8 @@ HHOOK HotkeyCapture::s_keyboardHook = nullptr;
 HHOOK HotkeyCapture::s_mouseHook = nullptr;
 
 HotkeyCapture::HotkeyCapture(QWidget *parent)
-    : QLineEdit(parent), m_capturing(false), m_hasConflict(false) {
+    : QLineEdit(parent), m_capturing(false), m_hasConflict(false),
+      m_keyboardHookInstalled(false), m_mouseHookInstalled(false) {
   setReadOnly(true);
   setPlaceholderText("Click to set hotkey...");
   setAlignment(Qt::AlignCenter);
@@ -416,31 +417,43 @@ QString HotkeyCapture::keyCodeToString(int keyCode) const {
 }
 
 void HotkeyCapture::installKeyboardHook() {
-  s_activeInstance = this;
-  HookThread::instance().installKeyboardHook(
-      HotkeyCapture::LowLevelKeyboardProc);
-  s_keyboardHook = reinterpret_cast<HHOOK>(1);
+  if (!m_keyboardHookInstalled) {
+    s_activeInstance = this;
+    HookThread::instance().installKeyboardHook(
+        HotkeyCapture::LowLevelKeyboardProc);
+    s_keyboardHook = reinterpret_cast<HHOOK>(1);
+    m_keyboardHookInstalled = true;
+  }
 }
 
 void HotkeyCapture::uninstallKeyboardHook() {
-  HookThread::instance().uninstallKeyboardHook();
-  s_keyboardHook = nullptr;
-  if (s_mouseHook == nullptr) {
-    s_activeInstance = nullptr;
+  if (m_keyboardHookInstalled) {
+    HookThread::instance().uninstallKeyboardHook();
+    s_keyboardHook = nullptr;
+    if (s_mouseHook == nullptr) {
+      s_activeInstance = nullptr;
+    }
+    m_keyboardHookInstalled = false;
   }
 }
 
 void HotkeyCapture::installMouseHook() {
-  s_activeInstance = this;
-  HookThread::instance().installMouseHook(HotkeyCapture::LowLevelMouseProc);
-  s_mouseHook = reinterpret_cast<HHOOK>(1);
+  if (!m_mouseHookInstalled) {
+    s_activeInstance = this;
+    HookThread::instance().installMouseHook(HotkeyCapture::LowLevelMouseProc);
+    s_mouseHook = reinterpret_cast<HHOOK>(1);
+    m_mouseHookInstalled = true;
+  }
 }
 
 void HotkeyCapture::uninstallMouseHook() {
-  HookThread::instance().uninstallMouseHook();
-  s_mouseHook = nullptr;
-  if (s_keyboardHook == nullptr) {
-    s_activeInstance = nullptr;
+  if (m_mouseHookInstalled) {
+    HookThread::instance().uninstallMouseHook();
+    s_mouseHook = nullptr;
+    if (s_keyboardHook == nullptr) {
+      s_activeInstance = nullptr;
+    }
+    m_mouseHookInstalled = false;
   }
 }
 
@@ -562,23 +575,14 @@ LRESULT CALLBACK HotkeyCapture::LowLevelMouseProc(int nCode, WPARAM wParam,
 }
 
 void HotkeyCapture::setHasConflict(bool hasConflict) {
-  qDebug() << "HotkeyCapture::setHasConflict() - this:" << this
-           << "hasConflict:" << hasConflict;
-
   if (m_hasConflict == hasConflict) {
-    qDebug() << "  No change needed";
     return;
   }
 
   m_hasConflict = hasConflict;
 
-  qDebug() << "  Updating border style";
-
   setProperty("hasConflict", hasConflict);
 
   style()->unpolish(this);
   style()->polish(this);
-
-  qDebug() << (hasConflict ? "  Applied RED border"
-                           : "  Applied NORMAL border");
 }

@@ -3016,11 +3016,6 @@ void ConfigDialog::loadSettings() {
         HotkeyCapture *backwardCapture = captures[0];
         HotkeyCapture *forwardCapture = captures[1];
 
-        qDebug() << "ConfigDialog::loadSettings() - Loading cycle group"
-                 << group.groupName
-                 << "backward bindings:" << group.backwardBindings.size()
-                 << "forward bindings:" << group.forwardBindings.size();
-
         if (group.backwardBindings.size() > 1) {
           QVector<HotkeyCombination> backwardCombos;
           for (const HotkeyBinding &binding : group.backwardBindings) {
@@ -3028,7 +3023,6 @@ void ConfigDialog::loadSettings() {
                 binding.keyCode, binding.getModifiers() & MOD_CONTROL,
                 binding.getModifiers() & MOD_ALT,
                 binding.getModifiers() & MOD_SHIFT));
-            qDebug() << "  Loading backward hotkey:" << binding.toString();
           }
           backwardCapture->setHotkeys(backwardCombos);
         }
@@ -3040,7 +3034,6 @@ void ConfigDialog::loadSettings() {
                 binding.keyCode, binding.getModifiers() & MOD_CONTROL,
                 binding.getModifiers() & MOD_ALT,
                 binding.getModifiers() & MOD_SHIFT));
-            qDebug() << "  Loading forward hotkey:" << binding.toString();
           }
           forwardCapture->setHotkeys(forwardCombos);
         }
@@ -3238,11 +3231,6 @@ void ConfigDialog::saveSettings() {
   Config::instance().setGameLogDirectory(
       m_gameLogDirectoryEdit->text().trimmed());
 
-  qDebug() << "ConfigDialog::saveSettings() - enableGameLogMonitoring:"
-           << Config::instance().enableGameLogMonitoring();
-  qDebug() << "ConfigDialog::saveSettings() - checkbox state:"
-           << m_enableGameLogMonitoringCheck->isChecked();
-
   Config &cfg = Config::instance();
 
   QHash<QString, QSize> existingSizes = cfg.getAllCustomThumbnailSizes();
@@ -3382,15 +3370,9 @@ void ConfigDialog::saveSettings() {
       group.noLoop = noLoopCheck->isChecked();
 
       QVector<HotkeyCombination> backwardCombos = backwardCapture->getHotkeys();
-      qDebug() << "ConfigDialog::saveSettings() - Cycle group" << groupName
-               << "backward hotkeys:" << backwardCombos.size();
       for (const HotkeyCombination &combo : backwardCombos) {
         group.backwardBindings.append(
             HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
-        qDebug() << "  Added backward hotkey:"
-                 << HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt,
-                                  combo.shift)
-                        .toString();
       }
       if (!backwardCombos.isEmpty()) {
         const HotkeyCombination &first = backwardCombos.first();
@@ -3399,15 +3381,9 @@ void ConfigDialog::saveSettings() {
       }
 
       QVector<HotkeyCombination> forwardCombos = forwardCapture->getHotkeys();
-      qDebug() << "ConfigDialog::saveSettings() - Cycle group" << groupName
-               << "forward hotkeys:" << forwardCombos.size();
       for (const HotkeyCombination &combo : forwardCombos) {
         group.forwardBindings.append(
             HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
-        qDebug() << "  Added forward hotkey:"
-                 << HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt,
-                                  combo.shift)
-                        .toString();
       }
       if (!forwardCombos.isEmpty()) {
         const HotkeyCombination &first = forwardCombos.first();
@@ -3420,7 +3396,6 @@ void ConfigDialog::saveSettings() {
 
     hotkeyMgr->saveToConfig();
   }
-
   Config &config = Config::instance();
 
   QHash<QString, QColor> existingColors = config.getAllCharacterBorderColors();
@@ -7807,14 +7782,11 @@ void ConfigDialog::createProfileToolbar() {
   QVBoxLayout *mainLayout = qobject_cast<QVBoxLayout *>(layout());
   if (mainLayout) {
     mainLayout->insertWidget(0, toolbarWidget);
-  } else {
-    qWarning() << "Failed to get main layout for profile toolbar";
   }
 }
 
 void ConfigDialog::updateProfileDropdown() {
   if (!m_profileCombo) {
-    qWarning() << "Profile combo box not initialized";
     return;
   }
 
@@ -7825,11 +7797,7 @@ void ConfigDialog::updateProfileDropdown() {
   QStringList profiles = Config::instance().listProfiles();
   QString currentProfile = Config::instance().getCurrentProfileName();
 
-  qDebug() << "Updating profile dropdown. Profiles:" << profiles
-           << "Current:" << currentProfile;
-
   if (profiles.isEmpty()) {
-    qWarning() << "No profiles found. This shouldn't happen.";
     m_profileCombo->addItem("default");
     m_profileCombo->setCurrentIndex(0);
     m_profileCombo->blockSignals(false);
@@ -7844,7 +7812,6 @@ void ConfigDialog::updateProfileDropdown() {
   if (currentIndex >= 0) {
     m_profileCombo->setCurrentIndex(currentIndex);
   } else {
-    qWarning() << "Current profile" << currentProfile << "not found in list";
     if (m_profileCombo->count() > 0) {
       m_profileCombo->setCurrentIndex(0);
     }
@@ -7959,8 +7926,6 @@ void ConfigDialog::switchProfile(const QString &profileName) {
     }
 
     emit settingsApplied();
-
-    qDebug() << "Switched to profile:" << profileName;
   } else {
     QMessageBox::warning(
         this, "Profile Switch Failed",
@@ -7969,8 +7934,6 @@ void ConfigDialog::switchProfile(const QString &profileName) {
 }
 
 void ConfigDialog::onExternalProfileSwitch(const QString &profileName) {
-  qDebug() << "ConfigDialog: External profile switch to" << profileName;
-
   if (Config::instance().getCurrentProfileName() == profileName) {
     loadSettings();
 
@@ -8263,12 +8226,8 @@ void ConfigDialog::onCheckForUpdates() {
 
   connect(reply,
           QOverload<const QList<QSslError> &>::of(&QNetworkReply::sslErrors),
-          this, [this, reply](const QList<QSslError> &errors) {
-            QString errorMsg = "SSL Errors:\n";
-            for (const QSslError &error : errors) {
-              errorMsg += error.errorString() + "\n";
-            }
-            qWarning() << errorMsg;
+          this, [this, reply](const QList<QSslError> &) {
+            // SSL errors occurred during version check
           });
 
   connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -8354,8 +8313,6 @@ int ConfigDialog::compareVersions(const QString &version1,
 QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
   QVector<HotkeyConflict> conflicts;
 
-  qDebug() << "ConfigDialog::checkHotkeyConflicts() - starting check";
-
   QHash<HotkeyBinding, QStringList> hotkeyMap;
 
   auto addHotkeysFromCapture = [&hotkeyMap](HotkeyCapture *capture,
@@ -8365,23 +8322,16 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
     }
 
     QVector<HotkeyCombination> hotkeys = capture->getHotkeys();
-    qDebug() << "  Widget for" << description << "has" << hotkeys.size()
-             << "hotkeys";
     for (const HotkeyCombination &hk : hotkeys) {
       if (hk.keyCode != 0) {
         HotkeyBinding binding(hk.keyCode, hk.ctrl, hk.alt, hk.shift, true);
         hotkeyMap[binding].append(description);
-        qDebug() << "    Adding hotkey:" << binding.toString() << "for"
-                 << description;
-      } else {
-        qDebug() << "    Skipping empty hotkey (keyCode=0)";
       }
     }
   };
 
   QStringList characterHotkeys;
   int charFormRowCount = m_characterHotkeysLayout->count() - 1;
-  qDebug() << "  Checking character hotkeys form rows:" << charFormRowCount;
   for (int i = 0; i < charFormRowCount; ++i) {
     QWidget *rowWidget =
         qobject_cast<QWidget *>(m_characterHotkeysLayout->itemAt(i)->widget());
@@ -8392,9 +8342,6 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
 
     QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
     HotkeyCapture *hotkeyCapture = rowWidget->findChild<HotkeyCapture *>();
-
-    qDebug() << "    Row" << i << "nameEdit:" << (nameEdit ? "valid" : "null")
-             << "hotkeyCapture:" << (hotkeyCapture ? "valid" : "null");
 
     if (nameEdit && hotkeyCapture) {
       QString charName = nameEdit->text().trimmed();
@@ -8464,14 +8411,9 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
                           QString("Profile Switch: %1").arg(profileName));
   }
 
-  qDebug() << "  Total hotkeys collected:" << hotkeyMap.size();
-
   for (auto it = hotkeyMap.constBegin(); it != hotkeyMap.constEnd(); ++it) {
     const HotkeyBinding &binding = it.key();
     const QStringList &descriptions = it.value();
-
-    qDebug() << "  Hotkey" << binding.toString() << "has" << descriptions.size()
-             << "assignments:" << descriptions;
 
     if (descriptions.size() > 1) {
       bool allCharacterHotkeys = true;
@@ -8483,8 +8425,6 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
       }
 
       if (!allCharacterHotkeys) {
-        qDebug() << "    CONFLICT DETECTED:" << binding.toString() << "used by"
-                 << descriptions;
         for (int i = 0; i < descriptions.size(); ++i) {
           for (int j = i + 1; j < descriptions.size(); ++j) {
             HotkeyConflict conflict;
@@ -8498,25 +8438,17 @@ QVector<ConfigDialog::HotkeyConflict> ConfigDialog::checkHotkeyConflicts() {
     }
   }
 
-  qDebug() << "  Total conflicts found:" << conflicts.size();
-
   return conflicts;
 }
 void ConfigDialog::updateHotkeyConflictVisuals() {
-  qDebug() << "ConfigDialog::updateHotkeyConflictVisuals() - starting";
-
   clearHotkeyConflictVisuals();
 
   QVector<HotkeyConflict> conflicts = checkHotkeyConflicts();
-
-  qDebug() << "  Found" << conflicts.size() << "conflicts";
 
   m_conflictingHotkeys.clear();
   for (const HotkeyConflict &conflict : conflicts) {
     m_conflictingHotkeys.insert(conflict.binding);
   }
-
-  qDebug() << "  Unique conflicting hotkeys:" << m_conflictingHotkeys.size();
 
   auto markIfConflicting = [this](HotkeyCapture *capture) {
     if (!capture) {
@@ -8525,22 +8457,15 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
 
     QVector<HotkeyCombination> hotkeys = capture->getHotkeys();
 
-    qDebug() << "    Checking widget" << capture << "with" << hotkeys.size()
-             << "hotkeys";
-
     bool hasValidHotkey = false;
     for (const HotkeyCombination &hk : hotkeys) {
       if (hk.keyCode != 0) {
         hasValidHotkey = true;
-        qDebug() << "      Valid hotkey found:"
-                 << HotkeyBinding(hk.keyCode, hk.ctrl, hk.alt, hk.shift, true)
-                        .toString();
         break;
       }
     }
 
     if (!hasValidHotkey) {
-      qDebug() << "      Widget has no valid hotkeys, clearing conflict";
       capture->setHasConflict(false);
       return;
     }
@@ -8551,14 +8476,11 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
         HotkeyBinding binding(hk.keyCode, hk.ctrl, hk.alt, hk.shift, true);
         if (m_conflictingHotkeys.contains(binding)) {
           hasConflict = true;
-          qDebug() << "      Widget has conflicting binding"
-                   << binding.toString();
           break;
         }
       }
     }
 
-    qDebug() << "      Final decision - hasConflict:" << hasConflict;
     capture->setHasConflict(hasConflict);
   };
 
@@ -8594,7 +8516,6 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
   markIfConflicting(m_profileHotkeyCapture);
 
   bool hasConflicts = !conflicts.isEmpty();
-  qDebug() << "  Setting buttons enabled:" << !hasConflicts;
   if (m_okButton) {
     m_okButton->setEnabled(!hasConflicts);
   }
@@ -8604,13 +8525,8 @@ void ConfigDialog::updateHotkeyConflictVisuals() {
 }
 
 void ConfigDialog::clearHotkeyConflictVisuals() {
-  qDebug() << "ConfigDialog::clearHotkeyConflictVisuals() - clearing all "
-              "conflict visuals";
-
   auto clearConflict = [](HotkeyCapture *capture) {
     if (capture) {
-      qDebug() << "    Clearing conflict for widget:" << capture
-               << "current hasConflict:" << capture->hasConflict();
       capture->setHasConflict(false);
     }
   };
@@ -8733,12 +8649,6 @@ void ConfigDialog::showConflictDialog(
   dialog.exec();
 }
 
-void ConfigDialog::onHotkeyChanged() {
-  qDebug() << "ConfigDialog::onHotkeyChanged() - triggered";
-  validateAllHotkeys();
-}
+void ConfigDialog::onHotkeyChanged() { validateAllHotkeys(); }
 
-void ConfigDialog::validateAllHotkeys() {
-  qDebug() << "ConfigDialog::validateAllHotkeys() - starting validation";
-  updateHotkeyConflictVisuals();
-}
+void ConfigDialog::validateAllHotkeys() { updateHotkeyConflictVisuals(); }

@@ -1025,11 +1025,6 @@ void HotkeyManager::registerProfileHotkeys() {
       int hotkeyId;
       if (registerHotkey(binding, hotkeyId)) {
         m_hotkeyIdToProfile.insert(hotkeyId, profileName);
-        qDebug() << "Registered profile hotkey for" << profileName << "with ID"
-                 << hotkeyId;
-      } else {
-        qWarning() << "Failed to register profile hotkey for" << profileName
-                   << "- hotkey may already be in use";
       }
     }
   }

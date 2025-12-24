@@ -27,6 +27,9 @@ private:
 
   HHOOK m_mouseHook;
   HHOOK m_keyboardHook;
+
+  int m_mouseHookRefCount;
+  int m_keyboardHookRefCount;
 };
 
-#endif 
+#endif
