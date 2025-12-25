@@ -1167,6 +1167,10 @@ void MainWindow::handleNamedCycleForward(const QString &groupName) {
       m_lastActivatedWindowByGroup.value(groupName, nullptr);
   if (lastActivatedWindow) {
     currentIndex = windowsToCycle.indexOf(lastActivatedWindow);
+    // If last activated window is not in the cycle list, ignore it
+    if (currentIndex == -1) {
+      lastActivatedWindow = nullptr;
+    }
   }
 
   if (currentIndex == -1) {
@@ -1207,6 +1211,10 @@ void MainWindow::handleNamedCycleBackward(const QString &groupName) {
       m_lastActivatedWindowByGroup.value(groupName, nullptr);
   if (lastActivatedWindow) {
     currentIndex = windowsToCycle.indexOf(lastActivatedWindow);
+    // If last activated window is not in the cycle list, ignore it
+    if (currentIndex == -1) {
+      lastActivatedWindow = nullptr;
+    }
   }
 
   if (currentIndex == -1) {
@@ -1372,6 +1380,10 @@ void MainWindow::handleCharacterHotkeyCycle(
       m_lastActivatedCharacterHotkeyWindow.value(groupKey, nullptr);
   if (lastActivatedWindow) {
     currentIndex = windowsToCycle.indexOf(lastActivatedWindow);
+    // If last activated window is not in the cycle list, ignore it
+    if (currentIndex == -1) {
+      lastActivatedWindow = nullptr;
+    }
   }
 
   if (currentIndex == -1) {
