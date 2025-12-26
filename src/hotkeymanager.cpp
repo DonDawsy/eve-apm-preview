@@ -907,9 +907,9 @@ void HotkeyManager::destroyMessageWindow() {
 LRESULT CALLBACK HotkeyManager::MessageWindowProc(HWND hwnd, UINT msg,
                                                   WPARAM wParam,
                                                   LPARAM lParam) {
-  HotkeyManager *manager = reinterpret_cast<HotkeyManager *>(
-      GetWindowLongPtrW(hwnd, GWLP_USERDATA));
-  
+  HotkeyManager *manager =
+      reinterpret_cast<HotkeyManager *>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+
   if (msg == WM_MOUSEBUTTON_HOTKEY) {
     if (manager && !s_instance.isNull()) {
       // Unpack the mouse button event data
@@ -917,12 +917,12 @@ LRESULT CALLBACK HotkeyManager::MessageWindowProc(HWND hwnd, UINT msg,
       bool ctrl = (wParam & 0x10000) != 0;
       bool alt = (wParam & 0x20000) != 0;
       bool shift = (wParam & 0x40000) != 0;
-      
+
       manager->checkMouseButtonBindings(vkCode, ctrl, alt, shift);
     }
     return 0;
   }
-  
+
   if (msg == WM_HOTKEY) {
     if (manager && !s_instance.isNull()) {
       int hotkeyId = static_cast<int>(wParam);
@@ -1177,12 +1177,16 @@ LRESULT CALLBACK HotkeyManager::LowLevelMouseProc(int nCode, WPARAM wParam,
       bool alt = GetKeyState(VK_MENU) & 0x8000;
       bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 
-      // Pack modifier keys into wParam: bits 0-15 = vkCode, bit 16 = ctrl, bit 17 = alt, bit 18 = shift
-      WPARAM wParam = vkCode | (ctrl ? 0x10000 : 0) | (alt ? 0x20000 : 0) | (shift ? 0x40000 : 0);
-      
+      // Pack modifier keys into wParam: bits 0-15 = vkCode, bit 16 = ctrl, bit
+      // 17 = alt, bit 18 = shift
+      WPARAM wParam = vkCode | (ctrl ? 0x10000 : 0) | (alt ? 0x20000 : 0) |
+                      (shift ? 0x40000 : 0);
+
       // Post message to message window instead of using invokeMethod
-      // This matches the behavior of keyboard hotkeys which use Windows message queue
-      PostMessageW(s_instance->m_messageWindow, WM_MOUSEBUTTON_HOTKEY, wParam, 0);
+      // This matches the behavior of keyboard hotkeys which use Windows message
+      // queue
+      PostMessageW(s_instance->m_messageWindow, WM_MOUSEBUTTON_HOTKEY, wParam,
+                   0);
     }
   }
 
