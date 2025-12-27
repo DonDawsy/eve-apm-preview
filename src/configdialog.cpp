@@ -1050,10 +1050,10 @@ void ConfigDialog::createHotkeysPage() {
   charHotkeysHeader->setStyleSheet(StyleSheet::getSectionHeaderStyleSheet());
   charHotkeysSectionLayout->addWidget(charHotkeysHeader);
 
-  QLabel *charInfoLabel =
-      new QLabel("Assign hotkeys to instantly switch to specific character "
-                 "windows. Two characters can share the same hotkey, but will "
-                 "cycle in window opening order.");
+  QLabel *charInfoLabel = new QLabel(
+      "Assign hotkeys to instantly switch to specific character "
+      "windows. Multiple characters can share the same hotkey, but will "
+      "cycle in window opening order.");
   charInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   charHotkeysSectionLayout->addWidget(charInfoLabel);
 
