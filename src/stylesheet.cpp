@@ -288,6 +288,22 @@ QString StyleSheet::getSectionHeaderStyleSheet() {
       .arg(colorAccent());
 }
 
+QString StyleSheet::getSectionSubHeaderStyleSheet() {
+  return QString("QLabel { "
+                 "font-size: 13px; "
+                 "font-weight: bold; "
+                 "color: %1; "
+                 "border-left: 2px solid %2; "
+                 "padding-left: 8px; "
+                 "} "
+                 "QLabel:disabled { "
+                 "color: #666666; "
+                 "border-left: 2px solid #666666; "
+                 "}")
+      .arg(colorTextPrimary())
+      .arg(colorBorder());
+}
+
 QString StyleSheet::getTitleLabelStyleSheet() {
   return QString("font-size: 20px; "
                  "font-weight: bold; "

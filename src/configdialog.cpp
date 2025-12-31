@@ -661,8 +661,9 @@ void ConfigDialog::createAppearancePage() {
       StyleSheet::getCheckBoxStyleSheet());
   thumbnailVisibilitySectionLayout->addWidget(m_hideActiveClientThumbnailCheck);
 
-  QLabel *hiddenCharactersLabel = new QLabel("Hidden Characters:");
-  hiddenCharactersLabel->setStyleSheet(StyleSheet::getSubLabelStyleSheet());
+  QLabel *hiddenCharactersLabel = new QLabel("Hidden Characters");
+  hiddenCharactersLabel->setStyleSheet(
+      StyleSheet::getSectionSubHeaderStyleSheet() + " margin-top: 10px;");
   thumbnailVisibilitySectionLayout->addWidget(hiddenCharactersLabel);
 
   m_hiddenCharactersScrollArea = new QScrollArea();
@@ -1472,10 +1473,18 @@ void ConfigDialog::createBehaviorPage() {
 
   windowSectionLayout->addLayout(minimizeGrid);
 
-  m_neverMinimizeLabel = new QLabel("Never Minimize Characters:");
+  m_neverMinimizeLabel = new QLabel("Never Minimize Characters");
   m_neverMinimizeLabel->setStyleSheet(
-      "color: #ffffff; font-size: 13px; margin-top: 10px;");
+      StyleSheet::getSectionSubHeaderStyleSheet() + " margin-top: 10px;");
   windowSectionLayout->addWidget(m_neverMinimizeLabel);
+
+  m_neverMinimizeInfoLabel = new QLabel(
+      "Specify character names that should never be minimized when inactive. "
+      "These clients will remain visible even when 'Minimize inactive clients' "
+      "is enabled.");
+  m_neverMinimizeInfoLabel->setWordWrap(true);
+  m_neverMinimizeInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
+  windowSectionLayout->addWidget(m_neverMinimizeInfoLabel);
 
   m_neverMinimizeScrollArea = new QScrollArea();
   m_neverMinimizeScrollArea->setWidgetResizable(true);
@@ -1524,13 +1533,15 @@ void ConfigDialog::createBehaviorPage() {
           [this](bool checked) {
             m_minimizeDelayLabel->setEnabled(checked);
             m_minimizeDelaySpin->setEnabled(checked);
-            m_neverMinimizeLabel->setStyleSheet(
-                QString("color: %1; font-size: 13px; margin-top: 10px;")
-                    .arg(checked ? "#ffffff" : "#666666"));
+            m_neverMinimizeLabel->setEnabled(checked);
+            m_neverMinimizeInfoLabel->setEnabled(checked);
             m_neverMinimizeScrollArea->setEnabled(checked);
             m_addNeverMinimizeButton->setEnabled(checked);
             m_populateNeverMinimizeButton->setEnabled(checked);
           });
+
+  // Trigger initial state
+  emit m_minimizeInactiveCheck->toggled(m_minimizeInactiveCheck->isChecked());
 
   QWidget *positionSection = new QWidget();
   positionSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
@@ -1698,9 +1709,9 @@ void ConfigDialog::createBehaviorPage() {
   m_showNonEVEOverlayCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
   clientFilterSectionLayout->addWidget(m_showNonEVEOverlayCheck);
 
-  QLabel *extraPreviewsSubHeader = new QLabel("Additional Applications:");
+  QLabel *extraPreviewsSubHeader = new QLabel("Additional Applications");
   extraPreviewsSubHeader->setStyleSheet(
-      "color: #ffffff; font-size: 13px; margin-top: 10px;");
+      StyleSheet::getSectionSubHeaderStyleSheet() + " margin-top: 10px;");
   clientFilterSectionLayout->addWidget(extraPreviewsSubHeader);
 
   QLabel *extraPreviewsInfoLabel = new QLabel(
@@ -2225,7 +2236,7 @@ void ConfigDialog::createLegacySettingsPage() {
   browseSectionLayout->addWidget(browseHeader);
 
   QLabel *infoLabel =
-      new QLabel("Import settings from EVE-O/X Preview configuration file."
+      new QLabel("Import settings from EVE-O/X Preview configuration file. "
                  "Select your legacy settings file, then use the Copy buttons "
                  "to import settings into the current configuration.");
   infoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
@@ -2362,6 +2373,13 @@ void ConfigDialog::createAboutPage() {
   QLabel *thanksHeader = new QLabel("Thanks");
   thanksHeader->setStyleSheet(StyleSheet::getSubsectionHeaderStyleSheet());
   thanksSectionLayout->addWidget(thanksHeader);
+
+  QLabel *thanksInfoLabel = new QLabel(
+      "Thank you to everyone that submitted a bug or feature request,"
+      " even if I forgot to you to the list.");
+  thanksInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
+  thanksInfoLabel->setWordWrap(true);
+  thanksSectionLayout->addWidget(thanksInfoLabel);
 
   QGridLayout *thanksGridLayout = new QGridLayout();
   thanksGridLayout->setSpacing(10);
@@ -2894,8 +2912,7 @@ void ConfigDialog::loadSettings() {
   m_minimizeDelayLabel->setEnabled(config.minimizeInactiveClients());
   m_minimizeDelaySpin->setEnabled(config.minimizeInactiveClients());
   m_neverMinimizeLabel->setStyleSheet(
-      QString("color: %1; font-size: 13px; margin-top: 10px;")
-          .arg(config.minimizeInactiveClients() ? "#ffffff" : "#666666"));
+      StyleSheet::getSectionSubHeaderStyleSheet() + " margin-top: 10px;");
   m_highlightColorLabel->setEnabled(config.highlightActiveWindow());
   m_highlightColorButton->setEnabled(config.highlightActiveWindow());
   m_highlightBorderWidthLabel->setEnabled(config.highlightActiveWindow());
@@ -2915,6 +2932,8 @@ void ConfigDialog::loadSettings() {
   m_backgroundColorLabel->setEnabled(config.showOverlayBackground());
   m_backgroundOpacityLabel->setEnabled(config.showOverlayBackground());
 
+  m_neverMinimizeLabel->setEnabled(config.minimizeInactiveClients());
+  m_neverMinimizeInfoLabel->setEnabled(config.minimizeInactiveClients());
   m_neverMinimizeScrollArea->setEnabled(config.minimizeInactiveClients());
   m_addNeverMinimizeButton->setEnabled(config.minimizeInactiveClients());
   m_populateNeverMinimizeButton->setEnabled(config.minimizeInactiveClients());

@@ -224,6 +224,7 @@ private:
   QSpinBox *m_minimizeDelaySpin;
   QLabel *m_minimizeDelayLabel;
   QLabel *m_neverMinimizeLabel;
+  QLabel *m_neverMinimizeInfoLabel;
   QScrollArea *m_neverMinimizeScrollArea;
   QWidget *m_neverMinimizeContainer;
   QVBoxLayout *m_neverMinimizeLayout;
