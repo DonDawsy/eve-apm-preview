@@ -55,8 +55,8 @@ MainWindow::MainWindow(QObject *parent)
           &MainWindow::onHotkeysSuspendedChanged);
   connect(hotkeyManager.get(), &HotkeyManager::closeAllClientsRequested, this,
           &MainWindow::closeAllEVEClients);
-  connect(hotkeyManager.get(), &HotkeyManager::minimizeAllClientsRequested, this,
-          &MainWindow::minimizeAllEVEClients);
+  connect(hotkeyManager.get(), &HotkeyManager::minimizeAllClientsRequested,
+          this, &MainWindow::minimizeAllEVEClients);
   connect(hotkeyManager.get(),
           &HotkeyManager::toggleThumbnailsVisibilityRequested, this,
           &MainWindow::toggleThumbnailsVisibility);

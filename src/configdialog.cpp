@@ -1042,8 +1042,7 @@ void ConfigDialog::createHotkeysPage() {
   // Minimize All Clients Section
   QWidget *minimizeAllSection = new QWidget();
   minimizeAllSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
-  QVBoxLayout *minimizeAllSectionLayout =
-      new QVBoxLayout(minimizeAllSection);
+  QVBoxLayout *minimizeAllSectionLayout = new QVBoxLayout(minimizeAllSection);
   minimizeAllSectionLayout->setContentsMargins(16, 12, 16, 12);
   minimizeAllSectionLayout->setSpacing(10);
 
