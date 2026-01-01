@@ -1039,6 +1039,58 @@ void ConfigDialog::createHotkeysPage() {
 
   layout->addWidget(closeAllSection);
 
+  // Minimize All Clients Section
+  QWidget *minimizeAllSection = new QWidget();
+  minimizeAllSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
+  QVBoxLayout *minimizeAllSectionLayout =
+      new QVBoxLayout(minimizeAllSection);
+  minimizeAllSectionLayout->setContentsMargins(16, 12, 16, 12);
+  minimizeAllSectionLayout->setSpacing(10);
+
+  tagWidget(minimizeAllSection,
+            {"minimize", "all", "clients", "hotkey", "global"});
+
+  QLabel *minimizeAllTitle = new QLabel("Minimize All Clients");
+  minimizeAllTitle->setStyleSheet(StyleSheet::getSectionHeaderStyleSheet());
+  minimizeAllSectionLayout->addWidget(minimizeAllTitle);
+
+  QLabel *minimizeAllDesc =
+      new QLabel("Set a hotkey to minimize all EVE Online clients.");
+  minimizeAllDesc->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
+  minimizeAllDesc->setWordWrap(true);
+  minimizeAllSectionLayout->addWidget(minimizeAllDesc);
+
+  QGridLayout *minimizeAllGrid = new QGridLayout();
+  minimizeAllGrid->setHorizontalSpacing(10);
+  minimizeAllGrid->setVerticalSpacing(8);
+  minimizeAllGrid->setColumnMinimumWidth(0, 120);
+  minimizeAllGrid->setColumnStretch(2, 1);
+
+  QLabel *minimizeAllLabel = new QLabel("Minimize all:");
+  minimizeAllLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_minimizeAllClientsCapture = new HotkeyCapture();
+  m_minimizeAllClientsCapture->setFixedWidth(150);
+  m_minimizeAllClientsCapture->setStyleSheet(
+      StyleSheet::getHotkeyCaptureStandaloneStyleSheet());
+
+  connect(m_minimizeAllClientsCapture, &HotkeyCapture::hotkeyChanged, this,
+          &ConfigDialog::onHotkeyChanged);
+
+  QPushButton *clearMinimizeAllButton = new QPushButton("Clear");
+  clearMinimizeAllButton->setFixedWidth(60);
+  clearMinimizeAllButton->setStyleSheet(
+      StyleSheet::getSecondaryButtonStyleSheet());
+  connect(clearMinimizeAllButton, &QPushButton::clicked,
+          [this]() { m_minimizeAllClientsCapture->clearHotkey(); });
+
+  minimizeAllGrid->addWidget(minimizeAllLabel, 0, 0, Qt::AlignLeft);
+  minimizeAllGrid->addWidget(m_minimizeAllClientsCapture, 0, 1);
+  minimizeAllGrid->addWidget(clearMinimizeAllButton, 0, 2, Qt::AlignLeft);
+
+  minimizeAllSectionLayout->addLayout(minimizeAllGrid);
+
+  layout->addWidget(minimizeAllSection);
+
   QWidget *toggleThumbnailsSection = new QWidget();
   toggleThumbnailsSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
   QVBoxLayout *toggleThumbnailsSectionLayout =
@@ -2906,6 +2958,21 @@ void ConfigDialog::loadSettings() {
       m_closeAllClientsCapture->clearHotkey();
     }
 
+    QVector<HotkeyBinding> minimizeAllBindings =
+        hotkeyMgr->getMinimizeAllClientsHotkeys();
+    if (!minimizeAllBindings.isEmpty()) {
+      QVector<HotkeyCombination> minimizeAllCombos;
+      for (const HotkeyBinding &binding : minimizeAllBindings) {
+        minimizeAllCombos.append(HotkeyCombination(
+            binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+            binding.getModifiers() & MOD_ALT,
+            binding.getModifiers() & MOD_SHIFT));
+      }
+      m_minimizeAllClientsCapture->setHotkeys(minimizeAllCombos);
+    } else {
+      m_minimizeAllClientsCapture->clearHotkey();
+    }
+
     QVector<HotkeyBinding> toggleThumbnailsBindings =
         hotkeyMgr->getToggleThumbnailsVisibilityHotkeys();
     if (!toggleThumbnailsBindings.isEmpty()) {
@@ -3435,6 +3502,15 @@ void ConfigDialog::saveSettings() {
           HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
     }
     hotkeyMgr->setCloseAllClientsHotkeys(closeAllBindings);
+
+    QVector<HotkeyBinding> minimizeAllBindings;
+    QVector<HotkeyCombination> minimizeAllCombos =
+        m_minimizeAllClientsCapture->getHotkeys();
+    for (const HotkeyCombination &combo : minimizeAllCombos) {
+      minimizeAllBindings.append(
+          HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+    }
+    hotkeyMgr->setMinimizeAllClientsHotkeys(minimizeAllBindings);
 
     QVector<HotkeyBinding> toggleThumbnailsBindings;
     QVector<HotkeyCombination> toggleThumbnailsCombos =

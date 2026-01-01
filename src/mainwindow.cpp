@@ -55,6 +55,8 @@ MainWindow::MainWindow(QObject *parent)
           &MainWindow::onHotkeysSuspendedChanged);
   connect(hotkeyManager.get(), &HotkeyManager::closeAllClientsRequested, this,
           &MainWindow::closeAllEVEClients);
+  connect(hotkeyManager.get(), &HotkeyManager::minimizeAllClientsRequested, this,
+          &MainWindow::minimizeAllEVEClients);
   connect(hotkeyManager.get(),
           &HotkeyManager::toggleThumbnailsVisibilityRequested, this,
           &MainWindow::toggleThumbnailsVisibility);
@@ -2220,6 +2222,16 @@ void MainWindow::closeAllEVEClients() {
   for (const WindowInfo &window : windows) {
     if (window.handle && IsWindow(window.handle)) {
       PostMessage(window.handle, WM_CLOSE, 0, 0);
+    }
+  }
+}
+
+void MainWindow::minimizeAllEVEClients() {
+  QVector<WindowInfo> windows = windowCapture->getEVEWindows();
+
+  for (const WindowInfo &window : windows) {
+    if (window.handle && IsWindow(window.handle)) {
+      ShowWindowAsync(window.handle, SW_FORCEMINIMIZE);
     }
   }
 }

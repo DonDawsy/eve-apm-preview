@@ -351,6 +351,7 @@ private:
   HotkeyCapture *m_nonEVEForwardCapture;
   HotkeyCapture *m_nonEVEBackwardCapture;
   HotkeyCapture *m_closeAllClientsCapture;
+  HotkeyCapture *m_minimizeAllClientsCapture;
   HotkeyCapture *m_toggleThumbnailsVisibilityCapture;
   QCheckBox *m_wildcardHotkeysCheck;
   QCheckBox *m_hotkeysOnlyWhenEVEFocusedCheck;

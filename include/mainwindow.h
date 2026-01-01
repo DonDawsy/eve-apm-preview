@@ -54,6 +54,7 @@ private slots:
   void onHotkeysSuspendedChanged(bool suspended);
   void toggleSuspendHotkeys();
   void closeAllEVEClients();
+  void minimizeAllEVEClients();
   void toggleThumbnailsVisibility();
 
 private:

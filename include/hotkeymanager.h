@@ -149,6 +149,11 @@ public:
     return m_toggleThumbnailsVisibilityHotkeys;
   }
 
+  void setMinimizeAllClientsHotkeys(const QVector<HotkeyBinding> &bindings);
+  QVector<HotkeyBinding> getMinimizeAllClientsHotkeys() const {
+    return m_minimizeAllClientsHotkeys;
+  }
+
   void setProfileHotkeys(const QString &profileName,
                          const QVector<HotkeyBinding> &bindings);
   QVector<HotkeyBinding> getProfileHotkeys(const QString &profileName) const;
@@ -176,6 +181,7 @@ signals:
   void suspendedChanged(bool suspended);
   void profileSwitchRequested(QString profileName);
   void closeAllClientsRequested();
+  void minimizeAllClientsRequested();
   void toggleThumbnailsVisibilityRequested();
 
 private:
@@ -208,6 +214,9 @@ private:
 
   QVector<HotkeyBinding> m_closeAllClientsHotkeys;
   QSet<int> m_closeAllClientsHotkeyIds;
+
+  QVector<HotkeyBinding> m_minimizeAllClientsHotkeys;
+  QSet<int> m_minimizeAllClientsHotkeyIds;
 
   QVector<HotkeyBinding> m_toggleThumbnailsVisibilityHotkeys;
   QSet<int> m_toggleThumbnailsVisibilityHotkeyIds;
