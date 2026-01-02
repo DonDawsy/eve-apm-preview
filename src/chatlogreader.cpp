@@ -1012,12 +1012,33 @@ void ChatLogWorker::markFileDirty(const QString &filePath) {
   m_fileLastSize[filePath] = currentSize;
   m_fileLastModified[filePath] = currentModified;
 
-  // Release mutex before file I/O to allow other files to be processed
-  // concurrently
-  locker.unlock();
+  // Per-file debounce to batch rapid successive writes to the same file
+  // This is common when EVE writes multiple lines to a gamelog quickly
+  QTimer *debounceTimer = m_debounceTimers.value(filePath, nullptr);
 
-  // Process the file immediately
-  processLogFile(filePath);
+  if (!debounceTimer) {
+    debounceTimer = new QTimer(this);
+    debounceTimer->setSingleShot(true);
+    debounceTimer->setInterval(30); // 30ms debounce window
+
+    connect(debounceTimer, &QTimer::timeout, this, [this, filePath]() {
+      QMutexLocker innerLocker(&m_mutex);
+
+      QTimer *timerToDelete = m_debounceTimers.take(filePath);
+      innerLocker.unlock();
+
+      this->processLogFile(filePath);
+
+      if (timerToDelete) {
+        timerToDelete->deleteLater();
+      }
+    });
+
+    m_debounceTimers[filePath] = debounceTimer;
+  }
+
+  // Restart the timer - batches multiple rapid changes to this file
+  debounceTimer->start();
 }
 
 void ChatLogWorker::parseLogLine(const QString &line,
