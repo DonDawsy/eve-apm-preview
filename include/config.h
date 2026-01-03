@@ -168,6 +168,11 @@ public:
   QFont systemNameFont() const;
   void setSystemNameFont(const QFont &font);
 
+  QColor getSystemNameColor(const QString &systemName) const;
+  void setSystemNameColor(const QString &systemName, const QColor &color);
+  void removeSystemNameColor(const QString &systemName);
+  QHash<QString, QColor> getAllSystemNameColors() const;
+
   bool showOverlayBackground() const;
   void setShowOverlayBackground(bool enabled);
 
@@ -391,6 +396,7 @@ private:
   mutable QHash<QString, QSize> m_cachedThumbnailSizes;
   mutable QHash<QString, QString> m_cachedCustomThumbnailNames;
   mutable QHash<QString, QRect> m_cachedClientWindowRects;
+  mutable QHash<QString, QColor> m_cachedSystemNameColors;
 
   bool m_configDialogOpen = false;
 

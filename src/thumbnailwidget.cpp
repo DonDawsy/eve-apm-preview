@@ -96,9 +96,12 @@ void ThumbnailWidget::setSystemName(const QString &systemName) {
 
   m_systemName = systemName;
 
-  // Cache the system color when system changes
   const Config &cfg = Config::instance();
-  if (cfg.useUniqueSystemNameColors()) {
+
+  QColor customColor = cfg.getSystemNameColor(m_systemName);
+  if (customColor.isValid()) {
+    m_cachedSystemColor = customColor;
+  } else if (cfg.useUniqueSystemNameColors()) {
     m_cachedSystemColor = OverlayInfo::generateUniqueColor(m_systemName);
   } else {
     m_cachedSystemColor = cfg.systemNameColor();
@@ -107,6 +110,21 @@ void ThumbnailWidget::setSystemName(const QString &systemName) {
   updateOverlays();
   if (m_overlayWidget) {
     m_overlayWidget->setSystemName(systemName);
+  }
+}
+
+void ThumbnailWidget::refreshSystemColor() {
+  const Config &cfg = Config::instance();
+  if (!m_systemName.isEmpty()) {
+    QColor customColor = cfg.getSystemNameColor(m_systemName);
+    if (customColor.isValid()) {
+      m_cachedSystemColor = customColor;
+    } else if (cfg.useUniqueSystemNameColors()) {
+      m_cachedSystemColor = OverlayInfo::generateUniqueColor(m_systemName);
+    } else {
+      m_cachedSystemColor = cfg.systemNameColor();
+    }
+    updateOverlays();
   }
 }
 
@@ -183,7 +201,6 @@ void ThumbnailWidget::updateOverlays() {
       QFont systemFont = cfg.systemNameFont();
       systemFont.setBold(true);
 
-      // Use cached system color instead of regenerating
       OverlayElement sysElement(m_systemName, m_cachedSystemColor, pos, true,
                                 systemFont);
       m_overlays.append(sysElement);
@@ -592,8 +609,6 @@ void ThumbnailWidget::updateWindowFlags(bool alwaysOnTop) {
     m_overlayWidget->updateWindowFlags(alwaysOnTop);
   }
 
-  // Note: Visibility is managed by MainWindow, not here
-  // Removed unconditional show() call to respect visibility settings
 }
 
 void ThumbnailWidget::setupDwmThumbnail() {

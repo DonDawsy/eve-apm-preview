@@ -84,9 +84,8 @@ private:
   bool m_capturing;
   QString m_savedText;
   bool m_hasConflict;
-  bool m_keyboardHookInstalled; // Track if THIS instance installed the keyboard
-                                // hook
-  bool m_mouseHookInstalled; // Track if THIS instance installed the mouse hook
+  bool m_keyboardHookInstalled; 
+  bool m_mouseHookInstalled; 
 
   static HotkeyCapture *s_activeInstance;
   static HHOOK s_keyboardHook;

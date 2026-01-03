@@ -16,7 +16,6 @@ HookThread::HookThread()
     : m_threadHandle(nullptr), m_threadId(0), m_mouseHook(nullptr),
       m_keyboardHook(nullptr), m_mouseHookRefCount(0),
       m_keyboardHookRefCount(0), m_installCompleteEvent(nullptr) {
-  // Create a manual-reset event for signaling hook installation completion
   m_installCompleteEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
 }
 
@@ -60,13 +59,11 @@ void HookThread::installMouseHook(HOOKPROC proc) {
 
   m_mouseHookRefCount++;
 
-  // Reset the event before posting the message
   ResetEvent(m_installCompleteEvent);
 
   PostThreadMessage(m_threadId, MSG_INSTALL_MOUSE,
                     reinterpret_cast<WPARAM>(proc), 0);
 
-  // Wait for the hook to be installed (with timeout to prevent hanging)
   WaitForSingleObject(m_installCompleteEvent, 100);
 }
 
@@ -76,9 +73,8 @@ void HookThread::uninstallMouseHook() {
 
   m_mouseHookRefCount--;
 
-  // Only actually uninstall if no one else is using it
   if (m_mouseHookRefCount <= 0) {
-    m_mouseHookRefCount = 0; // Clamp to 0
+    m_mouseHookRefCount = 0; 
     PostThreadMessage(m_threadId, MSG_UNINSTALL_MOUSE, 0, 0);
   }
 }
@@ -90,13 +86,11 @@ void HookThread::installKeyboardHook(HOOKPROC proc) {
 
   m_keyboardHookRefCount++;
 
-  // Reset the event before posting the message
   ResetEvent(m_installCompleteEvent);
 
   PostThreadMessage(m_threadId, MSG_INSTALL_KEYBOARD,
                     reinterpret_cast<WPARAM>(proc), 0);
 
-  // Wait for the hook to be installed (with timeout to prevent hanging)
   WaitForSingleObject(m_installCompleteEvent, 100);
 }
 
@@ -106,9 +100,8 @@ void HookThread::uninstallKeyboardHook() {
 
   m_keyboardHookRefCount--;
 
-  // Only actually uninstall if no one else is using it
   if (m_keyboardHookRefCount <= 0) {
-    m_keyboardHookRefCount = 0; // Clamp to 0
+    m_keyboardHookRefCount = 0; 
     PostThreadMessage(m_threadId, MSG_UNINSTALL_KEYBOARD, 0, 0);
   }
 }
@@ -121,7 +114,6 @@ DWORD WINAPI HookThread::threadProc(LPVOID param) {
 
   while (GetMessage(&msg, nullptr, 0, 0) > 0) {
     if (msg.message == MSG_INSTALL_MOUSE) {
-      // Always reinstall to ensure we pick up new bindings
       if (self->m_mouseHook) {
         UnhookWindowsHookEx(self->m_mouseHook);
         self->m_mouseHook = nullptr;
@@ -134,7 +126,6 @@ DWORD WINAPI HookThread::threadProc(LPVOID param) {
                 "HookThread: SetWindowsHookEx(WH_MOUSE_LL) failed: %lu\n",
                 GetLastError());
       }
-      // Signal that installation is complete
       SetEvent(self->m_installCompleteEvent);
     } else if (msg.message == MSG_UNINSTALL_MOUSE) {
       if (self->m_mouseHook) {
@@ -142,7 +133,6 @@ DWORD WINAPI HookThread::threadProc(LPVOID param) {
         self->m_mouseHook = nullptr;
       }
     } else if (msg.message == MSG_INSTALL_KEYBOARD) {
-      // Always reinstall to ensure we pick up new bindings
       if (self->m_keyboardHook) {
         UnhookWindowsHookEx(self->m_keyboardHook);
         self->m_keyboardHook = nullptr;
@@ -155,7 +145,6 @@ DWORD WINAPI HookThread::threadProc(LPVOID param) {
                 "HookThread: SetWindowsHookEx(WH_KEYBOARD_LL) failed: %lu\n",
                 GetLastError());
       }
-      // Signal that installation is complete
       SetEvent(self->m_installCompleteEvent);
     } else if (msg.message == MSG_UNINSTALL_KEYBOARD) {
       if (self->m_keyboardHook) {

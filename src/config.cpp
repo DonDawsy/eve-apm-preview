@@ -299,6 +299,17 @@ void Config::loadCacheFromSettings() {
   }
   m_settings->endGroup();
 
+  m_cachedSystemNameColors.clear();
+  m_settings->beginGroup("systemNameColors");
+  QStringList systemNames = m_settings->childKeys();
+  for (const QString &systemName : systemNames) {
+    QColor color = m_settings->value(systemName).value<QColor>();
+    if (color.isValid()) {
+      m_cachedSystemNameColors[systemName] = color;
+    }
+  }
+  m_settings->endGroup();
+
   m_cachedThumbnailPositions.clear();
   m_settings->beginGroup("thumbnailPositions");
   QStringList thumbnailCharNames = m_settings->childKeys();
@@ -812,6 +823,27 @@ QFont Config::systemNameFont() const { return m_cachedSystemNameFont; }
 void Config::setSystemNameFont(const QFont &font) {
   m_settings->setValue(KEY_OVERLAY_SYSTEM_FONT, font.toString());
   m_cachedSystemNameFont = font;
+}
+
+QColor Config::getSystemNameColor(const QString &systemName) const {
+  return m_cachedSystemNameColors.value(systemName, QColor());
+}
+
+void Config::setSystemNameColor(const QString &systemName,
+                                const QColor &color) {
+  QString key = QString("systemNameColors/%1").arg(systemName);
+  m_settings->setValue(key, color.name());
+  m_cachedSystemNameColors[systemName] = color;
+}
+
+void Config::removeSystemNameColor(const QString &systemName) {
+  QString key = QString("systemNameColors/%1").arg(systemName);
+  m_settings->remove(key);
+  m_cachedSystemNameColors.remove(systemName);
+}
+
+QHash<QString, QColor> Config::getAllSystemNameColors() const {
+  return m_cachedSystemNameColors;
 }
 
 QFont Config::overlayFont() const { return m_cachedOverlayFont; }

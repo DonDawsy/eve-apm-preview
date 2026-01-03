@@ -3,6 +3,7 @@
 #include "hotkeycapture.h"
 #include "hotkeymanager.h"
 #include "stylesheet.h"
+#include "systemcolorsdialog.h"
 #include "thumbnailwidget.h"
 #include "version.h"
 #include "windowcapture.h"
@@ -848,13 +849,24 @@ void ConfigDialog::createAppearancePage() {
     }
   });
 
+  m_customSystemColorsLabel = new QLabel("Custom colors:");
+  m_customSystemColorsLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_customSystemColorsButton = new QPushButton("Assign Systems");
+  m_customSystemColorsButton->setStyleSheet(
+      StyleSheet::getSecondaryButtonStyleSheet());
+  m_customSystemColorsButton->setFixedWidth(120);
+  connect(m_customSystemColorsButton, &QPushButton::clicked, this,
+          &ConfigDialog::onCustomSystemColors);
+
   sysGrid->addWidget(m_systemNameColorLabel, 0, 0, Qt::AlignLeft);
   sysGrid->addWidget(m_systemNameColorButton, 0, 1);
   sysGrid->addWidget(m_uniqueSystemColorsCheck, 0, 2, Qt::AlignLeft);
-  sysGrid->addWidget(m_systemNamePositionLabel, 1, 0, Qt::AlignLeft);
-  sysGrid->addWidget(m_systemNamePositionCombo, 1, 1);
-  sysGrid->addWidget(m_systemNameFontLabel, 2, 0, Qt::AlignLeft);
-  sysGrid->addWidget(m_systemNameFontButton, 2, 1);
+  sysGrid->addWidget(m_customSystemColorsLabel, 1, 0, Qt::AlignLeft);
+  sysGrid->addWidget(m_customSystemColorsButton, 1, 1);
+  sysGrid->addWidget(m_systemNamePositionLabel, 2, 0, Qt::AlignLeft);
+  sysGrid->addWidget(m_systemNamePositionCombo, 2, 1);
+  sysGrid->addWidget(m_systemNameFontLabel, 3, 0, Qt::AlignLeft);
+  sysGrid->addWidget(m_systemNameFontButton, 3, 1);
 
   overlaysSectionLayout->addLayout(sysGrid);
 
@@ -869,6 +881,8 @@ void ConfigDialog::createAppearancePage() {
             m_systemNamePositionCombo->setEnabled(checked);
             m_systemNameFontLabel->setEnabled(checked);
             m_systemNameFontButton->setEnabled(checked);
+            m_customSystemColorsLabel->setEnabled(checked);
+            m_customSystemColorsButton->setEnabled(checked);
           });
 
   connect(m_uniqueSystemColorsCheck, &QCheckBox::toggled, this,
@@ -1054,7 +1068,6 @@ void ConfigDialog::createHotkeysPage() {
 
   layout->addWidget(closeAllSection);
 
-  // Minimize All Clients Section
   QWidget *minimizeAllSection = new QWidget();
   minimizeAllSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
   QVBoxLayout *minimizeAllSectionLayout = new QVBoxLayout(minimizeAllSection);
@@ -1667,7 +1680,6 @@ void ConfigDialog::createBehaviorPage() {
             m_populateNeverMinimizeButton->setEnabled(checked);
           });
 
-  // Trigger initial state
   emit m_minimizeInactiveCheck->toggled(m_minimizeInactiveCheck->isChecked());
 
   QWidget *positionSection = new QWidget();
@@ -2457,7 +2469,6 @@ void ConfigDialog::createAboutPage() {
 
   layout->addSpacing(10);
 
-  // About Section
   QWidget *aboutSection = new QWidget();
   aboutSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
   QVBoxLayout *aboutSectionLayout = new QVBoxLayout(aboutSection);
@@ -5610,6 +5621,17 @@ void ConfigDialog::onAssignUniqueColors() {
           .arg(rowCount == 1 ? "" : "s"));
 }
 
+void ConfigDialog::onCustomSystemColors() {
+  SystemColorsDialog *dialog = new SystemColorsDialog(this);
+  dialog->loadSystemColors();
+
+  if (dialog->exec() == QDialog::Accepted) {
+    emit settingsApplied();
+  }
+
+  dialog->deleteLater();
+}
+
 void ConfigDialog::onAddThumbnailSize() {
   QWidget *formRow = createThumbnailSizeFormRow();
 
@@ -6496,8 +6518,6 @@ void ConfigDialog::onCopyAllLegacySettings() {
           if (pos.contains("x") && pos.contains("y")) {
             int x = pos["x"].toInt();
             int y = pos["y"].toInt();
-            // Only filter out -1 (hidden), allow negative coords for
-            // multi-monitor setups
             if (x != -1 && y != -1) {
               flatLayout[charName] = QString("%1, %2").arg(x).arg(y);
             }
@@ -7368,8 +7388,6 @@ void ConfigDialog::displayEVEXProfile(const QString &profileName,
         int x = pos["x"].toInt();
         int y = pos["y"].toInt();
 
-        // Only filter out -1 (hidden), allow negative coords for multi-monitor
-        // setups
         if (x != -1 && y != -1) {
           flatLayout[charName] = QString("%1, %2").arg(x).arg(y);
         }
@@ -8791,7 +8809,6 @@ void ConfigDialog::onCheckForUpdates() {
   connect(reply,
           QOverload<const QList<QSslError> &>::of(&QNetworkReply::sslErrors),
           this, [this, reply](const QList<QSslError> &) {
-            // SSL errors occurred during version check
           });
 
   connect(reply, &QNetworkReply::finished, this, [this, reply]() {

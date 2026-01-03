@@ -646,11 +646,8 @@ void MainWindow::refreshWindows() {
       if (shouldHide) {
         thumbWidget->hide();
       } else if (m_thumbnailsManuallyHidden) {
-        // Respect manual hide state
         thumbWidget->hide();
       } else {
-        // Check hide-when-EVE-not-focused setting (but not when config dialog
-        // is open)
         if (hideWhenEVENotFocused && !isEVEFocused && !m_configDialog) {
           thumbWidget->hide();
         } else {
@@ -1007,15 +1004,11 @@ void MainWindow::updateActiveWindow() {
   HWND previousActiveWindow = m_lastActiveWindow;
   m_lastActiveWindow = activeWindow;
 
-  // Check if the active window is an EVE window
   bool isEVEFocused = thumbnails.contains(activeWindow);
 
-  // Track if we were previously not focused on EVE
   static bool wasEVEFocused = true;
   bool eveFocusChanged = (wasEVEFocused != isEVEFocused);
 
-  // If hide-when-EVE-not-focused is enabled and EVE is not focused, hide all
-  // (but not when config dialog is open)
   if (hideWhenEVENotFocused && !isEVEFocused && !m_thumbnailsManuallyHidden &&
       !m_configDialog) {
     for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd(); ++it) {
@@ -1025,10 +1018,8 @@ void MainWindow::updateActiveWindow() {
     return;
   }
 
-  // If EVE just regained focus after being unfocused, update all thumbnails
   if (hideWhenEVENotFocused && isEVEFocused && eveFocusChanged) {
     wasEVEFocused = true;
-    // Update all thumbnails to restore visibility
     for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd(); ++it) {
       HWND hwnd = it.key();
       ThumbnailWidget *thumbnail = it.value();
@@ -1040,7 +1031,6 @@ void MainWindow::updateActiveWindow() {
           !characterName.isEmpty() && cfg.isCharacterHidden(characterName);
       bool isActive = (hwnd == activeWindow);
 
-      // Apply visibility logic
       if (m_thumbnailsManuallyHidden) {
         thumbnail->hide();
       } else if (isHidden) {
@@ -1051,7 +1041,6 @@ void MainWindow::updateActiveWindow() {
         thumbnail->show();
       }
 
-      // Update active state
       if (highlightActive) {
         thumbnail->setActive(isActive);
       } else {
@@ -1119,21 +1108,15 @@ void MainWindow::updateActiveWindow() {
     bool isHidden =
         !characterName.isEmpty() && cfg.isCharacterHidden(characterName);
 
-    // Apply visibility logic
     if (m_thumbnailsManuallyHidden) {
-      // Manual hide overrides everything
       it.value()->hide();
     } else if (isHidden) {
-      // Character is explicitly hidden
       it.value()->hide();
     } else if (hideWhenEVENotFocused && !isEVEFocused && !m_configDialog) {
-      // Hide when EVE is not focused (unless config dialog is open)
       it.value()->hide();
     } else if (hideActive && isActive) {
-      // Hide active client setting
       it.value()->hide();
     } else {
-      // Show the thumbnail
       it.value()->show();
     }
   };
@@ -1288,7 +1271,6 @@ void MainWindow::handleNamedCycleForward(const QString &groupName) {
       m_lastActivatedWindowByGroup.value(groupName, nullptr);
   if (lastActivatedWindow) {
     currentIndex = windowsToCycle.indexOf(lastActivatedWindow);
-    // If last activated window is not in the cycle list, ignore it
     if (currentIndex == -1) {
       lastActivatedWindow = nullptr;
     }
@@ -1332,7 +1314,6 @@ void MainWindow::handleNamedCycleBackward(const QString &groupName) {
       m_lastActivatedWindowByGroup.value(groupName, nullptr);
   if (lastActivatedWindow) {
     currentIndex = windowsToCycle.indexOf(lastActivatedWindow);
-    // If last activated window is not in the cycle list, ignore it
     if (currentIndex == -1) {
       lastActivatedWindow = nullptr;
     }
@@ -1501,7 +1482,6 @@ void MainWindow::handleCharacterHotkeyCycle(
       m_lastActivatedCharacterHotkeyWindow.value(groupKey, nullptr);
   if (lastActivatedWindow) {
     currentIndex = windowsToCycle.indexOf(lastActivatedWindow);
-    // If last activated window is not in the cycle list, ignore it
     if (currentIndex == -1) {
       lastActivatedWindow = nullptr;
     }
@@ -1742,7 +1722,6 @@ void MainWindow::showSettings() {
 
   hotkeyManager->setSuspended(true);
 
-  // Show all thumbnails when config dialog opens (unless manually hidden)
   if (!m_thumbnailsManuallyHidden) {
     const Config &cfg = Config::instance();
     HWND activeWindow = GetForegroundWindow();
@@ -1772,11 +1751,8 @@ void MainWindow::showSettings() {
 
     hotkeyManager->setSuspended(false);
 
-    // Reinstall mouse hook in case HotkeyCapture uninstalled it while capturing
-    // mouse buttons
     hotkeyManager->registerHotkeys();
 
-    // Restore proper visibility state after config dialog closes
     updateActiveWindow();
 
     for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
@@ -1854,7 +1830,6 @@ void MainWindow::applySettings() {
   int notLoggedInCount = 0;
   bool rememberPos = cfg.rememberPositions();
 
-  // Cache these values before the loop
   const bool hideWhenEVENotFocused = cfg.hideThumbnailsWhenEVENotFocused();
   const HWND currentActiveWindow = GetForegroundWindow();
   const bool isEVECurrentlyFocused = thumbnails.contains(currentActiveWindow);
@@ -1875,12 +1850,11 @@ void MainWindow::applySettings() {
           newSize = cfg.getThumbnailSize(characterName);
         }
 
-        // Apply custom name if available
         QString customName = cfg.getCustomThumbnailName(characterName);
         if (!customName.isEmpty()) {
           thumb->setCustomName(customName);
         } else {
-          thumb->setCustomName(QString()); // Clear custom name if removed
+          thumb->setCustomName(QString()); 
         }
       }
     }
@@ -1955,6 +1929,7 @@ void MainWindow::applySettings() {
       }
     }
 
+    thumb->refreshSystemColor();
     thumb->updateOverlays();
     thumb->forceOverlayRender();
 
@@ -1965,11 +1940,8 @@ void MainWindow::applySettings() {
       if (!characterName.isEmpty() && cfg.isCharacterHidden(characterName)) {
         thumb->hide();
       } else if (m_thumbnailsManuallyHidden) {
-        // Respect manual hide state
         thumb->hide();
       } else {
-        // Check hide-when-EVE-not-focused setting (but not when config dialog
-        // is open)
         if (hideWhenEVENotFocused && !isEVECurrentlyFocused &&
             !m_configDialog) {
           thumb->hide();
@@ -2239,19 +2211,16 @@ void MainWindow::minimizeAllEVEClients() {
 void MainWindow::toggleThumbnailsVisibility() {
   m_thumbnailsManuallyHidden = !m_thumbnailsManuallyHidden;
 
-  // Update the menu action state
   if (m_hideThumbnailsAction) {
     m_hideThumbnailsAction->setChecked(m_thumbnailsManuallyHidden);
   }
 
-  // Cache these values before the loop
   const Config &cfg = Config::instance();
   const bool hideWhenEVENotFocused = cfg.hideThumbnailsWhenEVENotFocused();
   const HWND currentActiveWindow = GetForegroundWindow();
   const bool isEVECurrentlyFocused = thumbnails.contains(currentActiveWindow);
   const bool hideActive = cfg.hideActiveClientThumbnail();
 
-  // Update visibility of all thumbnails
   for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd(); ++it) {
     ThumbnailWidget *thumbnail = it.value();
     if (!thumbnail)
@@ -2260,7 +2229,6 @@ void MainWindow::toggleThumbnailsVisibility() {
     if (m_thumbnailsManuallyHidden) {
       thumbnail->hide();
     } else {
-      // When showing, respect other visibility settings
       HWND hwnd = it.key();
       QString characterName = m_windowToCharacter.value(hwnd);
       bool isHidden =

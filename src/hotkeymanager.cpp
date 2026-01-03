@@ -6,7 +6,6 @@
 #include <QSettings>
 #include <QStringList>
 
-// Custom Windows message for mouse button hotkeys
 #define WM_MOUSEBUTTON_HOTKEY (WM_USER + 1)
 
 QPointer<HotkeyManager> HotkeyManager::s_instance;
@@ -405,10 +404,6 @@ static bool isForegroundWindowEVEClient() {
   return false;
 }
 
-/// DEAD CODE: This function is no longer used after fixing the mouse hotkey
-/// focus check to match keyboard hotkey behavior. Preserved for reference.
-/// Previously checked if mouse cursor was over EVE client or thumbnail.
-/// Replaced by isForegroundWindowEVEClient() for consistency.
 #if 0
 static bool isMouseOverEVEClientOrThumbnail() {
   POINT pt;
@@ -960,7 +955,6 @@ LRESULT CALLBACK HotkeyManager::MessageWindowProc(HWND hwnd, UINT msg,
 
   if (msg == WM_MOUSEBUTTON_HOTKEY) {
     if (manager && !s_instance.isNull()) {
-      // Unpack the mouse button event data
       int vkCode = wParam & 0xFFFF;
       bool ctrl = (wParam & 0x10000) != 0;
       bool alt = (wParam & 0x20000) != 0;
@@ -1235,14 +1229,9 @@ LRESULT CALLBACK HotkeyManager::LowLevelMouseProc(int nCode, WPARAM wParam,
       bool alt = GetKeyState(VK_MENU) & 0x8000;
       bool shift = GetKeyState(VK_SHIFT) & 0x8000;
 
-      // Pack modifier keys into wParam: bits 0-15 = vkCode, bit 16 = ctrl, bit
-      // 17 = alt, bit 18 = shift
       WPARAM wParam = vkCode | (ctrl ? 0x10000 : 0) | (alt ? 0x20000 : 0) |
                       (shift ? 0x40000 : 0);
 
-      // Post message to message window instead of using invokeMethod
-      // This matches the behavior of keyboard hotkeys which use Windows message
-      // queue
       PostMessageW(s_instance->m_messageWindow, WM_MOUSEBUTTON_HOTKEY, wParam,
                    0);
     }

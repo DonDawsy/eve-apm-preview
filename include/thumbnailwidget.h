@@ -37,6 +37,8 @@ public:
   void setSystemName(const QString &systemName);
   QString getSystemName() const { return m_systemName; }
 
+  void refreshSystemColor();
+
   void setCombatMessage(const QString &message,
                         const QString &eventType = QString());
   QString getCombatMessage() const { return m_combatMessage; }

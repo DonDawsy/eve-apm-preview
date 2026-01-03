@@ -149,7 +149,6 @@ void WindowCapture::activateWindow(HWND hwnd) {
   SetForegroundWindow(hwnd);
   SetFocus(hwnd);
 
-  // If SetForegroundWindow failed, try harder with thread input attachment
   if (GetForegroundWindow() != hwnd) {
     HWND currentForeground = GetForegroundWindow();
     DWORD foregroundThread = 0;

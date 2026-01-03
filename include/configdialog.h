@@ -63,6 +63,7 @@ private slots:
   void onPopulateCharacterColors();
   void onAssignUniqueColors();
   void onCharacterColorButtonClicked();
+  void onCustomSystemColors();
   void onAddThumbnailSize();
   void onPopulateThumbnailSizes();
   void onRemoveThumbnailSize();
@@ -284,6 +285,8 @@ private:
   QLabel *m_systemNamePositionLabel;
   QPushButton *m_systemNameFontButton;
   QLabel *m_systemNameFontLabel;
+  QLabel *m_customSystemColorsLabel;
+  QPushButton *m_customSystemColorsButton;
 
   QCheckBox *m_showBackgroundCheck;
   QPushButton *m_backgroundColorButton;

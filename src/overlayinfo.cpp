@@ -34,20 +34,16 @@ QColor OverlayInfo::generateUniqueColor(const QString &systemName) {
     return Qt::white;
   }
 
-  // Hash the system name for deterministic color generation
   uint hash = qHash(systemName);
 
-  // Use golden ratio conjugate for better distribution across hue spectrum
-  // This spreads colors more evenly than simple modulo
   const double goldenRatioConjugate = 0.618033988749895;
   double h = fmod(static_cast<double>(hash) * goldenRatioConjugate, 1.0);
-  int hue = static_cast<int>(h * 360.0); // 0-360 degrees
+  int hue = static_cast<int>(h * 360.0); 
 
-  // Use different parts of hash for saturation and value
   int saturation =
-      200 + ((hash >> 8) % 36); // 200-255 (very saturated, vibrant)
+      200 + ((hash >> 8) % 36); 
   int value =
-      210 + ((hash >> 16) % 26); // 210-255 (very bright, no dark colors)
+      210 + ((hash >> 16) % 26); 
 
   QColor color;
   color.setHsv(hue, saturation, value);
