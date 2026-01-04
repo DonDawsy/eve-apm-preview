@@ -2118,7 +2118,7 @@ void ConfigDialog::createDataSourcesPage() {
     rowLayout->addWidget(checkbox);
 
     QPushButton *colorBtn = new QPushButton();
-    colorBtn->setFixedSize(80, 32);
+    colorBtn->setFixedSize(120, 32);
     colorBtn->setCursor(Qt::PointingHandCursor);
     updateColorButton(colorBtn, Qt::white);
     connect(
@@ -8808,8 +8808,7 @@ void ConfigDialog::onCheckForUpdates() {
 
   connect(reply,
           QOverload<const QList<QSslError> &>::of(&QNetworkReply::sslErrors),
-          this, [this, reply](const QList<QSslError> &) {
-          });
+          this, [this, reply](const QList<QSslError> &) {});
 
   connect(reply, &QNetworkReply::finished, this, [this, reply]() {
     reply->deleteLater();
