@@ -23,7 +23,7 @@ ChatLogWorker::ChatLogWorker(QObject *parent)
 
   connect(m_scanTimer, &QTimer::timeout, this,
           &ChatLogWorker::checkForNewFiles);
-  m_scanTimer->setInterval(300000); 
+  m_scanTimer->setInterval(300000);
 
   updateCustomNameCache();
 }
@@ -383,15 +383,11 @@ void ChatLogWorker::scanExistingLogs() {
             cleanupDebounceTimer(currentFile);
           }
 
-          bool shouldMonitorChatlog = !m_enableGameLogMonitoring;
-
-          if (shouldMonitorChatlog) {
-            m_characterToLogFile[key] = chatLogFile;
-            m_fileToKeyMap[chatLogFile] = key;
-            m_fileWatcher->addPath(chatLogFile);
-            qDebug() << "ChatLogWorker: Monitoring CHATLOG for" << characterName
-                     << ":" << chatLogFile;
-          }
+          m_characterToLogFile[key] = chatLogFile;
+          m_fileToKeyMap[chatLogFile] = key;
+          m_fileWatcher->addPath(chatLogFile);
+          qDebug() << "ChatLogWorker: Monitoring CHATLOG for" << characterName
+                   << ":" << chatLogFile;
 
           QFileInfo fi(chatLogFile);
           QString lastSystemLine;
@@ -439,8 +435,7 @@ void ChatLogWorker::scanExistingLogs() {
                 QString norm = normalizeLogLine(line);
                 QString s = extractSystemFromLine(norm);
                 if (!s.isEmpty()) {
-                  lastSystemLine =
-                      norm; 
+                  lastSystemLine = norm;
                 }
               }
             }
@@ -478,17 +473,10 @@ void ChatLogWorker::scanExistingLogs() {
               parseLogLine(lastSystemLine, characterName);
             }
 
-            if (shouldMonitorChatlog) {
-              m_filePositions[chatLogFile] = file.size();
-              m_fileLastSize[chatLogFile] = fi.size();
-              m_fileLastModified[chatLogFile] =
-                  fi.lastModified().toMSecsSinceEpoch();
-            } else {
-              qDebug()
-                  << "ChatLogWorker: Gamelog monitoring enabled - chatlog used "
-                     "only for initial system detection, not monitored for"
-                  << characterName;
-            }
+            m_filePositions[chatLogFile] = file.size();
+            m_fileLastSize[chatLogFile] = fi.size();
+            m_fileLastModified[chatLogFile] =
+                fi.lastModified().toMSecsSinceEpoch();
 
             file.close();
           }
@@ -567,7 +555,7 @@ void ChatLogWorker::scanExistingLogs() {
                 CharacterLocation &location =
                     m_characterLocations[characterName];
                 if (updateTime > location.lastUpdate ||
-                    location.systemName != newSystem) {
+                    location.systemName.isEmpty()) {
                   location.characterName = characterName;
                   location.systemName = newSystem;
                   location.lastUpdate = updateTime;
@@ -577,9 +565,11 @@ void ChatLogWorker::scanExistingLogs() {
                            << timestampStr << ") - overriding chatlog data";
                   emit systemChanged(characterName, newSystem);
                 } else {
-                  qDebug()
-                      << "ChatLogWorker: GAMELOG jump for" << characterName
-                      << "is older than chatlog data, keeping chatlog system";
+                  qDebug() << "ChatLogWorker: GAMELOG jump for" << characterName
+                           << "is older than current location (current:"
+                           << location.systemName << "at" << location.lastUpdate
+                           << "ms, gamelog:" << newSystem << "at" << updateTime
+                           << "ms), keeping current system";
                 }
               }
             }
@@ -808,7 +798,7 @@ QString ChatLogWorker::extractCharacterFromLogFile(const QString &filePath) {
 
   auto it = m_fileToCharacterCache.find(filePath);
   if (it != m_fileToCharacterCache.end() && it->second == modTime) {
-    return it->first; 
+    return it->first;
   }
 
   QFile file(filePath);
@@ -976,7 +966,21 @@ void ChatLogWorker::markFileDirty(const QString &filePath) {
   if (!debounceTimer) {
     debounceTimer = new QTimer(this);
     debounceTimer->setSingleShot(true);
-    debounceTimer->setInterval(30); 
+
+    // Determine if this is a chatlog or gamelog file
+    bool isChatLog = false;
+    QString key = m_fileToKeyMap.value(filePath);
+    if (!key.isEmpty() && key.endsWith("_chatlog")) {
+      isChatLog = true;
+    }
+
+    // Chatlog files get 1000ms (1s) debounce, gamelog files get 30ms
+    int debounceMs = isChatLog ? 1000 : 30;
+    debounceTimer->setInterval(debounceMs);
+
+    qDebug() << "ChatLogWorker: Created debounce timer for"
+             << (isChatLog ? "CHATLOG" : "GAMELOG") << "with" << debounceMs
+             << "ms delay:" << filePath;
 
     connect(debounceTimer, &QTimer::timeout, this, [this, filePath]() {
       QMutexLocker innerLocker(&m_mutex);
@@ -1018,7 +1022,7 @@ void ChatLogWorker::parseLogLine(const QString &line,
   int eveSystemPos =
       normalizedLine.indexOf("EVE System", searchStart, Qt::CaseInsensitive);
 
-  if (!m_enableGameLogMonitoring && eveSystemPos != -1) {
+  if (eveSystemPos != -1) {
     static QRegularExpression systemChangePattern(
         R"(\[\s*([\d.\s:]+)\]\s*EVE System\s*>\s*Channel changed to Local\s*:\s*(.+))",
         QRegularExpression::CaseInsensitiveOption |
@@ -1034,20 +1038,29 @@ void ChatLogWorker::parseLogLine(const QString &line,
       qint64 updateTime = parseEVETimestamp(timestampStr);
 
       CharacterLocation &location = m_characterLocations[characterName];
-      if (location.systemName != newSystem) {
+      if (updateTime > location.lastUpdate ||
+          (updateTime == location.lastUpdate &&
+           location.systemName != newSystem)) {
         location.characterName = characterName;
         location.systemName = newSystem;
         location.lastUpdate = updateTime;
 
         qDebug() << "ChatLogWorker: System change detected (chatlog):"
                  << characterName << "->" << newSystem << "(from"
-                 << timestampStr << ")";
+                 << timestampStr << ", was at" << location.systemName << "at"
+                 << location.lastUpdate << "ms)";
 
         qint64 emitTime = QDateTime::currentMSecsSinceEpoch();
         emit systemChanged(characterName, newSystem);
         qint64 emitElapsed = QDateTime::currentMSecsSinceEpoch() - emitTime;
         qDebug() << "ChatLogWorker: systemChanged signal emitted in"
                  << emitElapsed << "ms";
+      } else {
+        qDebug() << "ChatLogWorker: Chatlog system change for" << characterName
+                 << "is older than current location (current:"
+                 << location.systemName << "at" << location.lastUpdate
+                 << "ms, chatlog:" << newSystem << "at" << updateTime
+                 << "ms), ignoring";
       }
     }
     return;
@@ -1191,7 +1204,9 @@ void ChatLogWorker::parseLogLine(const QString &line,
         qint64 updateTime = parseEVETimestamp(timestampStr);
 
         CharacterLocation &location = m_characterLocations[characterName];
-        if (location.systemName != newSystem) {
+        if (updateTime > location.lastUpdate ||
+            (updateTime == location.lastUpdate &&
+             location.systemName != newSystem)) {
           location.characterName = characterName;
           location.systemName = newSystem;
           location.lastUpdate = updateTime;
@@ -1200,13 +1215,21 @@ void ChatLogWorker::parseLogLine(const QString &line,
           qDebug() << "ChatLogWorker: System jump detected (gamelog) at"
                    << detectTime.toString("HH:mm:ss.zzz") << "-"
                    << characterName << "from" << fromSystem << "to" << newSystem
-                   << "(jump timestamp:" << timestampStr << ")";
+                   << "(jump timestamp:" << timestampStr << ", was at"
+                   << location.systemName << "at" << location.lastUpdate
+                   << "ms)";
 
           qint64 emitTime = QDateTime::currentMSecsSinceEpoch();
           emit systemChanged(characterName, newSystem);
           qint64 emitElapsed = QDateTime::currentMSecsSinceEpoch() - emitTime;
           qDebug() << "ChatLogWorker: systemChanged signal emitted in"
                    << emitElapsed << "ms";
+        } else {
+          qDebug() << "ChatLogWorker: Gamelog jump for" << characterName
+                   << "is older than current location (current:"
+                   << location.systemName << "at" << location.lastUpdate
+                   << "ms, gamelog:" << newSystem << "at" << updateTime
+                   << "ms), ignoring";
         }
       }
     }
