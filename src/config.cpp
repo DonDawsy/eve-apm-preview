@@ -867,8 +867,7 @@ QString Config::getProfileFilePath(const QString &profileName) const {
 }
 
 QString Config::getGlobalSettingsPath() const {
-  QString exePath = QCoreApplication::applicationDirPath();
-  return exePath + "/settings.global.ini";
+  return getProfilesDirectory() + "/settings.global.ini";
 }
 
 void Config::ensureProfilesDirectoryExists() const {
@@ -884,9 +883,24 @@ void Config::ensureProfilesDirectoryExists() const {
 }
 
 void Config::loadGlobalSettings() {
-  QString globalPath = getGlobalSettingsPath();
+  QString exePath = QCoreApplication::applicationDirPath();
+  QString oldGlobalPath = exePath + "/settings.global.ini";
+  QString newGlobalPath = getGlobalSettingsPath();
+
+  // Migrate existing settings.global.ini to profiles directory
+  if (QFile::exists(oldGlobalPath) && !QFile::exists(newGlobalPath)) {
+    ensureProfilesDirectoryExists();
+    if (QFile::copy(oldGlobalPath, newGlobalPath)) {
+      qDebug() << "Migrated settings.global.ini to profiles directory";
+      // Remove old file after successful copy
+      QFile::remove(oldGlobalPath);
+    } else {
+      qWarning() << "Failed to migrate settings.global.ini";
+    }
+  }
+
   m_globalSettings =
-      std::make_unique<QSettings>(globalPath, QSettings::IniFormat);
+      std::make_unique<QSettings>(newGlobalPath, QSettings::IniFormat);
 
   m_currentProfileName = m_globalSettings
                              ->value(KEY_GLOBAL_LAST_USED_PROFILE,

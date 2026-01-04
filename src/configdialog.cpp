@@ -8437,7 +8437,7 @@ bool ConfigDialog::confirmProfileSwitch() {
   Config &config = Config::instance();
   QSettings globalSettings(
       config.configFilePath().replace(QRegularExpression("/profiles/.*\\.ini$"),
-                                      "/settings.global.ini"),
+                                      "/profiles/settings.global.ini"),
       QSettings::IniFormat);
 
   bool skipConfirmation =
