@@ -2146,7 +2146,7 @@ void ConfigDialog::createDataSourcesPage() {
     durationSpin->setRange(1, 30);
     durationSpin->setSingleStep(1);
     durationSpin->setSuffix(" sec");
-    durationSpin->setFixedWidth(120);
+    durationSpin->setFixedWidth(90);
     connect(durationSpin, QOverload<int>::of(&QSpinBox::valueChanged), this,
             [eventType](int value) {
               Config::instance().setCombatEventDuration(eventType,
@@ -2195,7 +2195,7 @@ void ConfigDialog::createDataSourcesPage() {
     styleCombo->addItem("Double Glow",
                         static_cast<int>(BorderStyle::DoubleGlow));
     styleCombo->addItem("Zigzag", static_cast<int>(BorderStyle::Zigzag));
-    styleCombo->setFixedWidth(110);
+    styleCombo->setFixedWidth(140);
     styleCombo->setToolTip("Border style for this event");
     connect(styleCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
             this, [this, eventType, styleCombo](int index) {
