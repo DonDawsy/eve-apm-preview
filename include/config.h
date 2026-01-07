@@ -116,6 +116,12 @@ public:
   bool hasCustomThumbnailSize(const QString &characterName) const;
   QHash<QString, QSize> getAllCustomThumbnailSizes() const;
 
+  QSize getProcessThumbnailSize(const QString &processName) const;
+  void setProcessThumbnailSize(const QString &processName, const QSize &size);
+  void removeProcessThumbnailSize(const QString &processName);
+  bool hasCustomProcessThumbnailSize(const QString &processName) const;
+  QHash<QString, QSize> getAllCustomProcessThumbnailSizes() const;
+
   QString getCustomThumbnailName(const QString &characterName) const;
   void setCustomThumbnailName(const QString &characterName,
                               const QString &customName);
@@ -393,6 +399,7 @@ private:
   mutable QHash<QString, QColor> m_cachedCharacterBorderColors;
   mutable QHash<QString, QPoint> m_cachedThumbnailPositions;
   mutable QHash<QString, QSize> m_cachedThumbnailSizes;
+  mutable QHash<QString, QSize> m_cachedProcessThumbnailSizes;
   mutable QHash<QString, QString> m_cachedCustomThumbnailNames;
   mutable QHash<QString, QRect> m_cachedClientWindowRects;
   mutable QHash<QString, QColor> m_cachedSystemNameColors;
@@ -433,6 +440,8 @@ private:
   static constexpr const char *KEY_THUMBNAIL_OPACITY = "thumbnail/opacity";
   static constexpr const char *KEY_THUMBNAIL_PROCESS_NAMES =
       "thumbnail/processNames";
+  static constexpr const char *KEY_THUMBNAIL_PROCESS_SIZES =
+      "thumbnail/processSizes";
   static constexpr const char *KEY_THUMBNAIL_SHOW_NOT_LOGGED_IN =
       "thumbnail/showNotLoggedInClients";
   static constexpr const char *KEY_THUMBNAIL_NOT_LOGGED_IN_STACK_MODE =

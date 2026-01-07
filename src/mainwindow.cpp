@@ -538,6 +538,11 @@ void MainWindow::refreshWindows() {
         QSize customSize = cfg.getThumbnailSize(characterName);
         actualThumbWidth = customSize.width();
         actualThumbHeight = customSize.height();
+      } else if (!isEVEClient &&
+                 cfg.hasCustomProcessThumbnailSize(window.processName)) {
+        QSize customSize = cfg.getProcessThumbnailSize(window.processName);
+        actualThumbWidth = customSize.width();
+        actualThumbHeight = customSize.height();
       }
 
       thumbWidget = new ThumbnailWidget(window.id, window.title, nullptr);
@@ -1862,6 +1867,8 @@ void MainWindow::applySettings() {
           thumb->setCustomName(QString());
         }
       }
+    } else if (!isEVEClient && cfg.hasCustomProcessThumbnailSize(processName)) {
+      newSize = cfg.getProcessThumbnailSize(processName);
     }
 
     QSize currentSize = thumb->size();

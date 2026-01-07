@@ -55,6 +55,7 @@ private slots:
   void onResetAppearanceDefaults();
   void onResetHotkeysDefaults();
   void onResetBehaviorDefaults();
+  void onResetNonEVEDefaults();
   void onResetCombatMessagesDefaults();
   void onAspectRatio16_9();
   void onAspectRatio21_9();
@@ -75,6 +76,9 @@ private slots:
   void onImportEVEXAsProfile();
   void onAddProcessName();
   void onPopulateProcessNames();
+  void onAddProcessThumbnailSize();
+  void onPopulateProcessThumbnailSizes();
+  void onResetProcessThumbnailSizesToDefault();
   void onBrowseChatLogDirectory();
   void onBrowseGameLogDirectory();
   void onSetNotLoggedInPosition();
@@ -98,6 +102,7 @@ private:
   void createAppearancePage();
   void createHotkeysPage();
   void createBehaviorPage();
+  void createNonEVEThumbnailsPage();
   void createPerformancePage();
   void createDataSourcesPage();
   void createLegacySettingsPage();
@@ -114,6 +119,9 @@ private:
   QWidget *createThumbnailSizeFormRow(const QString &characterName = "",
                                       int width = 0, int height = 0);
   void updateThumbnailSizesScrollHeight();
+  QWidget *createProcessThumbnailSizeFormRow(const QString &processName = "",
+                                             int width = 0, int height = 0);
+  void updateProcessThumbnailSizesScrollHeight();
   QWidget *createCustomNameFormRow(const QString &characterName = "",
                                    const QString &customName = "");
   void updateCustomNamesScrollHeight();
@@ -220,6 +228,13 @@ private:
   QVBoxLayout *m_processNamesLayout;
   QPushButton *m_addProcessNameButton;
   QPushButton *m_populateProcessNamesButton;
+
+  QScrollArea *m_processThumbnailSizesScrollArea;
+  QWidget *m_processThumbnailSizesContainer;
+  QVBoxLayout *m_processThumbnailSizesLayout;
+  QPushButton *m_addProcessThumbnailSizeButton;
+  QPushButton *m_populateProcessThumbnailSizesButton;
+  QPushButton *m_resetProcessThumbnailSizesButton;
 
   QCheckBox *m_minimizeInactiveCheck;
   QSpinBox *m_minimizeDelaySpin;

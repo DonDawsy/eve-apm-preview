@@ -330,6 +330,17 @@ void Config::loadCacheFromSettings() {
   }
   m_settings->endGroup();
 
+  m_cachedProcessThumbnailSizes.clear();
+  m_settings->beginGroup("processThumbnailSizes");
+  QStringList processNames = m_settings->childKeys();
+  for (const QString &processName : processNames) {
+    QSize size = m_settings->value(processName).toSize();
+    if (size.isValid()) {
+      m_cachedProcessThumbnailSizes[processName] = size;
+    }
+  }
+  m_settings->endGroup();
+
   m_cachedCustomThumbnailNames.clear();
   m_settings->beginGroup("thumbnailCustomNames");
   QStringList customNameCharNames = m_settings->childKeys();
@@ -662,6 +673,32 @@ bool Config::hasCustomThumbnailSize(const QString &characterName) const {
 
 QHash<QString, QSize> Config::getAllCustomThumbnailSizes() const {
   return m_cachedThumbnailSizes;
+}
+
+QSize Config::getProcessThumbnailSize(const QString &processName) const {
+  return m_cachedProcessThumbnailSizes.value(processName, QSize(-1, -1));
+}
+
+void Config::setProcessThumbnailSize(const QString &processName,
+                                     const QSize &size) {
+  QString key = QString("processThumbnailSizes/%1").arg(processName);
+  m_settings->setValue(key, size);
+  m_cachedProcessThumbnailSizes[processName] = size;
+}
+
+void Config::removeProcessThumbnailSize(const QString &processName) {
+  QString key = QString("processThumbnailSizes/%1").arg(processName);
+  m_settings->remove(key);
+  m_cachedProcessThumbnailSizes.remove(processName);
+}
+
+bool Config::hasCustomProcessThumbnailSize(const QString &processName) const {
+  QSize size = m_cachedProcessThumbnailSizes.value(processName, QSize(-1, -1));
+  return size.isValid() && size.width() > 0 && size.height() > 0;
+}
+
+QHash<QString, QSize> Config::getAllCustomProcessThumbnailSizes() const {
+  return m_cachedProcessThumbnailSizes;
 }
 
 QString Config::getCustomThumbnailName(const QString &characterName) const {

@@ -140,6 +140,7 @@ void ConfigDialog::setupUI() {
   createAppearancePage();
   createHotkeysPage();
   createBehaviorPage();
+  createNonEVEThumbnailsPage();
   createDataSourcesPage();
   createLegacySettingsPage();
   createAboutPage();
@@ -205,6 +206,7 @@ void ConfigDialog::createCategoryList() {
   m_categoryList->addItem("Appearance");
   m_categoryList->addItem("Hotkeys");
   m_categoryList->addItem("Behavior");
+  m_categoryList->addItem("Non-EVE Thumbnails");
   m_categoryList->addItem("Data Sources");
   m_categoryList->addItem("Legacy Settings");
   m_categoryList->addItem("About");
@@ -1748,36 +1750,17 @@ void ConfigDialog::createBehaviorPage() {
             m_snapDistanceSpin->setEnabled(checked);
           });
 
-  QWidget *clientFilterSection = new QWidget();
-  clientFilterSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
-  QVBoxLayout *clientFilterSectionLayout = new QVBoxLayout(clientFilterSection);
-  clientFilterSectionLayout->setContentsMargins(16, 12, 16, 12);
-  clientFilterSectionLayout->setSpacing(10);
-
-  tagWidget(clientFilterSection,
-            {"client", "filter", "visibility", "not logged in", "extra",
-             "previews", "non-eve", "application"});
-
-  QLabel *clientFilterHeader = new QLabel("Non-EVE Thumbnails");
-  clientFilterHeader->setStyleSheet(StyleSheet::getSectionHeaderStyleSheet());
-  clientFilterSectionLayout->addWidget(clientFilterHeader);
-
-  QLabel *clientFilterInfoLabel =
-      new QLabel("Control which windows are shown as thumbnails and how they "
-                 "are displayed.");
-  clientFilterInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
-  clientFilterSectionLayout->addWidget(clientFilterInfoLabel);
-
+  // Not Logged In EVE Clients Section
   QWidget *notLoggedInSection = new QWidget();
   notLoggedInSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
   QVBoxLayout *notLoggedInSectionLayout = new QVBoxLayout(notLoggedInSection);
   notLoggedInSectionLayout->setContentsMargins(16, 12, 16, 12);
   notLoggedInSectionLayout->setSpacing(10);
 
-  tagWidget(notLoggedInSection,
-            {"not logged in", "login", "position", "stack", "overlay"});
+  tagWidget(notLoggedInSection, {"not logged in", "login", "position", "stack",
+                                 "overlay", "eve", "client"});
 
-  QLabel *notLoggedInHeader = new QLabel("Not Logged In");
+  QLabel *notLoggedInHeader = new QLabel("Not Logged In EVE Clients");
   notLoggedInHeader->setStyleSheet(StyleSheet::getSectionHeaderStyleSheet());
   notLoggedInSectionLayout->addWidget(notLoggedInHeader);
 
@@ -1845,66 +1828,6 @@ void ConfigDialog::createBehaviorPage() {
 
   layout->addWidget(notLoggedInSection);
 
-  m_showNonEVEOverlayCheck =
-      new QCheckBox("Show overlay text on non-EVE thumbnails");
-  m_showNonEVEOverlayCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
-  clientFilterSectionLayout->addWidget(m_showNonEVEOverlayCheck);
-
-  QLabel *extraPreviewsSubHeader = new QLabel("Additional Applications");
-  extraPreviewsSubHeader->setStyleSheet(
-      StyleSheet::getSectionSubHeaderStyleSheet() + " margin-top: 10px;");
-  clientFilterSectionLayout->addWidget(extraPreviewsSubHeader);
-
-  QLabel *extraPreviewsInfoLabel = new QLabel(
-      "Add other executable names to create thumbnails for. EVE Online clients "
-      "(exefile.exe) are always included. Case-insensitive.");
-  extraPreviewsInfoLabel->setWordWrap(true);
-  extraPreviewsInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
-  clientFilterSectionLayout->addWidget(extraPreviewsInfoLabel);
-
-  m_processNamesScrollArea = new QScrollArea();
-  m_processNamesScrollArea->setWidgetResizable(true);
-  m_processNamesScrollArea->setHorizontalScrollBarPolicy(
-      Qt::ScrollBarAlwaysOff);
-  m_processNamesScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  m_processNamesScrollArea->setStyleSheet(
-      "QScrollArea { background-color: transparent; border: none; }");
-
-  m_processNamesContainer = new QWidget();
-  m_processNamesLayout = new QVBoxLayout(m_processNamesContainer);
-  m_processNamesLayout->setContentsMargins(4, 4, 4, 4);
-  m_processNamesLayout->setSpacing(6);
-  m_processNamesLayout->addStretch();
-
-  m_processNamesScrollArea->setWidget(m_processNamesContainer);
-  clientFilterSectionLayout->addWidget(m_processNamesScrollArea);
-
-  updateProcessNamesScrollHeight();
-
-  clientFilterSectionLayout->addSpacing(-8);
-
-  QHBoxLayout *processFilterButtonLayout = new QHBoxLayout();
-  m_addProcessNameButton = new QPushButton("Add Process");
-  m_populateProcessNamesButton = new QPushButton("Populate from Open Windows");
-
-  QString processFilterButtonStyle = StyleSheet::getSecondaryButtonStyleSheet();
-
-  m_addProcessNameButton->setStyleSheet(processFilterButtonStyle);
-  m_populateProcessNamesButton->setStyleSheet(processFilterButtonStyle);
-
-  processFilterButtonLayout->addWidget(m_addProcessNameButton);
-  processFilterButtonLayout->addWidget(m_populateProcessNamesButton);
-  processFilterButtonLayout->addStretch();
-
-  clientFilterSectionLayout->addLayout(processFilterButtonLayout);
-
-  connect(m_addProcessNameButton, &QPushButton::clicked, this,
-          &ConfigDialog::onAddProcessName);
-  connect(m_populateProcessNamesButton, &QPushButton::clicked, this,
-          &ConfigDialog::onPopulateProcessNames);
-
-  layout->addWidget(clientFilterSection);
-
   QHBoxLayout *resetLayout = new QHBoxLayout();
   resetLayout->addStretch();
   QPushButton *resetButton = new QPushButton("Reset to Defaults");
@@ -1926,6 +1849,209 @@ void ConfigDialog::createBehaviorPage() {
 }
 
 void ConfigDialog::createPerformancePage() {}
+
+void ConfigDialog::createNonEVEThumbnailsPage() {
+  QWidget *page = new QWidget();
+  QScrollArea *scrollArea = new QScrollArea();
+  scrollArea->setWidgetResizable(true);
+  scrollArea->setFrameShape(QFrame::NoFrame);
+  scrollArea->setStyleSheet(StyleSheet::getScrollAreaStyleSheet());
+  scrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  scrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+  QWidget *scrollWidget = new QWidget();
+  QVBoxLayout *layout = new QVBoxLayout(scrollWidget);
+  layout->setSpacing(10);
+  layout->setContentsMargins(0, 0, 5, 0);
+
+  // Additional Applications Section
+  QWidget *additionalAppsSection = new QWidget();
+  additionalAppsSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
+  QVBoxLayout *additionalAppsSectionLayout =
+      new QVBoxLayout(additionalAppsSection);
+  additionalAppsSectionLayout->setContentsMargins(16, 12, 16, 12);
+  additionalAppsSectionLayout->setSpacing(10);
+
+  tagWidget(additionalAppsSection,
+            {"additional", "applications", "process", "non-eve", "extra",
+             "previews", "overlay", "executable", "thumbnail"});
+
+  QLabel *additionalAppsHeader = new QLabel("Additional Applications");
+  additionalAppsHeader->setStyleSheet(StyleSheet::getSectionHeaderStyleSheet());
+  additionalAppsSectionLayout->addWidget(additionalAppsHeader);
+
+  QLabel *additionalAppsInfoLabel = new QLabel(
+      "Add other executable names to create thumbnails for. EVE Online clients "
+      "(exefile.exe) are always included. Case-insensitive.");
+  additionalAppsInfoLabel->setWordWrap(true);
+  additionalAppsInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
+  additionalAppsSectionLayout->addWidget(additionalAppsInfoLabel);
+
+  m_showNonEVEOverlayCheck =
+      new QCheckBox("Show overlay text on non-EVE thumbnails");
+  m_showNonEVEOverlayCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
+  additionalAppsSectionLayout->addWidget(m_showNonEVEOverlayCheck);
+
+  additionalAppsSectionLayout->addSpacing(5);
+
+  QLabel *processListLabel = new QLabel("Process Names");
+  processListLabel->setStyleSheet(StyleSheet::getSectionSubHeaderStyleSheet());
+  additionalAppsSectionLayout->addWidget(processListLabel);
+
+  m_processNamesScrollArea = new QScrollArea();
+  m_processNamesScrollArea->setWidgetResizable(true);
+  m_processNamesScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_processNamesScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_processNamesScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_processNamesContainer = new QWidget();
+  m_processNamesLayout = new QVBoxLayout(m_processNamesContainer);
+  m_processNamesLayout->setContentsMargins(4, 4, 4, 4);
+  m_processNamesLayout->setSpacing(6);
+  m_processNamesLayout->addStretch();
+
+  m_processNamesScrollArea->setWidget(m_processNamesContainer);
+  additionalAppsSectionLayout->addWidget(m_processNamesScrollArea);
+
+  updateProcessNamesScrollHeight();
+
+  additionalAppsSectionLayout->addSpacing(-8);
+
+  QHBoxLayout *processFilterButtonLayout = new QHBoxLayout();
+  m_addProcessNameButton = new QPushButton("Add Process");
+  m_populateProcessNamesButton = new QPushButton("Populate from Open Windows");
+
+  QString processFilterButtonStyle = StyleSheet::getSecondaryButtonStyleSheet();
+
+  m_addProcessNameButton->setStyleSheet(processFilterButtonStyle);
+  m_populateProcessNamesButton->setStyleSheet(processFilterButtonStyle);
+
+  processFilterButtonLayout->addWidget(m_addProcessNameButton);
+  processFilterButtonLayout->addWidget(m_populateProcessNamesButton);
+  processFilterButtonLayout->addStretch();
+
+  additionalAppsSectionLayout->addLayout(processFilterButtonLayout);
+
+  connect(m_addProcessNameButton, &QPushButton::clicked, this,
+          &ConfigDialog::onAddProcessName);
+  connect(m_populateProcessNamesButton, &QPushButton::clicked, this,
+          &ConfigDialog::onPopulateProcessNames);
+
+  layout->addWidget(additionalAppsSection);
+
+  // Per-Process Thumbnail Sizes Section
+  QWidget *processThumbnailSizesSection = new QWidget();
+  processThumbnailSizesSection->setStyleSheet(
+      StyleSheet::getSectionStyleSheet());
+  QVBoxLayout *processThumbnailSizesSectionLayout =
+      new QVBoxLayout(processThumbnailSizesSection);
+  processThumbnailSizesSectionLayout->setContentsMargins(16, 12, 16, 12);
+  processThumbnailSizesSectionLayout->setSpacing(10);
+
+  tagWidget(processThumbnailSizesSection,
+            {"thumbnail", "size", "custom", "process", "per-process", "width",
+             "height", "dimension", "non-eve"});
+
+  QLabel *processThumbnailSizesHeader =
+      new QLabel("Per-Process Thumbnail Sizes");
+  processThumbnailSizesHeader->setStyleSheet(
+      StyleSheet::getSectionHeaderStyleSheet());
+  processThumbnailSizesSectionLayout->addWidget(processThumbnailSizesHeader);
+
+  QLabel *processThumbnailSizesInfoLabel = new QLabel(
+      "Set custom thumbnail sizes for specific non-EVE applications. "
+      "Leave empty to use the default size from the Appearance tab.");
+  processThumbnailSizesInfoLabel->setWordWrap(true);
+  processThumbnailSizesInfoLabel->setStyleSheet(
+      StyleSheet::getInfoLabelStyleSheet());
+  processThumbnailSizesSectionLayout->addWidget(processThumbnailSizesInfoLabel);
+
+  m_processThumbnailSizesScrollArea = new QScrollArea();
+  m_processThumbnailSizesScrollArea->setWidgetResizable(true);
+  m_processThumbnailSizesScrollArea->setFrameShape(QFrame::NoFrame);
+  m_processThumbnailSizesScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_processThumbnailSizesScrollArea->setVerticalScrollBarPolicy(
+      Qt::ScrollBarAsNeeded);
+  m_processThumbnailSizesScrollArea->setSizePolicy(QSizePolicy::Preferred,
+                                                   QSizePolicy::Preferred);
+  m_processThumbnailSizesScrollArea->setMinimumHeight(10);
+  m_processThumbnailSizesScrollArea->setMaximumHeight(240);
+  m_processThumbnailSizesScrollArea->setFixedHeight(10);
+  m_processThumbnailSizesScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_processThumbnailSizesContainer = new QWidget();
+  m_processThumbnailSizesContainer->setStyleSheet(
+      "QWidget { background-color: transparent; }");
+  m_processThumbnailSizesLayout =
+      new QVBoxLayout(m_processThumbnailSizesContainer);
+  m_processThumbnailSizesLayout->setContentsMargins(0, 0, 0, 0);
+  m_processThumbnailSizesLayout->setSpacing(8);
+  m_processThumbnailSizesLayout->addStretch();
+
+  m_processThumbnailSizesScrollArea->setWidget(
+      m_processThumbnailSizesContainer);
+  processThumbnailSizesSectionLayout->addWidget(
+      m_processThumbnailSizesScrollArea);
+
+  processThumbnailSizesSectionLayout->addSpacing(-8);
+
+  QHBoxLayout *processThumbnailSizesButtonLayout = new QHBoxLayout();
+  m_addProcessThumbnailSizeButton = new QPushButton("Add Process");
+  m_populateProcessThumbnailSizesButton =
+      new QPushButton("Populate from Open Windows");
+  m_resetProcessThumbnailSizesButton = new QPushButton("Reset All to Default");
+
+  QString processThumbnailSizesButtonStyle =
+      StyleSheet::getSecondaryButtonStyleSheet();
+  m_addProcessThumbnailSizeButton->setStyleSheet(
+      processThumbnailSizesButtonStyle);
+  m_populateProcessThumbnailSizesButton->setStyleSheet(
+      processThumbnailSizesButtonStyle);
+  m_resetProcessThumbnailSizesButton->setStyleSheet(
+      processThumbnailSizesButtonStyle);
+
+  connect(m_addProcessThumbnailSizeButton, &QPushButton::clicked, this,
+          &ConfigDialog::onAddProcessThumbnailSize);
+  connect(m_populateProcessThumbnailSizesButton, &QPushButton::clicked, this,
+          &ConfigDialog::onPopulateProcessThumbnailSizes);
+  connect(m_resetProcessThumbnailSizesButton, &QPushButton::clicked, this,
+          &ConfigDialog::onResetProcessThumbnailSizesToDefault);
+
+  processThumbnailSizesButtonLayout->addWidget(m_addProcessThumbnailSizeButton);
+  processThumbnailSizesButtonLayout->addWidget(
+      m_populateProcessThumbnailSizesButton);
+  processThumbnailSizesButtonLayout->addWidget(
+      m_resetProcessThumbnailSizesButton);
+  processThumbnailSizesButtonLayout->addStretch();
+
+  processThumbnailSizesSectionLayout->addLayout(
+      processThumbnailSizesButtonLayout);
+
+  layout->addWidget(processThumbnailSizesSection);
+
+  QHBoxLayout *resetLayout = new QHBoxLayout();
+  resetLayout->addStretch();
+  QPushButton *resetButton = new QPushButton("Reset to Defaults");
+  resetButton->setStyleSheet(StyleSheet::getResetButtonStyleSheet());
+  connect(resetButton, &QPushButton::clicked, this,
+          &ConfigDialog::onResetNonEVEDefaults);
+  resetLayout->addWidget(resetButton);
+  layout->addLayout(resetLayout);
+
+  layout->addStretch();
+
+  scrollArea->setWidget(scrollWidget);
+
+  QVBoxLayout *pageLayout = new QVBoxLayout(page);
+  pageLayout->setContentsMargins(0, 0, 0, 0);
+  pageLayout->addWidget(scrollArea);
+
+  m_stackedWidget->addWidget(page);
+}
 
 void ConfigDialog::createDataSourcesPage() {
   QWidget *page = new QWidget();
@@ -3228,6 +3354,34 @@ void ConfigDialog::loadSettings() {
 
   updateThumbnailSizesScrollHeight();
 
+  while (m_processThumbnailSizesLayout->count() > 1) {
+    QLayoutItem *item = m_processThumbnailSizesLayout->takeAt(0);
+    if (item->widget()) {
+      QWidget *widget = item->widget();
+      widget->setParent(nullptr);
+      delete widget;
+    }
+    delete item;
+  }
+
+  QHash<QString, QSize> customProcessSizes =
+      config.getAllCustomProcessThumbnailSizes();
+  for (auto it = customProcessSizes.constBegin();
+       it != customProcessSizes.constEnd(); ++it) {
+    QWidget *formRow = createProcessThumbnailSizeFormRow(
+        it.key(), it.value().width(), it.value().height());
+    int count = m_processThumbnailSizesLayout->count();
+    m_processThumbnailSizesLayout->insertWidget(count - 1, formRow);
+  }
+
+  if (customProcessSizes.isEmpty()) {
+    QWidget *formRow = createProcessThumbnailSizeFormRow();
+    int count = m_processThumbnailSizesLayout->count();
+    m_processThumbnailSizesLayout->insertWidget(count - 1, formRow);
+  }
+
+  updateProcessThumbnailSizesScrollHeight();
+
   while (m_customNamesLayout->count() > 1) {
     QLayoutItem *item = m_customNamesLayout->takeAt(0);
     if (item->widget()) {
@@ -3610,6 +3764,38 @@ void ConfigDialog::saveSettings() {
 
     QSize size(widthSpin->value(), heightSpin->value());
     cfg.setThumbnailSize(charName, size);
+  }
+
+  QHash<QString, QSize> existingProcessSizes =
+      cfg.getAllCustomProcessThumbnailSizes();
+  for (const QString &processName : existingProcessSizes.keys()) {
+    cfg.removeProcessThumbnailSize(processName);
+  }
+
+  for (int i = 0; i < m_processThumbnailSizesLayout->count() - 1; ++i) {
+    QWidget *rowWidget = qobject_cast<QWidget *>(
+        m_processThumbnailSizesLayout->itemAt(i)->widget());
+    if (!rowWidget) {
+      continue;
+    }
+
+    QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+    QList<QSpinBox *> spinBoxes = rowWidget->findChildren<QSpinBox *>();
+
+    if (!nameEdit || spinBoxes.size() < 2) {
+      continue;
+    }
+
+    QString processName = nameEdit->text().trimmed();
+    if (processName.isEmpty()) {
+      continue;
+    }
+
+    int width = spinBoxes[0]->value();
+    int height = spinBoxes[1]->value();
+
+    QSize size(width, height);
+    cfg.setProcessThumbnailSize(processName, size);
   }
 
   QHash<QString, QString> existingCustomNames =
@@ -4141,6 +4327,98 @@ void ConfigDialog::updateThumbnailSizesScrollHeight() {
 
     int finalHeight = qMin(240, qMax(50, calculatedHeight));
     m_thumbnailSizesScrollArea->setFixedHeight(finalHeight);
+  }
+}
+
+QWidget *
+ConfigDialog::createProcessThumbnailSizeFormRow(const QString &processName,
+                                                int width, int height) {
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet(
+      "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
+      "border-radius: 4px; padding: 4px; }");
+
+  QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+  rowLayout->setContentsMargins(8, 4, 8, 4);
+  rowLayout->setSpacing(8);
+
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setText(processName);
+  nameEdit->setPlaceholderText("Process Name (e.g., notepad.exe)");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  nameEdit->setMinimumWidth(150);
+  rowLayout->addWidget(nameEdit, 1);
+
+  QLabel *widthLabel = new QLabel("Width:");
+  widthLabel->setStyleSheet("QLabel { color: #ffffff; background-color: "
+                            "transparent; border: none; }");
+  rowLayout->addWidget(widthLabel);
+
+  QSpinBox *widthSpin = new QSpinBox();
+  widthSpin->setRange(50, 2000);
+  widthSpin->setSuffix(" px");
+  widthSpin->setValue(width > 0 ? width : Config::instance().thumbnailWidth());
+  widthSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  widthSpin->setFixedWidth(100);
+  rowLayout->addWidget(widthSpin);
+
+  QLabel *heightLabel = new QLabel("Height:");
+  heightLabel->setStyleSheet("QLabel { color: #ffffff; background-color: "
+                             "transparent; border: none; }");
+  rowLayout->addWidget(heightLabel);
+
+  QSpinBox *heightSpin = new QSpinBox();
+  heightSpin->setRange(50, 2000);
+  heightSpin->setSuffix(" px");
+  heightSpin->setValue(height > 0 ? height
+                                  : Config::instance().thumbnailHeight());
+  heightSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  heightSpin->setFixedWidth(100);
+  rowLayout->addWidget(heightSpin);
+
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(32, 32);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+  deleteButton->setToolTip("Remove this process size override");
+  deleteButton->setCursor(Qt::PointingHandCursor);
+
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_processThumbnailSizesLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    QTimer::singleShot(0, this,
+                       &ConfigDialog::updateProcessThumbnailSizesScrollHeight);
+  });
+
+  rowLayout->addWidget(deleteButton);
+
+  return rowWidget;
+}
+
+void ConfigDialog::updateProcessThumbnailSizesScrollHeight() {
+  int rowCount = m_processThumbnailSizesLayout->count() - 1;
+
+  if (rowCount <= 0) {
+    m_processThumbnailSizesScrollArea->setFixedHeight(10);
+  } else {
+    int calculatedHeight = (rowCount * 48) + 10;
+
+    int finalHeight = qMin(240, qMax(50, calculatedHeight));
+    m_processThumbnailSizesScrollArea->setFixedHeight(finalHeight);
   }
 }
 
@@ -5782,6 +6060,205 @@ void ConfigDialog::onResetThumbnailSizesToDefault() {
   }
 }
 
+void ConfigDialog::onAddProcessThumbnailSize() {
+  QWidget *formRow = createProcessThumbnailSizeFormRow();
+
+  int count = m_processThumbnailSizesLayout->count();
+  m_processThumbnailSizesLayout->insertWidget(count - 1, formRow);
+
+  m_processThumbnailSizesContainer->updateGeometry();
+  m_processThumbnailSizesLayout->activate();
+
+  QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
+  if (nameEdit) {
+    nameEdit->setFocus();
+    nameEdit->selectAll();
+  }
+
+  updateProcessThumbnailSizesScrollHeight();
+
+  QTimer::singleShot(10, this, [this, formRow]() {
+    m_processThumbnailSizesScrollArea->ensureWidgetVisible(formRow, 10, 10);
+
+    QScrollBar *scrollBar =
+        m_processThumbnailSizesScrollArea->verticalScrollBar();
+    if (scrollBar) {
+      scrollBar->setValue(scrollBar->maximum());
+    }
+  });
+}
+
+void ConfigDialog::onPopulateProcessThumbnailSizes() {
+  QMap<QString, QString> processToTitle;
+
+  EnumWindows(
+      [](HWND hwnd, LPARAM lParam) -> BOOL {
+        auto *processMap = reinterpret_cast<QMap<QString, QString> *>(lParam);
+
+        if (!IsWindowVisible(hwnd)) {
+          return TRUE;
+        }
+
+        wchar_t title[256];
+        int length =
+            GetWindowTextW(hwnd, title, sizeof(title) / sizeof(wchar_t));
+        if (length == 0) {
+          return TRUE;
+        }
+        QString titleStr = QString::fromWCharArray(title, length);
+        if (titleStr.isEmpty() || titleStr.contains("EVEAPMPreview")) {
+          return TRUE;
+        }
+
+        DWORD processId = 0;
+        GetWindowThreadProcessId(hwnd, &processId);
+        if (processId == 0) {
+          return TRUE;
+        }
+
+        HANDLE processHandle =
+            OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, processId);
+        if (!processHandle) {
+          return TRUE;
+        }
+
+        wchar_t processPath[MAX_PATH];
+        DWORD pathSize = MAX_PATH;
+        if (QueryFullProcessImageNameW(processHandle, 0, processPath,
+                                       &pathSize)) {
+          QString fullPath = QString::fromWCharArray(processPath, pathSize);
+          QString processName =
+              fullPath.mid(fullPath.lastIndexOf('\\') + 1).toLower();
+
+          if (processName.compare("exefile.exe", Qt::CaseInsensitive) != 0) {
+            (*processMap)[processName] = titleStr;
+          }
+        }
+
+        CloseHandle(processHandle);
+        return TRUE;
+      },
+      reinterpret_cast<LPARAM>(&processToTitle));
+
+  if (processToTitle.isEmpty()) {
+    QMessageBox::information(this, "No Windows Found",
+                             "No non-EVE windows are currently open.");
+    return;
+  }
+
+  QStringList processNames = processToTitle.keys();
+  std::sort(processNames.begin(), processNames.end());
+
+  QMessageBox msgBox(this);
+  msgBox.setWindowTitle("Populate Process Thumbnail Sizes");
+  msgBox.setText(QString("Found %1 non-EVE application%2.")
+                     .arg(processNames.count())
+                     .arg(processNames.count() == 1 ? "" : "s"));
+  msgBox.setInformativeText(
+      "Do you want to clear existing entries or add to them?");
+
+  QPushButton *clearButton =
+      msgBox.addButton("Clear & Replace", QMessageBox::ActionRole);
+  QPushButton *addButton =
+      msgBox.addButton("Add to Existing", QMessageBox::ActionRole);
+  QPushButton *cancelButton =
+      msgBox.addButton("Cancel", QMessageBox::RejectRole);
+
+  msgBox.setStyleSheet(StyleSheet::getMessageBoxStyleSheet());
+  msgBox.exec();
+
+  if (msgBox.clickedButton() == cancelButton) {
+    return;
+  }
+
+  bool clearExisting = (msgBox.clickedButton() == clearButton);
+
+  QSet<QString> existingProcesses;
+  if (!clearExisting) {
+    for (int i = 0; i < m_processThumbnailSizesLayout->count() - 1; ++i) {
+      QWidget *rowWidget = qobject_cast<QWidget *>(
+          m_processThumbnailSizesLayout->itemAt(i)->widget());
+      if (rowWidget) {
+        QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+        if (nameEdit) {
+          existingProcesses.insert(nameEdit->text().trimmed().toLower());
+        }
+      }
+    }
+  } else {
+    while (m_processThumbnailSizesLayout->count() > 1) {
+      QLayoutItem *item = m_processThumbnailSizesLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+  }
+
+  Config &cfg = Config::instance();
+  int addedCount = 0;
+
+  for (const QString &processName : processNames) {
+    if (!clearExisting && existingProcesses.contains(processName.toLower())) {
+      continue;
+    }
+
+    int width, height;
+    if (cfg.hasCustomProcessThumbnailSize(processName)) {
+      QSize customSize = cfg.getProcessThumbnailSize(processName);
+      width = customSize.width();
+      height = customSize.height();
+    } else {
+      width = cfg.thumbnailWidth();
+      height = cfg.thumbnailHeight();
+    }
+
+    QWidget *formRow =
+        createProcessThumbnailSizeFormRow(processName, width, height);
+    int count = m_processThumbnailSizesLayout->count();
+    m_processThumbnailSizesLayout->insertWidget(count - 1, formRow);
+
+    addedCount++;
+  }
+
+  updateProcessThumbnailSizesScrollHeight();
+
+  QString resultMsg = clearExisting ? QString("Replaced with %1 process%2.")
+                                          .arg(addedCount)
+                                          .arg(addedCount == 1 ? "" : "es")
+                                    : QString("Added %1 new process%2.")
+                                          .arg(addedCount)
+                                          .arg(addedCount == 1 ? "" : "es");
+
+  QMessageBox::information(this, "Populate Complete", resultMsg);
+}
+
+void ConfigDialog::onResetProcessThumbnailSizesToDefault() {
+  int rowCount = m_processThumbnailSizesLayout->count() - 1;
+
+  if (rowCount == 0) {
+    return;
+  }
+
+  QMessageBox::StandardButton reply = QMessageBox::question(
+      this, "Reset All Sizes",
+      "Are you sure you want to remove all custom process thumbnail sizes?\n"
+      "All non-EVE applications will revert to the default size.",
+      QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+
+  if (reply == QMessageBox::Yes) {
+    while (m_processThumbnailSizesLayout->count() > 1) {
+      QLayoutItem *item = m_processThumbnailSizesLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+
+    updateProcessThumbnailSizesScrollHeight();
+  }
+}
+
 void ConfigDialog::onAddCustomName() {
   QWidget *formRow = createCustomNameFormRow();
 
@@ -6312,6 +6789,40 @@ void ConfigDialog::onResetBehaviorDefaults() {
     }
     updateNeverMinimizeScrollHeight();
 
+    m_rememberPositionsCheck->setChecked(Config::DEFAULT_POSITION_REMEMBER);
+    m_enableSnappingCheck->setChecked(Config::DEFAULT_POSITION_ENABLE_SNAPPING);
+    m_snapDistanceSpin->setValue(Config::DEFAULT_POSITION_SNAP_DISTANCE);
+    m_lockPositionsCheck->setChecked(Config::DEFAULT_POSITION_LOCK);
+
+    m_showNotLoggedInClientsCheck->setChecked(
+        Config::DEFAULT_THUMBNAIL_SHOW_NOT_LOGGED_IN);
+    m_notLoggedInStackModeCombo->setCurrentIndex(
+        Config::DEFAULT_THUMBNAIL_NOT_LOGGED_IN_STACK_MODE);
+    m_showNotLoggedInOverlayCheck->setChecked(
+        Config::DEFAULT_THUMBNAIL_SHOW_NOT_LOGGED_IN_OVERLAY);
+
+    QMessageBox::information(
+        this, "Reset Complete",
+        "Behavior settings have been reset to defaults.\n\n"
+        "Click Apply or OK to save the changes.");
+  }
+}
+
+void ConfigDialog::onResetNonEVEDefaults() {
+  QMessageBox msgBox(this);
+  msgBox.setWindowTitle("Reset Non-EVE Thumbnail Settings");
+  msgBox.setText(
+      "Are you sure you want to reset all non-EVE thumbnail settings to "
+      "their default values?");
+  msgBox.setInformativeText("This will reset additional application settings.");
+  msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+  msgBox.setDefaultButton(QMessageBox::No);
+  msgBox.setStyleSheet(StyleSheet::getMessageBoxStyleSheet());
+
+  if (msgBox.exec() == QMessageBox::Yes) {
+    m_showNonEVEOverlayCheck->setChecked(
+        Config::DEFAULT_THUMBNAIL_SHOW_NON_EVE_OVERLAY);
+
     while (m_processNamesLayout->count() > 1) {
       QLayoutItem *item = m_processNamesLayout->takeAt(0);
       if (item->widget()) {
@@ -6319,19 +6830,11 @@ void ConfigDialog::onResetBehaviorDefaults() {
       }
       delete item;
     }
-    QWidget *formRow = createProcessNamesFormRow();
-    int count = m_processNamesLayout->count();
-    m_processNamesLayout->insertWidget(count - 1, formRow);
     updateProcessNamesScrollHeight();
-
-    m_rememberPositionsCheck->setChecked(Config::DEFAULT_POSITION_REMEMBER);
-    m_enableSnappingCheck->setChecked(Config::DEFAULT_POSITION_ENABLE_SNAPPING);
-    m_snapDistanceSpin->setValue(Config::DEFAULT_POSITION_SNAP_DISTANCE);
-    m_lockPositionsCheck->setChecked(Config::DEFAULT_POSITION_LOCK);
 
     QMessageBox::information(
         this, "Reset Complete",
-        "Behavior settings have been reset to defaults.\n\n"
+        "Non-EVE thumbnail settings have been reset to defaults.\n\n"
         "Click Apply or OK to save the changes.");
   }
 }
