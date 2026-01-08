@@ -22,6 +22,18 @@ struct CharacterLocation {
       : characterName(name), systemName(system), lastUpdate(time) {}
 };
 
+/// State for a single log file being monitored via polling
+struct LogFileState {
+  QString filePath;
+  QString characterName;
+  qint64 position;          // Current read position in file
+  qint64 lastSize;          // Last known file size
+  qint64 lastModified;      // Last modified timestamp in ms since epoch
+  QString partialLine;      // Incomplete line from previous read
+  bool isChatLog;           // true for chatlog, false for gamelog
+  bool hadActivityLastPoll; // Had new data in last poll
+};
+
 class ChatLogWorker : public QObject {
   Q_OBJECT
 
@@ -47,8 +59,7 @@ public slots:
   void startMonitoring();
   void stopMonitoring();
   void refreshMonitoring();
-  void processLogFile(const QString &filePath);
-  void markFileDirty(const QString &filePath);
+  void pollLogFiles();
   void checkForNewFiles();
   QHash<QString, QString> buildListenerToFileMap(const QDir &dir,
                                                  const QStringList &filters,
@@ -65,24 +76,30 @@ private:
   void scanExistingLogs();
   void handleMiningEvent(const QString &characterName, const QString &ore);
   void onMiningTimeout(const QString &characterName);
-  void cleanupDebounceTimer(const QString &filePath);
   void updateCustomNameCache();
+
+  // Polling-based monitoring methods
+  bool readNewLines(LogFileState *state);
+  bool shouldParseLine(const QString &line, bool isChatLog);
+  void updatePollingRate(bool hadActivity);
+  void readInitialState(LogFileState *state);
 
   QString m_logDirectory;
   QString m_gameLogDirectory;
   QStringList m_characterNames;
-  QHash<QString, QString> m_characterToLogFile;
-  QHash<QString, qint64> m_filePositions;
-  QHash<QString, qint64> m_fileLastModified;
-  QHash<QString, qint64> m_fileLastSize;
-  QHash<QString, qint64> m_fileLastProcessed;
-  QHash<QString, QTimer *> m_debounceTimers;
+
+  // Polling-based monitoring state
+  QHash<QString, LogFileState *> m_logFiles; // filePath -> state
+  QTimer *m_pollTimer;
+  QTimer *m_scanTimer;
+  int m_currentPollInterval;
+  int m_activeFilesLastPoll;
+
+  // Character tracking
   QHash<QString, CharacterLocation> m_characterLocations;
-  QHash<QString, QString> m_fileToKeyMap;
   QHash<QString, QString> m_cachedCustomNames;
   QHash<QString, QPair<QString, qint64>> m_fileToCharacterCache;
-  QFileSystemWatcher *m_fileWatcher;
-  QTimer *m_scanTimer;
+
   QMutex m_mutex;
   bool m_running;
   bool m_enableChatLogMonitoring;
@@ -95,6 +112,13 @@ private:
   QHash<QString, bool> m_miningActiveState;
   QSet<QString> m_knownChatLogFiles;
   QSet<QString> m_knownGameLogFiles;
+
+  // Polling rate constants
+  static constexpr int FAST_POLL_MS =
+      500; // Poll every 500ms when files are active
+  static constexpr int SLOW_POLL_MS = 1000; // Poll every 1000ms when idle
+  static constexpr int SCAN_INTERVAL_MS =
+      300000; // Scan for new files every 5 min
 };
 
 class ChatLogReader : public QObject {
