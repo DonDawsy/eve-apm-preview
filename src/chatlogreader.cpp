@@ -14,18 +14,24 @@
 
 ChatLogWorker::ChatLogWorker(QObject *parent)
     : QObject(parent), m_pollTimer(new QTimer(this)),
-      m_scanTimer(new QTimer(this)), m_currentPollInterval(SLOW_POLL_MS),
-      m_activeFilesLastPoll(0), m_running(false),
-      m_enableChatLogMonitoring(true), m_enableGameLogMonitoring(true) {
+      m_scanTimer(new QTimer(this)),
+      m_directoryWatcher(new QFileSystemWatcher(this)),
+      m_currentPollInterval(SLOW_POLL_MS), m_activeFilesLastPoll(0),
+      m_running(false), m_enableChatLogMonitoring(true),
+      m_enableGameLogMonitoring(true) {
 
   // Poll timer for checking file changes
   connect(m_pollTimer, &QTimer::timeout, this, &ChatLogWorker::pollLogFiles);
   m_pollTimer->setInterval(m_currentPollInterval);
 
-  // Scan timer for finding new log files
+  // Scan timer for finding new log files (as backup)
   connect(m_scanTimer, &QTimer::timeout, this,
           &ChatLogWorker::checkForNewFiles);
   m_scanTimer->setInterval(SCAN_INTERVAL_MS);
+
+  // Directory watcher for immediate new file detection
+  connect(m_directoryWatcher, &QFileSystemWatcher::directoryChanged, this,
+          &ChatLogWorker::onDirectoryChanged);
 
   updateCustomNameCache();
 }
@@ -201,6 +207,23 @@ void ChatLogWorker::startMonitoring() {
            << m_enableChatLogMonitoring
            << ", GameLog:" << m_enableGameLogMonitoring << ")";
 
+  // Set up directory watching for instant new file detection
+  QStringList watchedDirs = m_directoryWatcher->directories();
+  if (!watchedDirs.isEmpty()) {
+    m_directoryWatcher->removePaths(watchedDirs);
+  }
+
+  if (m_enableChatLogMonitoring && QDir(m_logDirectory).exists()) {
+    m_directoryWatcher->addPath(m_logDirectory);
+    qDebug() << "ChatLogWorker: Watching chatlog directory:" << m_logDirectory;
+  }
+
+  if (m_enableGameLogMonitoring && QDir(m_gameLogDirectory).exists()) {
+    m_directoryWatcher->addPath(m_gameLogDirectory);
+    qDebug() << "ChatLogWorker: Watching gamelog directory:"
+             << m_gameLogDirectory;
+  }
+
   // Scan for existing logs and set up initial state
   scanExistingLogs();
 
@@ -227,6 +250,14 @@ void ChatLogWorker::stopMonitoring() {
   // Stop timers
   m_pollTimer->stop();
   m_scanTimer->stop();
+
+  // Stop directory watching
+  QStringList watchedDirs = m_directoryWatcher->directories();
+  if (!watchedDirs.isEmpty()) {
+    m_directoryWatcher->removePaths(watchedDirs);
+    qDebug() << "ChatLogWorker: Stopped watching" << watchedDirs.size()
+             << "directories";
+  }
 
   // Clean up log file states
   qDeleteAll(m_logFiles);
@@ -1322,6 +1353,15 @@ void ChatLogWorker::updateCustomNameCache() {
   m_cachedCustomNames = Config::instance().getAllCustomThumbnailNames();
   qDebug() << "ChatLogWorker: Updated custom name cache with"
            << m_cachedCustomNames.size() << "entries";
+}
+
+void ChatLogWorker::onDirectoryChanged(const QString &path) {
+  qDebug() << "ChatLogWorker: Directory changed detected:" << path
+           << "- triggering immediate file scan";
+
+  // Immediately check for new files when directory changes
+  // This catches new character logins much faster than the 5-minute timer
+  checkForNewFiles();
 }
 
 QString ChatLogWorker::extractSystemFromLine(const QString &logLine) {

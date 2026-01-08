@@ -61,6 +61,7 @@ public slots:
   void refreshMonitoring();
   void pollLogFiles();
   void checkForNewFiles();
+  void onDirectoryChanged(const QString &path);
   QHash<QString, QString> buildListenerToFileMap(const QDir &dir,
                                                  const QStringList &filters,
                                                  int maxAgeHours = 24);
@@ -92,6 +93,7 @@ private:
   QHash<QString, LogFileState *> m_logFiles; // filePath -> state
   QTimer *m_pollTimer;
   QTimer *m_scanTimer;
+  QFileSystemWatcher *m_directoryWatcher; // Watch directories for new files
   int m_currentPollInterval;
   int m_activeFilesLastPoll;
 
