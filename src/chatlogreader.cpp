@@ -420,7 +420,8 @@ void ChatLogWorker::scanExistingLogs() {
                     QRegularExpression::UseUnicodePropertiesOption);
 
             for (int i = tailLines.size() - 1; i >= 0; --i) {
-              // Trust EVE logs - use simple trimming instead of full normalization
+              // Trust EVE logs - use simple trimming instead of full
+              // normalization
               QString line = tailLines[i].trimmed();
               if (systemChangePattern.match(line).hasMatch()) {
                 lastSystemLine = line;
@@ -539,7 +540,8 @@ void ChatLogWorker::scanExistingLogs() {
                 R"(\[\s*([\d.\s:]+)\]\s*\(None\)\s*Jumping from\s+(.+?)\s+to\s+(.+))");
 
             for (int i = tailLines.size() - 1; i >= 0; --i) {
-              // Trust EVE logs - use simple trimming instead of full normalization
+              // Trust EVE logs - use simple trimming instead of full
+              // normalization
               QString line = tailLines[i].trimmed();
               if (jumpPattern.match(line).hasMatch()) {
                 lastJumpLine = line;
@@ -1025,8 +1027,7 @@ void ChatLogWorker::parseLogLine(const QString &line,
       workingLine.indexOf("(question)", searchStart, Qt::CaseInsensitive);
   int miningPos =
       workingLine.indexOf("(mining)", searchStart, Qt::CaseInsensitive);
-  int nonePos =
-      workingLine.indexOf("(None)", searchStart, Qt::CaseInsensitive);
+  int nonePos = workingLine.indexOf("(None)", searchStart, Qt::CaseInsensitive);
   int eveSystemPos =
       workingLine.indexOf("EVE System", searchStart, Qt::CaseInsensitive);
 
@@ -1078,8 +1079,7 @@ void ChatLogWorker::parseLogLine(const QString &line,
     static QRegularExpression fleetInvitePattern(
         R"(\[\s*[\d.\s:]+\]\s*\(question\)\s*<a href="[^"]+">([^<]+)</a>\s*wants you to join their fleet)");
 
-    QRegularExpressionMatch fleetMatch =
-        fleetInvitePattern.match(workingLine);
+    QRegularExpressionMatch fleetMatch = fleetInvitePattern.match(workingLine);
     if (fleetMatch.hasMatch()) {
       QString inviter = fleetMatch.captured(1).trimmed();
       QString eventText = QString("Fleet invite from %1").arg(inviter);
@@ -1098,7 +1098,7 @@ void ChatLogWorker::parseLogLine(const QString &line,
     int compressedPos =
         workingLine.indexOf("compressed", notifyPos, Qt::CaseInsensitive);
     int cloakPos = workingLine.indexOf("cloak deactivates", notifyPos,
-                                          Qt::CaseInsensitive);
+                                       Qt::CaseInsensitive);
 
     if (followingPos != -1) {
       static QRegularExpression followWarpPattern(
@@ -1126,8 +1126,7 @@ void ChatLogWorker::parseLogLine(const QString &line,
       static QRegularExpression regroupPattern(
           R"(\[\s*[\d.\s:]+\]\s*\(notify\)\s*Regrouping to\s+(.+?)(?:\.|$))");
 
-      QRegularExpressionMatch regroupMatch =
-          regroupPattern.match(workingLine);
+      QRegularExpressionMatch regroupMatch = regroupPattern.match(workingLine);
       if (regroupMatch.hasMatch()) {
         QString leader = regroupMatch.captured(1).trimmed();
 
@@ -1169,8 +1168,7 @@ void ChatLogWorker::parseLogLine(const QString &line,
       static QRegularExpression decloakPattern(
           R"(\[\s*[\d.\s:]+\]\s*\(notify\)\s*Your cloak deactivates due to proximity to (?:a nearby )?(.+?)\.)");
 
-      QRegularExpressionMatch decloakMatch =
-          decloakPattern.match(workingLine);
+      QRegularExpressionMatch decloakMatch = decloakPattern.match(workingLine);
       if (decloakMatch.hasMatch()) {
         QString source = decloakMatch.captured(1).trimmed();
         QString eventText = QString("Decloaked by %1").arg(source);
