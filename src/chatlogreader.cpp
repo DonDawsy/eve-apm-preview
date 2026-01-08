@@ -534,6 +534,12 @@ void ChatLogWorker::readInitialState(LogFileState *state) {
         CharacterLocation &location =
             m_characterLocations[state->characterName];
 
+        // Early exit if already in this system (skip timestamp checks)
+        if (!location.systemName.isEmpty() &&
+            location.systemName == newSystem) {
+          return;
+        }
+
         if (updateTime > location.lastUpdate || location.systemName.isEmpty()) {
           location.characterName = state->characterName;
           location.systemName = newSystem;
@@ -590,6 +596,13 @@ void ChatLogWorker::readInitialState(LogFileState *state) {
 
         CharacterLocation &location =
             m_characterLocations[state->characterName];
+
+        // Early exit if already in this system (skip timestamp checks)
+        if (!location.systemName.isEmpty() &&
+            location.systemName == newSystem) {
+          return;
+        }
+
         if (updateTime > location.lastUpdate || location.systemName.isEmpty()) {
           location.characterName = state->characterName;
           location.systemName = newSystem;
@@ -1066,9 +1079,15 @@ void ChatLogWorker::parseLogLine(const QString &line,
 
       QString newSystem = sanitizeSystemName(rawSystem);
 
+      CharacterLocation &location = m_characterLocations[characterName];
+
+      // Early exit if already in this system (skip timestamp checks)
+      if (!location.systemName.isEmpty() && location.systemName == newSystem) {
+        return;
+      }
+
       qint64 updateTime = parseEVETimestamp(timestampStr);
 
-      CharacterLocation &location = m_characterLocations[characterName];
       if (updateTime > location.lastUpdate ||
           (updateTime == location.lastUpdate &&
            location.systemName != newSystem)) {
@@ -1229,9 +1248,16 @@ void ChatLogWorker::parseLogLine(const QString &line,
 
         QString newSystem = sanitizeSystemName(toSystem);
 
+        CharacterLocation &location = m_characterLocations[characterName];
+
+        // Early exit if already in this system (skip timestamp checks)
+        if (!location.systemName.isEmpty() &&
+            location.systemName == newSystem) {
+          return;
+        }
+
         qint64 updateTime = parseEVETimestamp(timestampStr);
 
-        CharacterLocation &location = m_characterLocations[characterName];
         if (updateTime > location.lastUpdate ||
             (updateTime == location.lastUpdate &&
              location.systemName != newSystem)) {
@@ -1279,9 +1305,16 @@ void ChatLogWorker::parseLogLine(const QString &line,
 
         QString newSystem = sanitizeSystemName(toSystem);
 
+        CharacterLocation &location = m_characterLocations[characterName];
+
+        // Early exit if already in this system (skip timestamp checks)
+        if (!location.systemName.isEmpty() &&
+            location.systemName == newSystem) {
+          return;
+        }
+
         qint64 updateTime = parseEVETimestamp(timestampStr);
 
-        CharacterLocation &location = m_characterLocations[characterName];
         if (updateTime > location.lastUpdate ||
             (updateTime == location.lastUpdate &&
              location.systemName != newSystem)) {
