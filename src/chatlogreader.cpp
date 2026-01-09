@@ -1140,6 +1140,8 @@ void ChatLogWorker::parseLogLine(const QString &line,
         workingLine.indexOf("compressed", notifyPos, Qt::CaseInsensitive);
     int cloakPos = workingLine.indexOf("cloak deactivates", notifyPos,
                                        Qt::CaseInsensitive);
+    int crystalBrokePos = workingLine.indexOf(
+        "deactivates due to the destruction", notifyPos, Qt::CaseInsensitive);
 
     if (followingPos != -1) {
       static QRegularExpression followWarpPattern(
@@ -1216,6 +1218,23 @@ void ChatLogWorker::parseLogLine(const QString &line,
         qDebug() << "ChatLogWorker: Decloak detected for" << characterName
                  << "- Source:" << source;
         emit combatEventDetected(characterName, "decloak", eventText);
+        return;
+      }
+    }
+
+    if (crystalBrokePos != -1) {
+      static QRegularExpression crystalPattern(
+          R"(\[\s*[\d.\s:]+\]\s*\(notify\)\s*(.+?)\s+deactivates due to the destruction of the\s+(.+?)\s+it was fitted with)");
+
+      QRegularExpressionMatch crystalMatch = crystalPattern.match(workingLine);
+      if (crystalMatch.hasMatch()) {
+        QString module = crystalMatch.captured(1).trimmed();
+        QString crystal = crystalMatch.captured(2).trimmed();
+        QString eventText = QString("Crystal broke: %1").arg(crystal);
+        qDebug() << "ChatLogWorker: Mining crystal broke detected for"
+                 << characterName << "- Module:" << module
+                 << "- Crystal:" << crystal;
+        emit combatEventDetected(characterName, "crystal_broke", eventText);
         return;
       }
     }

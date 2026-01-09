@@ -2182,8 +2182,8 @@ void ConfigDialog::createDataSourcesPage() {
 
   QLabel *combatInfoLabel = new QLabel(
       "Display event notifications from game logs on thumbnail overlays. "
-      "Messages include fleet invites, warp follows, regroups, and compression "
-      "events.");
+      "Messages include fleet invites, warp follows, regroups, compression, "
+      "and mining crystal events.");
   combatInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   combatInfoLabel->setWordWrap(true);
   combatSectionLayout->addWidget(combatInfoLabel);
@@ -2352,6 +2352,8 @@ void ConfigDialog::createDataSourcesPage() {
   createEventRow("compression", "Compression events",
                  m_combatEventCompressionCheck);
   createEventRow("decloak", "Decloak events", m_combatEventDecloakCheck);
+  createEventRow("crystal_broke", "Mining crystal broke",
+                 m_combatEventCrystalBrokeCheck);
   createEventRow("mining_stopped", "Mining stopped",
                  m_combatEventMiningStopCheck);
 
@@ -2386,6 +2388,7 @@ void ConfigDialog::createDataSourcesPage() {
   connectEventCheckbox("regroup", m_combatEventRegroupCheck);
   connectEventCheckbox("compression", m_combatEventCompressionCheck);
   connectEventCheckbox("decloak", m_combatEventDecloakCheck);
+  connectEventCheckbox("crystal_broke", m_combatEventCrystalBrokeCheck);
   connectEventCheckbox("mining_stopped", m_combatEventMiningStopCheck);
 
   QHBoxLayout *miningTimeoutLayout = new QHBoxLayout();
@@ -3037,6 +3040,21 @@ void ConfigDialog::setupBindings() {
           config.setEnabledCombatEventTypes(types);
         } else if (!value) {
           types.removeAll("decloak");
+          config.setEnabledCombatEventTypes(types);
+        }
+      },
+      true));
+
+  m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
+      m_combatEventCrystalBrokeCheck,
+      [&config]() { return config.isCombatEventTypeEnabled("crystal_broke"); },
+      [&config](bool value) {
+        QStringList types = config.enabledCombatEventTypes();
+        if (value && !types.contains("crystal_broke")) {
+          types << "crystal_broke";
+          config.setEnabledCombatEventTypes(types);
+        } else if (!value) {
+          types.removeAll("crystal_broke");
           config.setEnabledCombatEventTypes(types);
         }
       },
