@@ -198,6 +198,11 @@ private:
   QHash<QString, HWND> m_characterWindows;
   QHash<QString, CycleGroup> m_cycleGroups;
 
+  /// Hash maps for mouse button hotkey lookups (O(1) instead of O(n))
+  QHash<HotkeyBinding, QString> m_mouseButtonToCharacter;
+  QHash<HotkeyBinding, QVector<QString>> m_mouseButtonToCharacters;
+  QHash<HotkeyBinding, QPair<QString, bool>> m_mouseButtonToCycleGroup;
+
   QVector<HotkeyBinding> m_suspendHotkeys;
   QVector<int> m_suspendHotkeyIds;
   bool m_suspended;

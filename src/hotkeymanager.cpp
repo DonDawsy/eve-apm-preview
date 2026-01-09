@@ -178,6 +178,11 @@ bool HotkeyManager::registerHotkeys() {
   m_hotkeyIdToCycleGroup.clear();
   m_hotkeyIdIsForward.clear();
 
+  // Clear mouse button hash maps
+  m_mouseButtonToCharacter.clear();
+  m_mouseButtonToCharacters.clear();
+  m_mouseButtonToCycleGroup.clear();
+
   m_suspendHotkeyIds.clear();
   for (const HotkeyBinding &binding : m_suspendHotkeys) {
     if (!binding.enabled)
@@ -233,6 +238,15 @@ bool HotkeyManager::registerHotkeys() {
       } else {
         m_hotkeyIdToCharacters.insert(hotkeyId, characters);
       }
+
+      // Build mouse button hash maps for O(1) lookup
+      if (isMouseButton(binding.keyCode)) {
+        if (characters.size() == 1) {
+          m_mouseButtonToCharacter.insert(binding, characters.first());
+        } else {
+          m_mouseButtonToCharacters.insert(binding, characters);
+        }
+      }
     }
   }
 
@@ -249,6 +263,12 @@ bool HotkeyManager::registerHotkeys() {
         if (registerHotkey(binding, hotkeyId)) {
           m_hotkeyIdToCycleGroup.insert(hotkeyId, groupName);
           m_hotkeyIdIsForward.insert(hotkeyId, true);
+
+          // Build mouse button hash map for O(1) lookup
+          if (isMouseButton(binding.keyCode)) {
+            m_mouseButtonToCycleGroup.insert(binding,
+                                             qMakePair(groupName, true));
+          }
         }
       }
     } else if (group.forwardBinding.enabled) {
@@ -256,6 +276,12 @@ bool HotkeyManager::registerHotkeys() {
       if (registerHotkey(group.forwardBinding, hotkeyId)) {
         m_hotkeyIdToCycleGroup.insert(hotkeyId, groupName);
         m_hotkeyIdIsForward.insert(hotkeyId, true);
+
+        // Build mouse button hash map for O(1) lookup
+        if (isMouseButton(group.forwardBinding.keyCode)) {
+          m_mouseButtonToCycleGroup.insert(group.forwardBinding,
+                                           qMakePair(groupName, true));
+        }
       }
     }
 
@@ -268,6 +294,12 @@ bool HotkeyManager::registerHotkeys() {
         if (registerHotkey(binding, hotkeyId)) {
           m_hotkeyIdToCycleGroup.insert(hotkeyId, groupName);
           m_hotkeyIdIsForward.insert(hotkeyId, false);
+
+          // Build mouse button hash map for O(1) lookup
+          if (isMouseButton(binding.keyCode)) {
+            m_mouseButtonToCycleGroup.insert(binding,
+                                             qMakePair(groupName, false));
+          }
         }
       }
     } else if (group.backwardBinding.enabled) {
@@ -275,6 +307,12 @@ bool HotkeyManager::registerHotkeys() {
       if (registerHotkey(group.backwardBinding, hotkeyId)) {
         m_hotkeyIdToCycleGroup.insert(hotkeyId, groupName);
         m_hotkeyIdIsForward.insert(hotkeyId, false);
+
+        // Build mouse button hash map for O(1) lookup
+        if (isMouseButton(group.backwardBinding.keyCode)) {
+          m_mouseButtonToCycleGroup.insert(group.backwardBinding,
+                                           qMakePair(groupName, false));
+        }
       }
     }
   }
@@ -1244,6 +1282,7 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
                                              bool shift) {
   HotkeyBinding pressedBinding(vkCode, ctrl, alt, shift, true);
 
+  // Check suspend hotkeys first
   if (!m_suspendHotkeys.isEmpty()) {
     for (const HotkeyBinding &binding : m_suspendHotkeys) {
       if (binding.enabled && binding.keyCode == vkCode &&
@@ -1259,67 +1298,42 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
     return;
   }
 
+  // Check EVE focus requirement once
   bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
   if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
     return;
   }
 
-  for (auto it = m_characterMultiHotkeys.begin();
-       it != m_characterMultiHotkeys.end(); ++it) {
-    const QString &characterName = it.key();
-    const QVector<HotkeyBinding> &bindings = it.value();
-
-    for (const HotkeyBinding &binding : bindings) {
-      if (binding.enabled && binding.keyCode == vkCode &&
-          binding.ctrl == ctrl && binding.alt == alt &&
-          binding.shift == shift) {
-        emit characterHotkeyPressed(characterName);
-        return;
-      }
-    }
+  // O(1) hash lookup for character hotkeys
+  if (m_mouseButtonToCharacter.contains(pressedBinding)) {
+    QString characterName = m_mouseButtonToCharacter.value(pressedBinding);
+    emit characterHotkeyPressed(characterName);
+    return;
   }
 
-  for (auto it = m_cycleGroups.begin(); it != m_cycleGroups.end(); ++it) {
-    const QString &groupName = it.key();
-    const CycleGroup &group = it.value();
+  if (m_mouseButtonToCharacters.contains(pressedBinding)) {
+    QVector<QString> characterNames =
+        m_mouseButtonToCharacters.value(pressedBinding);
+    emit characterHotkeyCyclePressed(characterNames);
+    return;
+  }
 
-    if (!group.forwardBindings.isEmpty()) {
-      for (const HotkeyBinding &binding : group.forwardBindings) {
-        if (binding.enabled && binding.keyCode == vkCode &&
-            binding.ctrl == ctrl && binding.alt == alt &&
-            binding.shift == shift) {
-          emit namedCycleForwardPressed(groupName);
-          return;
-        }
-      }
-    } else if (group.forwardBinding.enabled &&
-               group.forwardBinding.keyCode == vkCode &&
-               group.forwardBinding.ctrl == ctrl &&
-               group.forwardBinding.alt == alt &&
-               group.forwardBinding.shift == shift) {
+  // O(1) hash lookup for cycle group hotkeys
+  if (m_mouseButtonToCycleGroup.contains(pressedBinding)) {
+    QPair<QString, bool> cycleInfo =
+        m_mouseButtonToCycleGroup.value(pressedBinding);
+    const QString &groupName = cycleInfo.first;
+    bool isForward = cycleInfo.second;
+
+    if (isForward) {
       emit namedCycleForwardPressed(groupName);
-      return;
-    }
-
-    if (!group.backwardBindings.isEmpty()) {
-      for (const HotkeyBinding &binding : group.backwardBindings) {
-        if (binding.enabled && binding.keyCode == vkCode &&
-            binding.ctrl == ctrl && binding.alt == alt &&
-            binding.shift == shift) {
-          emit namedCycleBackwardPressed(groupName);
-          return;
-        }
-      }
-    } else if (group.backwardBinding.enabled &&
-               group.backwardBinding.keyCode == vkCode &&
-               group.backwardBinding.ctrl == ctrl &&
-               group.backwardBinding.alt == alt &&
-               group.backwardBinding.shift == shift) {
+    } else {
       emit namedCycleBackwardPressed(groupName);
-      return;
     }
+    return;
   }
 
+  // Check other hotkey lists (these typically have few entries)
   for (const HotkeyBinding &binding : m_notLoggedInForwardHotkeys) {
     if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
         binding.alt == alt && binding.shift == shift) {
