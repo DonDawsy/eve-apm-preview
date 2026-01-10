@@ -147,7 +147,10 @@ void WindowCapture::activateWindow(HWND hwnd) {
 
   if (IsIconic(hwnd)) {
     // Restore minimized window to its previous state (maximized or normal)
-    ShowWindow(hwnd, isMaximized ? SW_SHOWMAXIMIZED : SW_RESTORE);
+    ShowWindowAsync(hwnd, isMaximized ? SW_SHOWMAXIMIZED : SW_RESTORE);
+    // Give the window time to restore before setting focus
+    // This prevents input issues where clicks are ignored
+    Sleep(30);
   }
 
   SetForegroundWindow(hwnd);
@@ -168,7 +171,7 @@ void WindowCapture::activateWindow(HWND hwnd) {
 
     BringWindowToTop(hwnd);
     // Restore window to its previous state (maximized or normal)
-    ShowWindow(hwnd, isMaximized ? SW_SHOWMAXIMIZED : SW_RESTORE);
+    ShowWindowAsync(hwnd, isMaximized ? SW_SHOWMAXIMIZED : SW_RESTORE);
     SetForegroundWindow(hwnd);
     SetFocus(hwnd);
 

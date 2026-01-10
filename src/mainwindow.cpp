@@ -1590,6 +1590,9 @@ void MainWindow::activateWindow(HWND hwnd) {
 
     if (wasMinimized) {
       ShowWindowAsync(hwnd, SW_RESTORE);
+      // Give the window time to restore before setting focus
+      // This prevents input issues where clicks are ignored
+      Sleep(30);
 
       m_hwndPendingRefresh = hwnd;
     }
