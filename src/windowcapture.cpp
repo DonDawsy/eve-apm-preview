@@ -142,8 +142,12 @@ void WindowCapture::activateWindow(HWND hwnd) {
     return;
   }
 
+  // Check if window is maximized to restore it properly
+  bool isMaximized = IsZoomed(hwnd);
+
   if (IsIconic(hwnd)) {
-    ShowWindow(hwnd, SW_RESTORE);
+    // Restore minimized window to its previous state (maximized or normal)
+    ShowWindow(hwnd, isMaximized ? SW_SHOWMAXIMIZED : SW_RESTORE);
   }
 
   SetForegroundWindow(hwnd);
@@ -163,7 +167,8 @@ void WindowCapture::activateWindow(HWND hwnd) {
     }
 
     BringWindowToTop(hwnd);
-    ShowWindow(hwnd, SW_RESTORE);
+    // Restore window to its previous state (maximized or normal)
+    ShowWindow(hwnd, isMaximized ? SW_SHOWMAXIMIZED : SW_RESTORE);
     SetForegroundWindow(hwnd);
     SetFocus(hwnd);
 
