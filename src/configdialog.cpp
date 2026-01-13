@@ -2724,6 +2724,39 @@ void ConfigDialog::createDataSourcesPage() {
                     enable && m_eventBorderCheckBoxes[eventType]->isChecked();
                 m_eventBorderStyleCombos[eventType]->setEnabled(borderEnabled);
               }
+              if (m_eventSoundCheckBoxes.contains(eventType)) {
+                m_eventSoundCheckBoxes[eventType]->setEnabled(enable);
+              }
+              if (m_eventSoundFileLabels.contains(eventType)) {
+                bool soundEnabled =
+                    enable && m_eventSoundCheckBoxes[eventType]->isChecked();
+                m_eventSoundFileLabels[eventType]->setEnabled(soundEnabled);
+              }
+              if (m_eventSoundFileButtons.contains(eventType)) {
+                bool soundEnabled =
+                    enable && m_eventSoundCheckBoxes[eventType]->isChecked();
+                m_eventSoundFileButtons[eventType]->setEnabled(soundEnabled);
+              }
+              if (m_eventSoundPlayButtons.contains(eventType)) {
+                bool soundEnabled =
+                    enable && m_eventSoundCheckBoxes[eventType]->isChecked();
+                m_eventSoundPlayButtons[eventType]->setEnabled(soundEnabled);
+              }
+              if (m_eventSoundVolumeLabels.contains(eventType)) {
+                bool soundEnabled =
+                    enable && m_eventSoundCheckBoxes[eventType]->isChecked();
+                m_eventSoundVolumeLabels[eventType]->setEnabled(soundEnabled);
+              }
+              if (m_eventSoundVolumeSliders.contains(eventType)) {
+                bool soundEnabled =
+                    enable && m_eventSoundCheckBoxes[eventType]->isChecked();
+                m_eventSoundVolumeSliders[eventType]->setEnabled(soundEnabled);
+              }
+              if (m_eventSoundVolumeValueLabels.contains(eventType)) {
+                bool soundEnabled =
+                    enable && m_eventSoundCheckBoxes[eventType]->isChecked();
+                m_eventSoundVolumeValueLabels[eventType]->setEnabled(soundEnabled);
+              }
             });
   };
 
