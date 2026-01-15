@@ -43,11 +43,11 @@ Choice! You should use whatever you prefer and suits your needs, I designed this
 - **System Names** - Show current solar system on thumbnails for quick situational awareness
 - **Per-Character Thumbnail Border Colors** - Assign unique border colors to specific characters for instant recognition
 - **Not Logged In Indicators** - Visual overlays for clients that aren't logged into a character yet
+- **Active Thumbnail Border** - 
 
 ### Log Monitoring & Alerts
-- **Chat Log Monitoring** - Monitor EVE chat logs for important events
-- **Combat Alerts** - Get notified about combat-related events on inactive clients (fleet invites, follow/warp commands, regroup calls, compression cycles)
-- **Game Log Analysis** - Monitor game logs for additional events and information
+- **Chat and Game Log Monitoring** - Monitor EVE logs for system jumps 
+- **Combat Alerts** - Get notified about combat-related events on inactive clients (fleet invites, follow/warp commands, regroups, compression cycles)
 
 ## Getting Started
 
@@ -68,6 +68,7 @@ Choice! You should use whatever you prefer and suits your needs, I designed this
 - Arrange the thumbnails to match your screen layout for easier navigation
 - Use hotkeys when you need to react quickly without moving your mouse
 - The thumbnails update in real-time, so you can monitor all your clients for activity
+- Use the "Fixed Window" display setting in your EVE clients for smoother switching of clients
 
 ## License
 
