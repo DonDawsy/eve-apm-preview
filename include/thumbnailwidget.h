@@ -3,7 +3,9 @@
 
 #include "borderstyle.h"
 #include "overlayinfo.h"
+#include <QDateTime>
 #include <QLabel>
+#include <QList>
 #include <QPixmap>
 #include <QTimer>
 #include <QVector>
@@ -12,6 +14,16 @@
 #include <windows.h>
 
 class OverlayWidget;
+
+/// Represents a single combat event with its own lifecycle
+struct CombatEvent {
+  QString message;
+  QString eventType;
+  QTimer *timer;
+
+  CombatEvent(const QString &msg, const QString &type, QTimer *t)
+      : message(msg), eventType(type), timer(t) {}
+};
 
 class ThumbnailWidget : public QWidget {
   Q_OBJECT
@@ -41,9 +53,10 @@ public:
 
   void setCombatMessage(const QString &message,
                         const QString &eventType = QString());
-  QString getCombatMessage() const { return m_combatMessage; }
-  bool hasCombatEvent() const { return !m_combatMessage.isEmpty(); }
-  QString getCombatEventType() const { return m_combatEventType; }
+  QString getCombatMessage() const;
+  bool hasCombatEvent() const { return !m_combatEvents.isEmpty(); }
+  QString getCombatEventType() const;
+  QStringList getActiveCombatEventTypes() const;
 
   void forceUpdate();
   void updateWindowFlags(bool alwaysOnTop);
@@ -82,8 +95,7 @@ private:
   QString m_characterName;
   QString m_customName;
   QString m_systemName;
-  QString m_combatMessage;
-  QString m_combatEventType;
+  QList<CombatEvent> m_combatEvents;
   QColor m_cachedSystemColor;
   QPoint m_dragPosition;
   bool m_isDragging = false;
@@ -95,7 +107,6 @@ private:
 
   HTHUMBNAIL m_dwmThumbnail = nullptr;
   QTimer *m_updateTimer = nullptr;
-  QTimer *m_combatMessageTimer = nullptr;
 
   OverlayWidget *m_overlayWidget = nullptr;
 
@@ -119,7 +130,7 @@ public:
   void setActiveState(bool active);
   void setCharacterName(const QString &characterName);
   void setSystemName(const QString &systemName);
-  void setCombatEventState(bool hasCombatEvent, const QString &eventType);
+  void setCombatEventTypes(const QStringList &eventTypes);
   void updateWindowFlags(bool alwaysOnTop);
   void invalidateCache();
   void pauseAnimations();
@@ -133,8 +144,7 @@ private:
   bool m_isActive = false;
   QString m_characterName;
   QString m_systemName;
-  bool m_hasCombatEvent = false;
-  QString m_combatEventType;
+  QStringList m_combatEventTypes;
 
   QPixmap m_overlayCache;
   bool m_overlayDirty = true;

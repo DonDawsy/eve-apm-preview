@@ -4708,10 +4708,34 @@ void ConfigDialog::onTestOverlays() {
     if (cfg.showCombatMessages()) {
       QStringList enabledEvents = cfg.enabledCombatEventTypes();
       if (!enabledEvents.isEmpty()) {
+        // Add first event
         QString eventType = enabledEvents.first();
         m_testThumbnail->setCombatMessage("Sample Combat Event", eventType);
+
+        // Add second event if there's another enabled type, or use a different
+        // one
+        if (enabledEvents.size() > 1) {
+          m_testThumbnail->setCombatMessage("Second Combat Event",
+                                            enabledEvents.at(1));
+        } else if (enabledEvents.size() == 1) {
+          // Use a different default event type for variety
+          QString secondType =
+              (eventType == "fleet_invite") ? "follow_warp" : "fleet_invite";
+          m_testThumbnail->setCombatMessage("Fleet Warp Command", secondType);
+        }
       } else {
-        m_testThumbnail->setCombatMessage("Sample Event", "mining_start");
+        // Use event types that have borders enabled by default
+        m_testThumbnail->setCombatMessage("Fleet Invite", "fleet_invite");
+        m_testThumbnail->setCombatMessage("Follow Warp", "follow_warp");
+      }
+
+      // For testing: Log the active event types to verify they're registered
+      QStringList activeTypes = m_testThumbnail->getActiveCombatEventTypes();
+      qDebug() << "Test thumbnail active event types:" << activeTypes;
+      for (const QString &type : activeTypes) {
+        qDebug() << "  Event type:" << type
+                 << "Border enabled:" << cfg.combatEventBorderHighlight(type)
+                 << "Color:" << cfg.combatEventColor(type);
       }
     }
 

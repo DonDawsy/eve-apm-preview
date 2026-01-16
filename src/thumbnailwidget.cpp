@@ -35,18 +35,6 @@ ThumbnailWidget::ThumbnailWidget(quintptr windowId, const QString &title,
           &ThumbnailWidget::updateDwmThumbnail);
 
   m_updateTimer->start(60000);
-
-  m_combatMessageTimer = new QTimer(this);
-  m_combatMessageTimer->setSingleShot(true);
-  connect(m_combatMessageTimer, &QTimer::timeout, this, [this]() {
-    m_combatMessage.clear();
-    m_combatEventType.clear();
-    updateOverlays();
-
-    if (m_overlayWidget) {
-      m_overlayWidget->setCombatEventState(false, QString());
-    }
-  });
 }
 
 ThumbnailWidget::~ThumbnailWidget() { cleanupDwmThumbnail(); }
@@ -130,24 +118,53 @@ void ThumbnailWidget::refreshSystemColor() {
 
 void ThumbnailWidget::setCombatMessage(const QString &message,
                                        const QString &eventType) {
-  if (m_combatMessage == message && m_combatEventType == eventType) {
+  if (message.isEmpty()) {
     return;
   }
 
-  m_combatMessage = message;
-  m_combatEventType = eventType;
-  updateOverlays();
-
-  if (m_overlayWidget) {
-    m_overlayWidget->setCombatEventState(!message.isEmpty(), eventType);
+  // Check if this exact event is already active
+  for (const auto &event : m_combatEvents) {
+    if (event.message == message && event.eventType == eventType) {
+      return; // Don't add duplicates
+    }
   }
 
-  if (!message.isEmpty()) {
-    const Config &cfg = Config::instance();
-    int duration = cfg.combatEventDuration(eventType);
-    m_combatMessageTimer->start(duration);
-  } else {
-    m_combatMessageTimer->stop();
+  // Create a new timer for this event
+  QTimer *timer = new QTimer(this);
+  timer->setSingleShot(true);
+
+  // Add the event to the list
+  m_combatEvents.append(CombatEvent(message, eventType, timer));
+
+  // Connect the timer to remove this specific event when it expires
+  connect(timer, &QTimer::timeout, this, [this, timer]() {
+    // Find and remove the event associated with this timer
+    for (int i = 0; i < m_combatEvents.size(); ++i) {
+      if (m_combatEvents[i].timer == timer) {
+        m_combatEvents[i].timer->deleteLater();
+        m_combatEvents.removeAt(i);
+        break;
+      }
+    }
+
+    updateOverlays();
+
+    // Update the overlay widget with current active event types
+    if (m_overlayWidget) {
+      m_overlayWidget->setCombatEventTypes(getActiveCombatEventTypes());
+    }
+  });
+
+  // Start the timer with the event's configured duration
+  const Config &cfg = Config::instance();
+  int duration = cfg.combatEventDuration(eventType);
+  timer->start(duration);
+
+  updateOverlays();
+
+  // Update the overlay widget with current active event types
+  if (m_overlayWidget) {
+    m_overlayWidget->setCombatEventTypes(getActiveCombatEventTypes());
   }
 }
 
@@ -168,9 +185,15 @@ void ThumbnailWidget::closeImmediately() {
   if (m_updateTimer) {
     m_updateTimer->stop();
   }
-  if (m_combatMessageTimer) {
-    m_combatMessageTimer->stop();
+
+  // Stop and clean up all combat event timers
+  for (auto &event : m_combatEvents) {
+    if (event.timer) {
+      event.timer->stop();
+      event.timer->deleteLater();
+    }
   }
+  m_combatEvents.clear();
 
   setUpdatesEnabled(false);
   close();
@@ -207,16 +230,18 @@ void ThumbnailWidget::updateOverlays() {
     }
   }
 
-  if (!m_combatMessage.isEmpty() && cfg.showCombatMessages()) {
+  // Add all active combat events
+  if (cfg.showCombatMessages()) {
     OverlayPosition pos =
         static_cast<OverlayPosition>(cfg.combatMessagePosition());
-
-    QColor messageColor = cfg.combatEventColor(m_combatEventType);
-
     QFont combatFont = cfg.combatMessageFont();
-    OverlayElement combatElement(m_combatMessage, messageColor, pos, true,
-                                 combatFont);
-    m_overlays.append(combatElement);
+
+    for (const auto &event : m_combatEvents) {
+      QColor messageColor = cfg.combatEventColor(event.eventType);
+      OverlayElement combatElement(event.message, messageColor, pos, true,
+                                   combatFont);
+      m_overlays.append(combatElement);
+    }
   }
 
   updateOverlayWidget();
@@ -726,6 +751,32 @@ void ThumbnailWidget::hideEvent(QHideEvent *event) {
   }
 }
 
+QString ThumbnailWidget::getCombatMessage() const {
+  if (m_combatEvents.isEmpty()) {
+    return QString();
+  }
+  // Return the most recent message
+  return m_combatEvents.last().message;
+}
+
+QString ThumbnailWidget::getCombatEventType() const {
+  if (m_combatEvents.isEmpty()) {
+    return QString();
+  }
+  // Return the most recent event type
+  return m_combatEvents.last().eventType;
+}
+
+QStringList ThumbnailWidget::getActiveCombatEventTypes() const {
+  QStringList types;
+  for (const auto &event : m_combatEvents) {
+    if (!types.contains(event.eventType)) {
+      types.append(event.eventType);
+    }
+  }
+  return types;
+}
+
 OverlayWidget::OverlayWidget(QWidget *parent)
     : QWidget(parent, Qt::Tool | Qt::FramelessWindowHint) {
   setAttribute(Qt::WA_TransparentForMouseEvents, true);
@@ -787,7 +838,7 @@ void OverlayWidget::setActiveState(bool active) {
       m_animationPhase = 0.0;
       m_borderAnimationTimer->start();
     }
-  } else if (!m_hasCombatEvent) {
+  } else if (m_combatEventTypes.isEmpty()) {
     m_borderAnimationTimer->stop();
   }
 
@@ -810,23 +861,27 @@ void OverlayWidget::setSystemName(const QString &systemName) {
   update();
 }
 
-void OverlayWidget::setCombatEventState(bool hasCombatEvent,
-                                        const QString &eventType) {
-  if (m_hasCombatEvent == hasCombatEvent && m_combatEventType == eventType) {
+void OverlayWidget::setCombatEventTypes(const QStringList &eventTypes) {
+  if (m_combatEventTypes == eventTypes) {
     return;
   }
-  m_hasCombatEvent = hasCombatEvent;
-  m_combatEventType = eventType;
+  m_combatEventTypes = eventTypes;
 
-  if (hasCombatEvent) {
-    const Config &cfg = Config::instance();
+  const Config &cfg = Config::instance();
+  bool needsAnimation = false;
+
+  // Check if any event type has border highlighting enabled
+  for (const QString &eventType : m_combatEventTypes) {
     if (cfg.combatEventBorderHighlight(eventType)) {
-      m_animationPhase = 0.0;
-      m_borderAnimationTimer->start();
-    } else {
-      m_borderAnimationTimer->stop();
+      needsAnimation = true;
+      break;
     }
-  } else {
+  }
+
+  if (needsAnimation) {
+    m_animationPhase = 0.0;
+    m_borderAnimationTimer->start();
+  } else if (!m_isActive) {
     m_borderAnimationTimer->stop();
   }
 
@@ -865,9 +920,15 @@ void OverlayWidget::resumeAnimations() {
 
     bool needsAnimation = false;
 
-    if (m_hasCombatEvent && cfg.combatEventBorderHighlight(m_combatEventType)) {
-      needsAnimation = true;
-    } else if (m_isActive) {
+    // Check if any active combat event has border highlighting
+    for (const QString &eventType : m_combatEventTypes) {
+      if (cfg.combatEventBorderHighlight(eventType)) {
+        needsAnimation = true;
+        break;
+      }
+    }
+
+    if (!needsAnimation && m_isActive) {
       BorderStyle style = cfg.activeBorderStyle();
       needsAnimation =
           (style == BorderStyle::Dashed || style == BorderStyle::Neon ||
@@ -896,44 +957,43 @@ void OverlayWidget::paintEvent(QPaintEvent *) {
   bool shouldDrawActiveBorder =
       (highlightEnabled && m_isActive) || configDialogOpen;
 
-  bool shouldDrawCombatBorder =
-      m_hasCombatEvent && cfg.combatEventBorderHighlight(m_combatEventType);
-
   qreal halfWidth = cfg.highlightBorderWidth() / 2.0;
-  QRectF borderRect(halfWidth, halfWidth, width() - 2 * halfWidth,
-                    height() - 2 * halfWidth);
+  int borderWidth = cfg.highlightBorderWidth();
+  qreal currentOffset = 0.0;
 
-  // Draw both borders when both conditions are met
-  // Active border is drawn on the outside, combat border on the inside
+  // Draw active border on the outside
   if (shouldDrawActiveBorder) {
+    QRectF borderRect(halfWidth + currentOffset, halfWidth + currentOffset,
+                      width() - 2 * (halfWidth + currentOffset),
+                      height() - 2 * (halfWidth + currentOffset));
+
     QColor borderColor = cfg.getCharacterBorderColor(m_characterName);
     if (!borderColor.isValid()) {
       borderColor = cfg.highlightColor();
     }
 
-    int borderWidth = cfg.highlightBorderWidth();
     BorderStyle style = cfg.activeBorderStyle();
-
     drawBorderWithStyle(painter, borderRect, borderColor, borderWidth, style);
+
+    // Move offset inward for next border
+    currentOffset += borderWidth;
   }
 
-  if (shouldDrawCombatBorder) {
-    QColor borderColor = cfg.combatEventColor(m_combatEventType);
-    int borderWidth = cfg.highlightBorderWidth();
-    BorderStyle style = cfg.combatBorderStyle(m_combatEventType);
+  // Draw all combat event borders nested inside
+  for (const QString &eventType : m_combatEventTypes) {
+    if (cfg.combatEventBorderHighlight(eventType)) {
+      QRectF borderRect(halfWidth + currentOffset, halfWidth + currentOffset,
+                        width() - 2 * (halfWidth + currentOffset),
+                        height() - 2 * (halfWidth + currentOffset));
 
-    // If active border is also being drawn, inset the combat border
-    QRectF combatBorderRect = borderRect;
-    if (shouldDrawActiveBorder) {
-      // Offset the combat border inside by the border width
-      qreal offset = borderWidth;
-      combatBorderRect = QRectF(halfWidth + offset, halfWidth + offset,
-                                width() - 2 * (halfWidth + offset),
-                                height() - 2 * (halfWidth + offset));
+      QColor borderColor = cfg.combatEventColor(eventType);
+      BorderStyle style = cfg.combatBorderStyle(eventType);
+
+      drawBorderWithStyle(painter, borderRect, borderColor, borderWidth, style);
+
+      // Move offset inward for next border
+      currentOffset += borderWidth;
     }
-
-    drawBorderWithStyle(painter, combatBorderRect, borderColor, borderWidth,
-                        style);
   }
 }
 
