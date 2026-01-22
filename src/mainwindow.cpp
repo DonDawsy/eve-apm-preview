@@ -4,6 +4,7 @@
 #include "configdialog.h"
 #include "hotkeymanager.h"
 #include "overlayinfo.h"
+#include "protocolhandler.h"
 #include "thumbnailwidget.h"
 #include "windowcapture.h"
 #include <QAction>
@@ -14,6 +15,8 @@
 #include <QFont>
 #include <QGuiApplication>
 #include <QIcon>
+#include <QLocalSocket>
+#include <QMessageBox>
 #include <QPainter>
 #include <QPixmap>
 #include <QProcess>
@@ -226,6 +229,71 @@ MainWindow::MainWindow(QObject *parent)
              << ", GameLog:" << enableGameLog << ")";
   } else {
     qDebug() << "ChatLog: Monitoring disabled in config";
+  }
+
+  // Initialize protocol handler
+  m_protocolHandler = std::make_unique<ProtocolHandler>(this);
+
+  // Connect protocol handler signals
+  connect(m_protocolHandler.get(), &ProtocolHandler::profileRequested, this,
+          &MainWindow::handleProtocolProfileSwitch);
+  connect(m_protocolHandler.get(), &ProtocolHandler::characterRequested, this,
+          &MainWindow::handleProtocolCharacterActivation);
+  connect(m_protocolHandler.get(), &ProtocolHandler::hotkeySuspendRequested,
+          this, &MainWindow::handleProtocolHotkeySuspend);
+  connect(m_protocolHandler.get(), &ProtocolHandler::hotkeyResumeRequested,
+          this, &MainWindow::handleProtocolHotkeyResume);
+  connect(m_protocolHandler.get(), &ProtocolHandler::thumbnailHideRequested,
+          this, &MainWindow::handleProtocolThumbnailHide);
+  connect(m_protocolHandler.get(), &ProtocolHandler::thumbnailShowRequested,
+          this, &MainWindow::handleProtocolThumbnailShow);
+  connect(m_protocolHandler.get(), &ProtocolHandler::configOpenRequested, this,
+          &MainWindow::handleProtocolConfigOpen);
+  connect(m_protocolHandler.get(), &ProtocolHandler::invalidUrl, this,
+          &MainWindow::handleProtocolError);
+
+  // Always register/update protocol to ensure it points to current executable
+  bool needsRegistration = !m_protocolHandler->isProtocolRegistered();
+
+  if (!needsRegistration) {
+    // Check if registered path matches current executable
+    QString currentExe = QCoreApplication::applicationFilePath();
+    QString registeredCommand = m_protocolHandler->getRegistryValue(
+        "HKEY_CURRENT_USER\\Software\\Classes\\eveapm\\shell\\open\\command",
+        "", "");
+
+    // Check if the registered command contains the current executable path
+    if (!registeredCommand.contains(currentExe, Qt::CaseInsensitive)) {
+      qDebug() << "Protocol points to different executable, re-registering...";
+      qDebug() << "Current exe:" << currentExe;
+      qDebug() << "Registered command:" << registeredCommand;
+      needsRegistration = true;
+    }
+  }
+
+  if (needsRegistration) {
+    qDebug() << "Registering protocol...";
+    if (m_protocolHandler->registerProtocol()) {
+      qDebug() << "Protocol registered successfully";
+    } else {
+      qWarning() << "Failed to register protocol";
+    }
+  } else {
+    qDebug() << "Protocol already registered to current executable";
+  }
+
+  // Set up IPC server for single-instance communication
+  m_ipcServer = std::make_unique<QLocalServer>(this);
+
+  // Remove any existing server (in case of crash)
+  QLocalServer::removeServer("EVE-APM-Preview-IPC");
+
+  if (m_ipcServer->listen("EVE-APM-Preview-IPC")) {
+    connect(m_ipcServer.get(), &QLocalServer::newConnection, this,
+            &MainWindow::handleIpcConnection);
+    qDebug() << "IPC server started for protocol handling";
+  } else {
+    qWarning() << "Failed to start IPC server:" << m_ipcServer->errorString();
   }
 
   hotkeyManager->registerHotkeys();
@@ -2536,4 +2604,167 @@ bool MainWindow::tryRestoreClientLocation(HWND hwnd,
   verifyTimer->start();
   m_clientLocationMoveAttempted[hwnd] = true;
   return true;
+}
+
+void MainWindow::handleProtocolProfileSwitch(const QString &profileName) {
+  qDebug() << "Protocol request: switch to profile" << profileName;
+
+  // Check if profile exists
+  if (!Config::instance().profileExists(profileName)) {
+    QString msg = QString("Profile '%1' does not exist.\n\n"
+                          "Create this profile in Settings first.")
+                      .arg(profileName);
+    QMessageBox::warning(nullptr, "Profile Not Found", msg);
+    qWarning() << "Protocol handler: Profile not found:" << profileName;
+    return;
+  }
+
+  // Use existing profile switch method
+  handleProfileSwitch(profileName);
+
+  qDebug() << "Protocol handler: Successfully switched to profile"
+           << profileName;
+}
+
+void MainWindow::handleProtocolCharacterActivation(
+    const QString &characterName) {
+  qDebug() << "Protocol request: activate character" << characterName;
+
+  // Check if character window exists
+  HWND hwnd = hotkeyManager->getWindowForCharacter(characterName);
+  if (!hwnd) {
+    QString msg = QString("Character '%1' is not running or not recognized.\n\n"
+                          "Make sure the character is logged in.")
+                      .arg(characterName);
+    QMessageBox::warning(nullptr, "Character Not Found", msg);
+    qWarning() << "Protocol handler: Character not found:" << characterName;
+    return;
+  }
+
+  // Use existing character activation method
+  activateCharacter(characterName);
+
+  qDebug() << "Protocol handler: Successfully activated character"
+           << characterName;
+}
+
+void MainWindow::handleProtocolHotkeySuspend() {
+  qDebug() << "Protocol request: suspend hotkeys";
+
+  if (hotkeyManager) {
+    if (!hotkeyManager->isSuspended()) {
+      hotkeyManager->setSuspended(true);
+      qDebug() << "Protocol handler: Hotkeys suspended";
+    } else {
+      qDebug() << "Protocol handler: Hotkeys already suspended";
+    }
+  }
+}
+
+void MainWindow::handleProtocolHotkeyResume() {
+  qDebug() << "Protocol request: resume hotkeys";
+
+  if (hotkeyManager) {
+    if (hotkeyManager->isSuspended()) {
+      hotkeyManager->setSuspended(false);
+      qDebug() << "Protocol handler: Hotkeys resumed";
+    } else {
+      qDebug() << "Protocol handler: Hotkeys already active";
+    }
+  }
+}
+
+void MainWindow::handleProtocolThumbnailHide() {
+  qDebug() << "Protocol request: hide thumbnails";
+
+  if (!m_thumbnailsManuallyHidden) {
+    m_thumbnailsManuallyHidden = true;
+
+    for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
+      if (it.value()) {
+        it.value()->hide();
+      }
+    }
+
+    if (m_hideThumbnailsAction) {
+      m_hideThumbnailsAction->setChecked(true);
+    }
+
+    qDebug() << "Protocol handler: Thumbnails hidden";
+  } else {
+    qDebug() << "Protocol handler: Thumbnails already hidden";
+  }
+}
+
+void MainWindow::handleProtocolThumbnailShow() {
+  qDebug() << "Protocol request: show thumbnails";
+
+  if (m_thumbnailsManuallyHidden) {
+    m_thumbnailsManuallyHidden = false;
+
+    for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
+      if (it.value()) {
+        it.value()->show();
+      }
+    }
+
+    if (m_hideThumbnailsAction) {
+      m_hideThumbnailsAction->setChecked(false);
+    }
+
+    qDebug() << "Protocol handler: Thumbnails shown";
+  } else {
+    qDebug() << "Protocol handler: Thumbnails already visible";
+  }
+}
+
+void MainWindow::handleProtocolConfigOpen() {
+  qDebug() << "Protocol request: open config dialog";
+  showSettings();
+  qDebug() << "Protocol handler: Config dialog opened";
+}
+
+void MainWindow::handleProtocolError(const QString &url,
+                                     const QString &reason) {
+  qWarning() << "Protocol error:" << reason << "- URL:" << url;
+
+  QString msg = QString("Failed to process protocol URL:\n%1\n\n"
+                        "Reason: %2")
+                    .arg(url)
+                    .arg(reason);
+  QMessageBox::warning(nullptr, "Invalid Protocol URL", msg);
+}
+
+void MainWindow::handleIpcConnection() {
+  QLocalSocket *clientSocket = m_ipcServer->nextPendingConnection();
+
+  if (!clientSocket) {
+    return;
+  }
+
+  qDebug() << "IPC connection received";
+
+  connect(clientSocket, &QLocalSocket::readyRead, this, [this, clientSocket]() {
+    QByteArray data = clientSocket->readAll();
+    QString url = QString::fromUtf8(data).trimmed();
+
+    qDebug() << "Received URL via IPC:" << url;
+
+    // Process the URL
+    processProtocolUrl(url);
+
+    clientSocket->disconnectFromServer();
+  });
+
+  connect(clientSocket, &QLocalSocket::disconnected, clientSocket,
+          &QLocalSocket::deleteLater);
+}
+
+void MainWindow::processProtocolUrl(const QString &url) {
+  if (m_protocolHandler) {
+    m_protocolHandler->handleUrl(url);
+  } else {
+    qWarning() << "Protocol handler not initialized, cannot process URL:"
+               << url;
+  }
 }

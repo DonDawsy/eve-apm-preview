@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QHash>
+#include <QLocalServer>
 #include <QMenu>
 #include <QObject>
 #include <QPoint>
@@ -18,6 +19,7 @@ class WindowCapture;
 class HotkeyManager;
 class ConfigDialog;
 class ChatLogReader;
+class ProtocolHandler;
 struct CycleGroup;
 
 class MainWindow : public QObject {
@@ -28,6 +30,7 @@ public:
   ~MainWindow();
 
   void applySettings();
+  void processProtocolUrl(const QString &url);
 
 signals:
   void profileSwitchedExternally(const QString &profileName);
@@ -73,6 +76,8 @@ private:
   std::unique_ptr<HotkeyManager> hotkeyManager;
   std::unique_ptr<ChatLogReader> m_chatLogReader;
   std::unique_ptr<QSoundEffect> m_soundEffect;
+  std::unique_ptr<ProtocolHandler> m_protocolHandler;
+  std::unique_ptr<QLocalServer> m_ipcServer;
   QHash<HWND, ThumbnailWidget *> thumbnails;
   QHash<QString, HWND> m_characterToWindow;
   QHash<HWND, QString> m_windowToCharacter;
@@ -140,6 +145,15 @@ private:
   void handleNonEVECycleForward();
   void handleNonEVECycleBackward();
   void handleProfileSwitch(const QString &profileName);
+  void handleProtocolProfileSwitch(const QString &profileName);
+  void handleProtocolCharacterActivation(const QString &characterName);
+  void handleProtocolHotkeySuspend();
+  void handleProtocolHotkeyResume();
+  void handleProtocolThumbnailHide();
+  void handleProtocolThumbnailShow();
+  void handleProtocolConfigOpen();
+  void handleProtocolError(const QString &url, const QString &reason);
+  void handleIpcConnection();
   void updateAllCycleIndices(HWND hwnd);
   void updateCharacterHotkeyCycleIndices(HWND hwnd);
   void activateWindow(HWND hwnd);

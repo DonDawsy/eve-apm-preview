@@ -37,6 +37,7 @@ set(SOURCES
     src/stylesheet.cpp
     src/chatlogreader.cpp
     src/systemcolorsdialog.cpp
+    src/protocolhandler.cpp
 )
 
 set(RESOURCES
@@ -57,6 +58,7 @@ set(HEADERS
     include/stylesheet.h
     include/chatlogreader.h
     include/systemcolorsdialog.h
+    include/protocolhandler.h
     ${CMAKE_BINARY_DIR}/include/version.h  
 )
 
