@@ -909,14 +909,8 @@ void MainWindow::handleWindowTitleChange(HWND hwnd) {
   const Config &cfg = Config::instance();
 
   if (wasNotLoggedIn && isNowLoggedIn) {
-    if (cfg.isCharacterHidden(newCharacterName)) {
-      thumbWidget->hide();
-      m_characterToWindow[newCharacterName] = hwnd;
-      m_windowToCharacter[hwnd] = newCharacterName;
-      m_needsMappingUpdate = true;
-      updateCharacterMappings();
-      return;
-    }
+    m_characterToWindow[newCharacterName] = hwnd;
+    m_windowToCharacter[hwnd] = newCharacterName;
 
     thumbWidget->setCharacterName(newCharacterName);
 
@@ -977,6 +971,9 @@ void MainWindow::handleWindowTitleChange(HWND hwnd) {
     m_needsMappingUpdate = true;
     updateCharacterMappings();
   }
+
+  // Update thumbnail visibility based on current settings
+  updateActiveWindow();
 }
 
 QPoint MainWindow::calculateNotLoggedInPosition(int index) {
