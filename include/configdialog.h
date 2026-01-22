@@ -298,6 +298,12 @@ private:
   QLabel *m_characterNamePositionLabel;
   QPushButton *m_characterNameFontButton;
   QLabel *m_characterNameFontLabel;
+  QLabel *m_characterNameOffsetXLabel;
+  QSlider *m_characterNameOffsetXSlider;
+  QLabel *m_characterNameOffsetXValue;
+  QLabel *m_characterNameOffsetYLabel;
+  QSlider *m_characterNameOffsetYSlider;
+  QLabel *m_characterNameOffsetYValue;
 
   QCheckBox *m_showSystemNameCheck;
   QCheckBox *m_uniqueSystemColorsCheck;
@@ -309,6 +315,12 @@ private:
   QLabel *m_systemNameFontLabel;
   QLabel *m_customSystemColorsLabel;
   QPushButton *m_customSystemColorsButton;
+  QLabel *m_systemNameOffsetXLabel;
+  QSlider *m_systemNameOffsetXSlider;
+  QLabel *m_systemNameOffsetXValue;
+  QLabel *m_systemNameOffsetYLabel;
+  QSlider *m_systemNameOffsetYSlider;
+  QLabel *m_systemNameOffsetYValue;
 
   QCheckBox *m_showBackgroundCheck;
   QPushButton *m_backgroundColorButton;
@@ -341,6 +353,12 @@ private:
   QLabel *m_combatMessagePositionLabel;
   QPushButton *m_combatMessageFontButton;
   QLabel *m_combatMessageFontLabel;
+  QLabel *m_combatMessageOffsetXLabel;
+  QSlider *m_combatMessageOffsetXSlider;
+  QLabel *m_combatMessageOffsetXValue;
+  QLabel *m_combatMessageOffsetYLabel;
+  QSlider *m_combatMessageOffsetYSlider;
+  QLabel *m_combatMessageOffsetYValue;
   QCheckBox *m_combatEventFleetInviteCheck;
   QCheckBox *m_combatEventFollowWarpCheck;
   QCheckBox *m_combatEventRegroupCheck;

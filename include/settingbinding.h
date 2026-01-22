@@ -8,6 +8,7 @@
 #include <QCheckBox>
 #include <QLineEdit>
 #include <QComboBox>
+#include <QSlider>
 #include <QPushButton>
 #include <QTableWidget>
 #include <QColor>
@@ -364,6 +365,22 @@ namespace BindingHelpers {
             defaultValue,
             [](QComboBox* w) { return w->currentIndex(); },
             [](QComboBox* w, int v) { w->setCurrentIndex(v); }
+        );
+    }
+    
+    inline std::unique_ptr<SettingBindingBase> bindSlider(
+        QSlider* widget,
+        std::function<int()> getter,
+        std::function<void(int)> setter,
+        int defaultValue)
+    {
+        return std::make_unique<SettingBinding<QSlider, int>>(
+            widget,
+            getter,
+            setter,
+            defaultValue,
+            [](QSlider* w) { return w->value(); },
+            [](QSlider* w, int v) { w->setValue(v); }
         );
     }
     

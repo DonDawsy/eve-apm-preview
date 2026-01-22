@@ -217,6 +217,14 @@ void Config::loadCacheFromSettings() {
   m_cachedCharacterNameFont.fromString(
       m_settings->value(KEY_OVERLAY_CHARACTER_FONT, defaultCharFont.toString())
           .toString());
+  m_cachedCharacterNameOffsetX =
+      m_settings
+          ->value(KEY_OVERLAY_CHARACTER_OFFSET_X, DEFAULT_OVERLAY_OFFSET_X)
+          .toInt();
+  m_cachedCharacterNameOffsetY =
+      m_settings
+          ->value(KEY_OVERLAY_CHARACTER_OFFSET_Y, DEFAULT_OVERLAY_OFFSET_Y)
+          .toInt();
 
   m_cachedShowSystemName =
       m_settings->value(KEY_OVERLAY_SHOW_SYSTEM, DEFAULT_OVERLAY_SHOW_SYSTEM)
@@ -237,6 +245,12 @@ void Config::loadCacheFromSettings() {
   m_cachedSystemNameFont.fromString(
       m_settings->value(KEY_OVERLAY_SYSTEM_FONT, defaultSysFont.toString())
           .toString());
+  m_cachedSystemNameOffsetX =
+      m_settings->value(KEY_OVERLAY_SYSTEM_OFFSET_X, DEFAULT_OVERLAY_OFFSET_X)
+          .toInt();
+  m_cachedSystemNameOffsetY =
+      m_settings->value(KEY_OVERLAY_SYSTEM_OFFSET_Y, DEFAULT_OVERLAY_OFFSET_Y)
+          .toInt();
 
   m_cachedShowOverlayBackground =
       m_settings
@@ -290,6 +304,10 @@ void Config::loadCacheFromSettings() {
   defaultCombatFont.setBold(true);
   m_cachedCombatMessageFont =
       m_settings->value(KEY_COMBAT_FONT, defaultCombatFont).value<QFont>();
+  m_cachedCombatMessageOffsetX =
+      m_settings->value(KEY_COMBAT_OFFSET_X, DEFAULT_OVERLAY_OFFSET_X).toInt();
+  m_cachedCombatMessageOffsetY =
+      m_settings->value(KEY_COMBAT_OFFSET_Y, DEFAULT_OVERLAY_OFFSET_Y).toInt();
   m_cachedSuppressCombatWhenFocused =
       m_settings
           ->value(KEY_COMBAT_SUPPRESS_FOCUSED, DEFAULT_COMBAT_SUPPRESS_FOCUSED)
@@ -927,11 +945,43 @@ void Config::setCharacterNameFont(const QFont &font) {
   m_cachedCharacterNameFont = font;
 }
 
+int Config::characterNameOffsetX() const {
+  return m_cachedCharacterNameOffsetX;
+}
+
+void Config::setCharacterNameOffsetX(int offset) {
+  m_settings->setValue(KEY_OVERLAY_CHARACTER_OFFSET_X, offset);
+  m_cachedCharacterNameOffsetX = offset;
+}
+
+int Config::characterNameOffsetY() const {
+  return m_cachedCharacterNameOffsetY;
+}
+
+void Config::setCharacterNameOffsetY(int offset) {
+  m_settings->setValue(KEY_OVERLAY_CHARACTER_OFFSET_Y, offset);
+  m_cachedCharacterNameOffsetY = offset;
+}
+
 QFont Config::systemNameFont() const { return m_cachedSystemNameFont; }
 
 void Config::setSystemNameFont(const QFont &font) {
   m_settings->setValue(KEY_OVERLAY_SYSTEM_FONT, font.toString());
   m_cachedSystemNameFont = font;
+}
+
+int Config::systemNameOffsetX() const { return m_cachedSystemNameOffsetX; }
+
+void Config::setSystemNameOffsetX(int offset) {
+  m_settings->setValue(KEY_OVERLAY_SYSTEM_OFFSET_X, offset);
+  m_cachedSystemNameOffsetX = offset;
+}
+
+int Config::systemNameOffsetY() const { return m_cachedSystemNameOffsetY; }
+
+void Config::setSystemNameOffsetY(int offset) {
+  m_settings->setValue(KEY_OVERLAY_SYSTEM_OFFSET_Y, offset);
+  m_cachedSystemNameOffsetY = offset;
 }
 
 QColor Config::getSystemNameColor(const QString &systemName) const {
@@ -1629,6 +1679,24 @@ QFont Config::combatMessageFont() const { return m_cachedCombatMessageFont; }
 void Config::setCombatMessageFont(const QFont &font) {
   m_settings->setValue(KEY_COMBAT_FONT, font);
   m_cachedCombatMessageFont = font;
+}
+
+int Config::combatMessageOffsetX() const {
+  return m_cachedCombatMessageOffsetX;
+}
+
+void Config::setCombatMessageOffsetX(int offset) {
+  m_settings->setValue(KEY_COMBAT_OFFSET_X, offset);
+  m_cachedCombatMessageOffsetX = offset;
+}
+
+int Config::combatMessageOffsetY() const {
+  return m_cachedCombatMessageOffsetY;
+}
+
+void Config::setCombatMessageOffsetY(int offset) {
+  m_settings->setValue(KEY_COMBAT_OFFSET_Y, offset);
+  m_cachedCombatMessageOffsetY = offset;
 }
 
 QStringList Config::enabledCombatEventTypes() const {

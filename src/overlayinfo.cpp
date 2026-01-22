@@ -72,7 +72,8 @@ QString OverlayInfo::truncateText(const QString &text, const QFont &font,
 
 QRect OverlayInfo::calculateTextRect(const QRect &thumbnailRect,
                                      OverlayPosition position,
-                                     const QString &text, const QFont &font) {
+                                     const QString &text, const QFont &font,
+                                     int offsetX, int offsetY) {
   QFontMetrics metrics(font);
 
   int padding = 5;
@@ -124,6 +125,10 @@ QRect OverlayInfo::calculateTextRect(const QRect &thumbnailRect,
     y = thumbnailRect.height() - padding;
     break;
   }
+
+  // Apply user-defined offsets
+  x += offsetX;
+  y += offsetY;
 
   return QRect(x, y - textHeight, textWidth, textHeight);
 }

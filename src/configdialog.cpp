@@ -796,6 +796,55 @@ void ConfigDialog::createAppearancePage() {
   charGrid->addWidget(m_characterNameFontLabel, 2, 0, Qt::AlignLeft);
   charGrid->addWidget(m_characterNameFontButton, 2, 1);
 
+  // X Offset slider
+  m_characterNameOffsetXLabel = new QLabel("X Offset:");
+  m_characterNameOffsetXLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_characterNameOffsetXSlider = new QSlider(Qt::Horizontal);
+  m_characterNameOffsetXSlider->setRange(-20, 20);
+  m_characterNameOffsetXSlider->setValue(0);
+  m_characterNameOffsetXSlider->setTickPosition(QSlider::TicksBelow);
+  m_characterNameOffsetXSlider->setTickInterval(5);
+  m_characterNameOffsetXSlider->setFixedWidth(150);
+  m_characterNameOffsetXValue = new QLabel("0");
+  m_characterNameOffsetXValue->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_characterNameOffsetXValue->setFixedWidth(30);
+  m_characterNameOffsetXValue->setAlignment(Qt::AlignCenter);
+  QHBoxLayout *charOffsetXLayout = new QHBoxLayout();
+  charOffsetXLayout->addWidget(m_characterNameOffsetXSlider);
+  charOffsetXLayout->addWidget(m_characterNameOffsetXValue);
+  charOffsetXLayout->setContentsMargins(0, 0, 0, 0);
+  charGrid->addWidget(m_characterNameOffsetXLabel, 3, 0, Qt::AlignLeft);
+  charGrid->addLayout(charOffsetXLayout, 3, 1);
+
+  // Y Offset slider
+  m_characterNameOffsetYLabel = new QLabel("Y Offset:");
+  m_characterNameOffsetYLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_characterNameOffsetYSlider = new QSlider(Qt::Horizontal);
+  m_characterNameOffsetYSlider->setRange(-20, 20);
+  m_characterNameOffsetYSlider->setValue(0);
+  m_characterNameOffsetYSlider->setTickPosition(QSlider::TicksBelow);
+  m_characterNameOffsetYSlider->setTickInterval(5);
+  m_characterNameOffsetYSlider->setFixedWidth(150);
+  m_characterNameOffsetYValue = new QLabel("0");
+  m_characterNameOffsetYValue->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_characterNameOffsetYValue->setFixedWidth(30);
+  m_characterNameOffsetYValue->setAlignment(Qt::AlignCenter);
+  QHBoxLayout *charOffsetYLayout = new QHBoxLayout();
+  charOffsetYLayout->addWidget(m_characterNameOffsetYSlider);
+  charOffsetYLayout->addWidget(m_characterNameOffsetYValue);
+  charOffsetYLayout->setContentsMargins(0, 0, 0, 0);
+  charGrid->addWidget(m_characterNameOffsetYLabel, 4, 0, Qt::AlignLeft);
+  charGrid->addLayout(charOffsetYLayout, 4, 1);
+
+  connect(m_characterNameOffsetXSlider, &QSlider::valueChanged, this,
+          [this](int value) {
+            m_characterNameOffsetXValue->setText(QString::number(value));
+          });
+  connect(m_characterNameOffsetYSlider, &QSlider::valueChanged, this,
+          [this](int value) {
+            m_characterNameOffsetYValue->setText(QString::number(value));
+          });
+
   overlaysSectionLayout->addLayout(charGrid);
 
   connect(m_showCharacterNameCheck, &QCheckBox::toggled, this,
@@ -806,6 +855,12 @@ void ConfigDialog::createAppearancePage() {
             m_characterNamePositionCombo->setEnabled(checked);
             m_characterNameFontLabel->setEnabled(checked);
             m_characterNameFontButton->setEnabled(checked);
+            m_characterNameOffsetXLabel->setEnabled(checked);
+            m_characterNameOffsetXSlider->setEnabled(checked);
+            m_characterNameOffsetXValue->setEnabled(checked);
+            m_characterNameOffsetYLabel->setEnabled(checked);
+            m_characterNameOffsetYSlider->setEnabled(checked);
+            m_characterNameOffsetYValue->setEnabled(checked);
           });
 
   m_showSystemNameCheck = new QCheckBox("Show system name");
@@ -873,6 +928,55 @@ void ConfigDialog::createAppearancePage() {
   sysGrid->addWidget(m_systemNameFontLabel, 3, 0, Qt::AlignLeft);
   sysGrid->addWidget(m_systemNameFontButton, 3, 1);
 
+  // X Offset slider
+  m_systemNameOffsetXLabel = new QLabel("X Offset:");
+  m_systemNameOffsetXLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_systemNameOffsetXSlider = new QSlider(Qt::Horizontal);
+  m_systemNameOffsetXSlider->setRange(-20, 20);
+  m_systemNameOffsetXSlider->setValue(0);
+  m_systemNameOffsetXSlider->setTickPosition(QSlider::TicksBelow);
+  m_systemNameOffsetXSlider->setTickInterval(5);
+  m_systemNameOffsetXSlider->setFixedWidth(150);
+  m_systemNameOffsetXValue = new QLabel("0");
+  m_systemNameOffsetXValue->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_systemNameOffsetXValue->setFixedWidth(30);
+  m_systemNameOffsetXValue->setAlignment(Qt::AlignCenter);
+  QHBoxLayout *sysOffsetXLayout = new QHBoxLayout();
+  sysOffsetXLayout->addWidget(m_systemNameOffsetXSlider);
+  sysOffsetXLayout->addWidget(m_systemNameOffsetXValue);
+  sysOffsetXLayout->setContentsMargins(0, 0, 0, 0);
+  sysGrid->addWidget(m_systemNameOffsetXLabel, 4, 0, Qt::AlignLeft);
+  sysGrid->addLayout(sysOffsetXLayout, 4, 1);
+
+  // Y Offset slider
+  m_systemNameOffsetYLabel = new QLabel("Y Offset:");
+  m_systemNameOffsetYLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_systemNameOffsetYSlider = new QSlider(Qt::Horizontal);
+  m_systemNameOffsetYSlider->setRange(-20, 20);
+  m_systemNameOffsetYSlider->setValue(0);
+  m_systemNameOffsetYSlider->setTickPosition(QSlider::TicksBelow);
+  m_systemNameOffsetYSlider->setTickInterval(5);
+  m_systemNameOffsetYSlider->setFixedWidth(150);
+  m_systemNameOffsetYValue = new QLabel("0");
+  m_systemNameOffsetYValue->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_systemNameOffsetYValue->setFixedWidth(30);
+  m_systemNameOffsetYValue->setAlignment(Qt::AlignCenter);
+  QHBoxLayout *sysOffsetYLayout = new QHBoxLayout();
+  sysOffsetYLayout->addWidget(m_systemNameOffsetYSlider);
+  sysOffsetYLayout->addWidget(m_systemNameOffsetYValue);
+  sysOffsetYLayout->setContentsMargins(0, 0, 0, 0);
+  sysGrid->addWidget(m_systemNameOffsetYLabel, 5, 0, Qt::AlignLeft);
+  sysGrid->addLayout(sysOffsetYLayout, 5, 1);
+
+  connect(m_systemNameOffsetXSlider, &QSlider::valueChanged, this,
+          [this](int value) {
+            m_systemNameOffsetXValue->setText(QString::number(value));
+          });
+  connect(m_systemNameOffsetYSlider, &QSlider::valueChanged, this,
+          [this](int value) {
+            m_systemNameOffsetYValue->setText(QString::number(value));
+          });
+
   overlaysSectionLayout->addLayout(sysGrid);
 
   connect(m_showSystemNameCheck, &QCheckBox::toggled, this,
@@ -888,6 +992,12 @@ void ConfigDialog::createAppearancePage() {
             m_systemNameFontButton->setEnabled(checked);
             m_customSystemColorsLabel->setEnabled(checked);
             m_customSystemColorsButton->setEnabled(checked);
+            m_systemNameOffsetXLabel->setEnabled(checked);
+            m_systemNameOffsetXSlider->setEnabled(checked);
+            m_systemNameOffsetXValue->setEnabled(checked);
+            m_systemNameOffsetYLabel->setEnabled(checked);
+            m_systemNameOffsetYSlider->setEnabled(checked);
+            m_systemNameOffsetYValue->setEnabled(checked);
           });
 
   connect(m_uniqueSystemColorsCheck, &QCheckBox::toggled, this,
@@ -2306,6 +2416,59 @@ void ConfigDialog::createDataSourcesPage() {
   fontLayout->addStretch();
   combatSectionLayout->addLayout(fontLayout);
 
+  // X Offset slider
+  QHBoxLayout *offsetXLayout = new QHBoxLayout();
+  offsetXLayout->setContentsMargins(0, 0, 0, 0);
+  m_combatMessageOffsetXLabel = new QLabel("X Offset:");
+  m_combatMessageOffsetXLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_combatMessageOffsetXLabel->setFixedWidth(150);
+  m_combatMessageOffsetXSlider = new QSlider(Qt::Horizontal);
+  m_combatMessageOffsetXSlider->setRange(-20, 20);
+  m_combatMessageOffsetXSlider->setValue(0);
+  m_combatMessageOffsetXSlider->setTickPosition(QSlider::TicksBelow);
+  m_combatMessageOffsetXSlider->setTickInterval(5);
+  m_combatMessageOffsetXSlider->setFixedWidth(150);
+  m_combatMessageOffsetXValue = new QLabel("0");
+  m_combatMessageOffsetXValue->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_combatMessageOffsetXValue->setFixedWidth(30);
+  m_combatMessageOffsetXValue->setAlignment(Qt::AlignCenter);
+  offsetXLayout->addWidget(m_combatMessageOffsetXLabel);
+  offsetXLayout->addWidget(m_combatMessageOffsetXSlider);
+  offsetXLayout->addWidget(m_combatMessageOffsetXValue);
+  offsetXLayout->addStretch();
+  combatSectionLayout->addLayout(offsetXLayout);
+
+  // Y Offset slider
+  QHBoxLayout *offsetYLayout = new QHBoxLayout();
+  offsetYLayout->setContentsMargins(0, 0, 0, 0);
+  m_combatMessageOffsetYLabel = new QLabel("Y Offset:");
+  m_combatMessageOffsetYLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_combatMessageOffsetYLabel->setFixedWidth(150);
+  m_combatMessageOffsetYSlider = new QSlider(Qt::Horizontal);
+  m_combatMessageOffsetYSlider->setRange(-20, 20);
+  m_combatMessageOffsetYSlider->setValue(0);
+  m_combatMessageOffsetYSlider->setTickPosition(QSlider::TicksBelow);
+  m_combatMessageOffsetYSlider->setTickInterval(5);
+  m_combatMessageOffsetYSlider->setFixedWidth(150);
+  m_combatMessageOffsetYValue = new QLabel("0");
+  m_combatMessageOffsetYValue->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_combatMessageOffsetYValue->setFixedWidth(30);
+  m_combatMessageOffsetYValue->setAlignment(Qt::AlignCenter);
+  offsetYLayout->addWidget(m_combatMessageOffsetYLabel);
+  offsetYLayout->addWidget(m_combatMessageOffsetYSlider);
+  offsetYLayout->addWidget(m_combatMessageOffsetYValue);
+  offsetYLayout->addStretch();
+  combatSectionLayout->addLayout(offsetYLayout);
+
+  connect(m_combatMessageOffsetXSlider, &QSlider::valueChanged, this,
+          [this](int value) {
+            m_combatMessageOffsetXValue->setText(QString::number(value));
+          });
+  connect(m_combatMessageOffsetYSlider, &QSlider::valueChanged, this,
+          [this](int value) {
+            m_combatMessageOffsetYValue->setText(QString::number(value));
+          });
+
   // Create tab widget for individual event settings
   QTabWidget *combatTabs = new QTabWidget();
   combatTabs->setStyleSheet(StyleSheet::getTabWidgetStyleSheet());
@@ -2959,6 +3122,12 @@ void ConfigDialog::createDataSourcesPage() {
         m_combatMessagePositionLabel->setEnabled(checked);
         m_combatMessageFontButton->setEnabled(checked);
         m_combatMessageFontLabel->setEnabled(checked);
+        m_combatMessageOffsetXLabel->setEnabled(checked);
+        m_combatMessageOffsetXSlider->setEnabled(checked);
+        m_combatMessageOffsetXValue->setEnabled(checked);
+        m_combatMessageOffsetYLabel->setEnabled(checked);
+        m_combatMessageOffsetYSlider->setEnabled(checked);
+        m_combatMessageOffsetYValue->setEnabled(checked);
         m_combatEventFleetInviteCheck->setEnabled(checked);
         m_combatEventFollowWarpCheck->setEnabled(checked);
         m_combatEventRegroupCheck->setEnabled(checked);
@@ -3476,6 +3645,16 @@ void ConfigDialog::setupBindings() {
       [&config]() { return config.characterNamePosition(); },
       [&config](int value) { config.setCharacterNamePosition(value); }, 0));
 
+  m_bindingManager.addBinding(BindingHelpers::bindSlider(
+      m_characterNameOffsetXSlider,
+      [&config]() { return config.characterNameOffsetX(); },
+      [&config](int value) { config.setCharacterNameOffsetX(value); }, 0));
+
+  m_bindingManager.addBinding(BindingHelpers::bindSlider(
+      m_characterNameOffsetYSlider,
+      [&config]() { return config.characterNameOffsetY(); },
+      [&config](int value) { config.setCharacterNameOffsetY(value); }, 0));
+
   m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
       m_showSystemNameCheck, [&config]() { return config.showSystemName(); },
       [&config](bool value) { config.setShowSystemName(value); }, true));
@@ -3500,6 +3679,16 @@ void ConfigDialog::setupBindings() {
       m_systemNamePositionCombo,
       [&config]() { return config.systemNamePosition(); },
       [&config](int value) { config.setSystemNamePosition(value); }, 0));
+
+  m_bindingManager.addBinding(BindingHelpers::bindSlider(
+      m_systemNameOffsetXSlider,
+      [&config]() { return config.systemNameOffsetX(); },
+      [&config](int value) { config.setSystemNameOffsetX(value); }, 0));
+
+  m_bindingManager.addBinding(BindingHelpers::bindSlider(
+      m_systemNameOffsetYSlider,
+      [&config]() { return config.systemNameOffsetY(); },
+      [&config](int value) { config.setSystemNameOffsetY(value); }, 0));
 
   m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
       m_showBackgroundCheck,
@@ -3565,6 +3754,16 @@ void ConfigDialog::setupBindings() {
       m_combatMessagePositionCombo,
       [&config]() { return config.combatMessagePosition(); },
       [&config](int value) { config.setCombatMessagePosition(value); }, 6));
+
+  m_bindingManager.addBinding(BindingHelpers::bindSlider(
+      m_combatMessageOffsetXSlider,
+      [&config]() { return config.combatMessageOffsetX(); },
+      [&config](int value) { config.setCombatMessageOffsetX(value); }, 0));
+
+  m_bindingManager.addBinding(BindingHelpers::bindSlider(
+      m_combatMessageOffsetYSlider,
+      [&config]() { return config.combatMessageOffsetY(); },
+      [&config](int value) { config.setCombatMessageOffsetY(value); }, 0));
 
   m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
       m_combatEventFleetInviteCheck,

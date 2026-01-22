@@ -212,7 +212,9 @@ void ThumbnailWidget::updateOverlays() {
       QFont characterFont = cfg.characterNameFont();
       characterFont.setBold(true);
       OverlayElement charElement(displayName, cfg.characterNameColor(), pos,
-                                 true, characterFont);
+                                 true, characterFont,
+                                 cfg.characterNameOffsetX(),
+                                 cfg.characterNameOffsetY());
       m_overlays.append(charElement);
     }
   }
@@ -225,7 +227,8 @@ void ThumbnailWidget::updateOverlays() {
       systemFont.setBold(true);
 
       OverlayElement sysElement(m_systemName, m_cachedSystemColor, pos, true,
-                                systemFont);
+                                systemFont, cfg.systemNameOffsetX(),
+                                cfg.systemNameOffsetY());
       m_overlays.append(sysElement);
     }
   }
@@ -239,7 +242,8 @@ void ThumbnailWidget::updateOverlays() {
     for (const auto &event : m_combatEvents) {
       QColor messageColor = cfg.combatEventColor(event.eventType);
       OverlayElement combatElement(event.message, messageColor, pos, true,
-                                   combatFont);
+                                   combatFont, cfg.combatMessageOffsetX(),
+                                   cfg.combatMessageOffsetY());
       m_overlays.append(combatElement);
     }
   }
@@ -842,7 +846,8 @@ void OverlayWidget::setOverlays(const QVector<OverlayElement> &overlays) {
       const OverlayElement &a = m_overlays.at(i);
       const OverlayElement &b = overlays.at(i);
       if (a.text != b.text || a.color != b.color || a.font != b.font ||
-          a.position != b.position || a.enabled != b.enabled) {
+          a.position != b.position || a.enabled != b.enabled ||
+          a.offsetX != b.offsetX || a.offsetY != b.offsetY) {
         changed = true;
         break;
       }
@@ -1055,8 +1060,9 @@ void OverlayWidget::renderOverlaysToCache() {
     cachePainter.setFont(overlay.font);
 
     QFontMetrics metrics(overlay.font);
-    QRect textRect = OverlayInfo::calculateTextRect(rect(), overlay.position,
-                                                    overlay.text, overlay.font);
+    QRect textRect = OverlayInfo::calculateTextRect(
+        rect(), overlay.position, overlay.text, overlay.font, overlay.offsetX,
+        overlay.offsetY);
 
     int padding = 5;
     int maxAvailableWidth = rect().width() - (2 * padding);

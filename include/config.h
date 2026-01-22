@@ -165,6 +165,12 @@ public:
   QFont characterNameFont() const;
   void setCharacterNameFont(const QFont &font);
 
+  int characterNameOffsetX() const;
+  void setCharacterNameOffsetX(int offset);
+
+  int characterNameOffsetY() const;
+  void setCharacterNameOffsetY(int offset);
+
   bool showSystemName() const;
   void setShowSystemName(bool enabled);
 
@@ -179,6 +185,12 @@ public:
 
   QFont systemNameFont() const;
   void setSystemNameFont(const QFont &font);
+
+  int systemNameOffsetX() const;
+  void setSystemNameOffsetX(int offset);
+
+  int systemNameOffsetY() const;
+  void setSystemNameOffsetY(int offset);
 
   QColor getSystemNameColor(const QString &systemName) const;
   void setSystemNameColor(const QString &systemName, const QColor &color);
@@ -224,6 +236,12 @@ public:
 
   QFont combatMessageFont() const;
   void setCombatMessageFont(const QFont &font);
+
+  int combatMessageOffsetX() const;
+  void setCombatMessageOffsetX(int offset);
+
+  int combatMessageOffsetY() const;
+  void setCombatMessageOffsetY(int offset);
 
   QStringList enabledCombatEventTypes() const;
   void setEnabledCombatEventTypes(const QStringList &types);
@@ -345,6 +363,8 @@ public:
   static constexpr int DEFAULT_COMBAT_MESSAGE_DURATION = 5000;
   static constexpr int DEFAULT_COMBAT_MESSAGE_POSITION = 3;
   static constexpr const char *DEFAULT_COMBAT_MESSAGE_COLOR = "#FFFFFF";
+  static constexpr int DEFAULT_OVERLAY_OFFSET_X = 0;
+  static constexpr int DEFAULT_OVERLAY_OFFSET_Y = 0;
   static constexpr int DEFAULT_MINING_TIMEOUT_SECONDS = 30;
   static constexpr bool DEFAULT_COMBAT_EVENT_BORDER_HIGHLIGHT = false;
   static constexpr bool DEFAULT_COMBAT_SUPPRESS_FOCUSED = true;
@@ -405,11 +425,15 @@ private:
   mutable QColor m_cachedCharacterNameColor;
   mutable int m_cachedCharacterNamePosition;
   mutable QFont m_cachedCharacterNameFont;
+  mutable int m_cachedCharacterNameOffsetX;
+  mutable int m_cachedCharacterNameOffsetY;
   mutable bool m_cachedShowSystemName;
   mutable bool m_cachedUniqueSystemNameColors;
   mutable QColor m_cachedSystemNameColor;
   mutable int m_cachedSystemNamePosition;
   mutable QFont m_cachedSystemNameFont;
+  mutable int m_cachedSystemNameOffsetX;
+  mutable int m_cachedSystemNameOffsetY;
   mutable bool m_cachedShowOverlayBackground;
   mutable QColor m_cachedOverlayBackgroundColor;
   mutable int m_cachedOverlayBackgroundOpacity;
@@ -423,6 +447,8 @@ private:
   mutable bool m_cachedShowCombatMessages;
   mutable int m_cachedCombatMessagePosition;
   mutable QFont m_cachedCombatMessageFont;
+  mutable int m_cachedCombatMessageOffsetX;
+  mutable int m_cachedCombatMessageOffsetY;
   mutable QMap<QString, QColor> m_cachedCombatEventColors;
   mutable QMap<QString, int> m_cachedCombatEventDurations;
   mutable QMap<QString, bool> m_cachedCombatEventBorderHighlights;
@@ -530,6 +556,10 @@ private:
       "overlay/characterNamePosition";
   static constexpr const char *KEY_OVERLAY_CHARACTER_FONT =
       "overlay/characterNameFont";
+  static constexpr const char *KEY_OVERLAY_CHARACTER_OFFSET_X =
+      "overlay/characterNameOffsetX";
+  static constexpr const char *KEY_OVERLAY_CHARACTER_OFFSET_Y =
+      "overlay/characterNameOffsetY";
   static constexpr const char *KEY_OVERLAY_SHOW_SYSTEM =
       "overlay/showSystemName";
   static constexpr const char *KEY_OVERLAY_UNIQUE_SYSTEM_COLORS =
@@ -540,6 +570,10 @@ private:
       "overlay/systemNamePosition";
   static constexpr const char *KEY_OVERLAY_SYSTEM_FONT =
       "overlay/systemNameFont";
+  static constexpr const char *KEY_OVERLAY_SYSTEM_OFFSET_X =
+      "overlay/systemNameOffsetX";
+  static constexpr const char *KEY_OVERLAY_SYSTEM_OFFSET_Y =
+      "overlay/systemNameOffsetY";
   static constexpr const char *KEY_OVERLAY_SHOW_BACKGROUND =
       "overlay/showBackground";
   static constexpr const char *KEY_OVERLAY_BACKGROUND_COLOR =
@@ -561,6 +595,8 @@ private:
   static constexpr const char *KEY_COMBAT_POSITION = "combatMessages/position";
   static constexpr const char *KEY_COMBAT_COLOR = "combatMessages/color";
   static constexpr const char *KEY_COMBAT_FONT = "combatMessages/font";
+  static constexpr const char *KEY_COMBAT_OFFSET_X = "combatMessages/offsetX";
+  static constexpr const char *KEY_COMBAT_OFFSET_Y = "combatMessages/offsetY";
   static constexpr const char *KEY_COMBAT_SUPPRESS_FOCUSED =
       "combatMessages/suppressWhenFocused";
   static constexpr const char *KEY_COMBAT_ENABLED_EVENT_TYPES =
