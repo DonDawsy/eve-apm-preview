@@ -1728,6 +1728,21 @@ void ConfigDialog::createBehaviorPage() {
   interactionsGrid->addWidget(m_switchModeLabel, 0, 0, Qt::AlignLeft);
   interactionsGrid->addWidget(m_switchModeCombo, 0, 1);
 
+  m_dragButtonLabel = new QLabel("Drag button:");
+  m_dragButtonLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_dragButtonCombo = new QComboBox();
+  m_dragButtonCombo->addItem("Left Click");
+  m_dragButtonCombo->addItem("Right Click");
+  m_dragButtonCombo->setFixedWidth(200);
+  m_dragButtonCombo->setStyleSheet(
+      StyleSheet::getComboBoxWithDisabledStyleSheet());
+  m_dragButtonCombo->setToolTip(
+      "Left Click: Drag thumbnails with left mouse button.\n"
+      "Right Click: Drag thumbnails with right mouse button (traditional).");
+
+  interactionsGrid->addWidget(m_dragButtonLabel, 1, 0, Qt::AlignLeft);
+  interactionsGrid->addWidget(m_dragButtonCombo, 1, 1);
+
   interactionsSectionLayout->addLayout(interactionsGrid);
 
   layout->addWidget(interactionsSection);
@@ -3317,6 +3332,12 @@ void ConfigDialog::setupBindings() {
       m_switchModeCombo,
       [&config]() { return config.switchOnMouseDown() ? 1 : 0; },
       [&config](int value) { config.setSwitchOnMouseDown(value == 1); }, 0));
+
+  m_bindingManager.addBinding(BindingHelpers::bindComboBox(
+      m_dragButtonCombo,
+      [&config]() { return config.useDragWithRightClick() ? 1 : 0; },
+      [&config](int value) { config.setUseDragWithRightClick(value == 1); },
+      1));
 
   m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
       m_rememberPositionsCheck,

@@ -74,6 +74,9 @@ public:
   bool switchOnMouseDown() const;
   void setSwitchOnMouseDown(bool enabled);
 
+  bool useDragWithRightClick() const;
+  void setUseDragWithRightClick(bool enabled);
+
   bool minimizeInactiveClients() const;
   void setMinimizeInactiveClients(bool enabled);
 
@@ -310,6 +313,7 @@ public:
   static constexpr int DEFAULT_WINDOW_MINIMIZE_DELAY = 100;
   static constexpr bool DEFAULT_WINDOW_SAVE_CLIENT_LOCATION = false;
   static constexpr bool DEFAULT_WINDOW_SWITCH_ON_MOUSE_DOWN = false;
+  static constexpr bool DEFAULT_WINDOW_DRAG_WITH_RIGHT_CLICK = true;
 
   static constexpr bool DEFAULT_POSITION_REMEMBER = true;
   static constexpr bool DEFAULT_POSITION_PRESERVE_LOGOUT = false;
@@ -381,6 +385,7 @@ private:
 
   mutable bool m_cachedAlwaysOnTop;
   mutable bool m_cachedSwitchOnMouseDown;
+  mutable bool m_cachedDragWithRightClick;
   mutable bool m_cachedMinimizeInactive;
   mutable int m_cachedMinimizeDelay;
   mutable QStringList m_cachedNeverMinimizeCharacters;
@@ -500,6 +505,8 @@ private:
       "window/saveClientLocation";
   static constexpr const char *KEY_WINDOW_SWITCH_ON_MOUSE_DOWN =
       "window/switchOnMouseDown";
+  static constexpr const char *KEY_WINDOW_DRAG_WITH_RIGHT_CLICK =
+      "window/dragWithRightClick";
 
   static constexpr const char *KEY_POSITION_REMEMBER =
       "position/rememberPositions";

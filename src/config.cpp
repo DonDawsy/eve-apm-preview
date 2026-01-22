@@ -573,6 +573,15 @@ void Config::setSwitchOnMouseDown(bool enabled) {
   m_cachedSwitchOnMouseDown = enabled;
 }
 
+bool Config::useDragWithRightClick() const {
+  return m_cachedDragWithRightClick;
+}
+
+void Config::setUseDragWithRightClick(bool enabled) {
+  m_settings->setValue(KEY_WINDOW_DRAG_WITH_RIGHT_CLICK, enabled);
+  m_cachedDragWithRightClick = enabled;
+}
+
 bool Config::minimizeInactiveClients() const {
   return m_cachedMinimizeInactive;
 }

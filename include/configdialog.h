@@ -206,6 +206,8 @@ private:
   QCheckBox *m_alwaysOnTopCheck;
   QComboBox *m_switchModeCombo;
   QLabel *m_switchModeLabel;
+  QComboBox *m_dragButtonCombo;
+  QLabel *m_dragButtonLabel;
   QCheckBox *m_rememberPositionsCheck;
   QCheckBox *m_preserveLogoutPositionsCheck;
   QCheckBox *m_enableSnappingCheck;
