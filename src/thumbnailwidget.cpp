@@ -1139,6 +1139,7 @@ void OverlayWidget::renderOverlaysToCache() {
 
   QPainter cachePainter(&m_overlayCache);
   cachePainter.setRenderHint(QPainter::Antialiasing);
+  cachePainter.setRenderHint(QPainter::TextAntialiasing);
 
   int positionOffsets[9] = {0};
 
