@@ -4,7 +4,7 @@
 
 ## What is EVE-APM Preview?
 
-EVE-APM Preview creates small thumbnail previews of all your EVE Online client windows, making it easy to monitor and switch between multiple characters at a glance. Whether you're multiboxing, managing an alt fleet, or just keeping an eye on multiple characters, this tool streamlines your workflow.
+EVE-APM Preview creates small thumbnail previews of all your EVE Online client windows, making it easy to monitor and switch between multiple characters at a glance using clicks or hotkeys. Heavily inspired by the original EVE-O Preview and related tools, with fresh new features and configuration options.
 
 ## What EVE-APM Preview Isn't
 
@@ -61,7 +61,6 @@ Choice! You should use whatever you prefer and suits your needs, I designed this
 
 - Windows operating system
 - EVE Online installed and running
-- Qt 6 runtime libraries (included with the application)
 
 ## Tips
 
