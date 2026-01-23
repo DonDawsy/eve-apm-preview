@@ -52,6 +52,8 @@ private slots:
   void onEditCycleGroupCharacters();
   void onAddNeverMinimizeCharacter();
   void onPopulateNeverMinimize();
+  void onAddNeverCloseCharacter();
+  void onPopulateNeverClose();
   void onAddHiddenCharacter();
   void onPopulateHiddenCharacters();
   void onGlobalSearchChanged(const QString &text);
@@ -143,6 +145,8 @@ private:
   void updateCharacterColorsScrollHeight();
   QWidget *createNeverMinimizeFormRow(const QString &characterName = "");
   void updateNeverMinimizeScrollHeight();
+  QWidget *createNeverCloseFormRow(const QString &characterName = "");
+  void updateNeverCloseScrollHeight();
   QWidget *createHiddenCharactersFormRow(const QString &characterName = "");
   void updateHiddenCharactersScrollHeight();
   QWidget *createProcessNamesFormRow(const QString &processName = "");
@@ -253,6 +257,13 @@ private:
   QVBoxLayout *m_neverMinimizeLayout;
   QPushButton *m_addNeverMinimizeButton;
   QPushButton *m_populateNeverMinimizeButton;
+  QLabel *m_neverCloseLabel;
+  QLabel *m_neverCloseInfoLabel;
+  QScrollArea *m_neverCloseScrollArea;
+  QWidget *m_neverCloseContainer;
+  QVBoxLayout *m_neverCloseLayout;
+  QPushButton *m_addNeverCloseButton;
+  QPushButton *m_populateNeverCloseButton;
   QScrollArea *m_hiddenCharactersScrollArea;
   QWidget *m_hiddenCharactersContainer;
   QVBoxLayout *m_hiddenCharactersLayout;

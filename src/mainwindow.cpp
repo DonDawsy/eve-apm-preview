@@ -2363,11 +2363,18 @@ void MainWindow::closeAllEVEClients() {
   // Only close actual EVE clients (exefile.exe), not other monitored
   // applications Users may have added other process names for thumbnail support
   const QString eveProcessName = QStringLiteral("exefile.exe");
+  const Config &cfg = Config::instance();
 
   for (const WindowInfo &window : windows) {
     if (window.handle && IsWindow(window.handle)) {
       if (window.processName.compare(eveProcessName, Qt::CaseInsensitive) ==
           0) {
+        // Check if character is in exception list
+        QString characterName = m_windowToCharacter.value(window.handle);
+        if (!characterName.isEmpty() &&
+            cfg.isCharacterNeverClose(characterName)) {
+          continue; // Skip closing this character
+        }
         PostMessage(window.handle, WM_CLOSE, 0, 0);
       }
     }

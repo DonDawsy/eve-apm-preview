@@ -101,6 +101,12 @@ public:
   void removeNeverMinimizeCharacter(const QString &characterName);
   bool isCharacterNeverMinimize(const QString &characterName) const;
 
+  QStringList neverCloseCharacters() const;
+  void setNeverCloseCharacters(const QStringList &characters);
+  void addNeverCloseCharacter(const QString &characterName);
+  void removeNeverCloseCharacter(const QString &characterName);
+  bool isCharacterNeverClose(const QString &characterName) const;
+
   QStringList hiddenCharacters() const;
   void setHiddenCharacters(const QStringList &characters);
   void addHiddenCharacter(const QString &characterName);
@@ -438,6 +444,7 @@ private:
   mutable bool m_cachedMinimizeInactive;
   mutable int m_cachedMinimizeDelay;
   mutable QStringList m_cachedNeverMinimizeCharacters;
+  mutable QStringList m_cachedNeverCloseCharacters;
   mutable QStringList m_cachedHiddenCharacters;
   mutable bool m_cachedSaveClientLocation;
 
@@ -564,6 +571,8 @@ private:
       "window/minimizeDelay";
   static constexpr const char *KEY_WINDOW_NEVER_MINIMIZE_CHARACTERS =
       "window/neverMinimizeCharacters";
+  static constexpr const char *KEY_WINDOW_NEVER_CLOSE_CHARACTERS =
+      "window/neverCloseCharacters";
   static constexpr const char *KEY_THUMBNAIL_HIDDEN_CHARACTERS =
       "thumbnail/hiddenCharacters";
   static constexpr const char *KEY_WINDOW_SAVE_CLIENT_LOCATION =

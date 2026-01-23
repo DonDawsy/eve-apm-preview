@@ -1302,6 +1302,62 @@ void ConfigDialog::createHotkeysPage() {
 
   closeAllSectionLayout->addLayout(closeAllGrid);
 
+  closeAllSectionLayout->addSpacing(10);
+
+  m_neverCloseLabel = new QLabel("Never Close Characters");
+  m_neverCloseLabel->setStyleSheet(
+      StyleSheet::getSectionSubHeaderStyleSheet() + " margin-top: 10px;");
+  closeAllSectionLayout->addWidget(m_neverCloseLabel);
+
+  m_neverCloseInfoLabel = new QLabel(
+      "Specify character names that should be excluded from the Close All "
+      "Clients hotkey. These clients will not be closed when the hotkey is "
+      "activated.");
+  m_neverCloseInfoLabel->setWordWrap(true);
+  m_neverCloseInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
+  closeAllSectionLayout->addWidget(m_neverCloseInfoLabel);
+
+  m_neverCloseScrollArea = new QScrollArea();
+  m_neverCloseScrollArea->setWidgetResizable(true);
+  m_neverCloseScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_neverCloseScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_neverCloseScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_neverCloseContainer = new QWidget();
+  m_neverCloseLayout = new QVBoxLayout(m_neverCloseContainer);
+  m_neverCloseLayout->setContentsMargins(4, 4, 4, 4);
+  m_neverCloseLayout->setSpacing(6);
+  m_neverCloseLayout->addStretch();
+
+  m_neverCloseScrollArea->setWidget(m_neverCloseContainer);
+  closeAllSectionLayout->addWidget(m_neverCloseScrollArea);
+
+  updateNeverCloseScrollHeight();
+
+  closeAllSectionLayout->addSpacing(-8);
+
+  QHBoxLayout *neverCloseButtonLayout = new QHBoxLayout();
+  m_addNeverCloseButton = new QPushButton("Add Character");
+  m_populateNeverCloseButton = new QPushButton("Populate from Open Clients");
+
+  QString neverCloseButtonStyle = StyleSheet::getSecondaryButtonStyleSheet();
+
+  m_addNeverCloseButton->setStyleSheet(neverCloseButtonStyle);
+  m_populateNeverCloseButton->setStyleSheet(neverCloseButtonStyle);
+
+  connect(m_addNeverCloseButton, &QPushButton::clicked, this,
+          &ConfigDialog::onAddNeverCloseCharacter);
+  connect(m_populateNeverCloseButton, &QPushButton::clicked, this,
+          &ConfigDialog::onPopulateNeverClose);
+
+  neverCloseButtonLayout->addWidget(m_addNeverCloseButton);
+  neverCloseButtonLayout->addWidget(m_populateNeverCloseButton);
+  neverCloseButtonLayout->addStretch();
+
+  closeAllSectionLayout->addLayout(neverCloseButtonLayout);
+
   layout->addWidget(closeAllSection);
 
   QWidget *minimizeAllSection = new QWidget();
@@ -4624,6 +4680,31 @@ void ConfigDialog::loadSettings() {
 
   updateNeverMinimizeScrollHeight();
 
+  while (m_neverCloseLayout->count() > 1) {
+    QLayoutItem *item = m_neverCloseLayout->takeAt(0);
+    if (item->widget()) {
+      QWidget *widget = item->widget();
+      widget->setParent(nullptr);
+      delete widget;
+    }
+    delete item;
+  }
+
+  QStringList neverClose = config.neverCloseCharacters();
+  for (const QString &charName : neverClose) {
+    QWidget *formRow = createNeverCloseFormRow(charName);
+    int count = m_neverCloseLayout->count();
+    m_neverCloseLayout->insertWidget(count - 1, formRow);
+  }
+
+  if (neverClose.isEmpty()) {
+    QWidget *formRow = createNeverCloseFormRow();
+    int count = m_neverCloseLayout->count();
+    m_neverCloseLayout->insertWidget(count - 1, formRow);
+  }
+
+  updateNeverCloseScrollHeight();
+
   while (m_hiddenCharactersLayout->count() > 1) {
     QLayoutItem *item = m_hiddenCharactersLayout->takeAt(0);
     if (item->widget()) {
@@ -5077,6 +5158,24 @@ void ConfigDialog::saveSettings() {
     }
   }
   config.setNeverMinimizeCharacters(neverMinimize);
+
+  QStringList neverClose;
+  for (int i = 0; i < m_neverCloseLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_neverCloseLayout->itemAt(i)->widget());
+    if (!rowWidget)
+      continue;
+
+    QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+    if (!nameEdit)
+      continue;
+
+    QString charName = nameEdit->text().trimmed();
+    if (!charName.isEmpty()) {
+      neverClose.append(charName);
+    }
+  }
+  config.setNeverCloseCharacters(neverClose);
 
   QStringList hiddenChars;
   for (int i = 0; i < m_hiddenCharactersLayout->count() - 1; ++i) {
@@ -6078,6 +6177,69 @@ void ConfigDialog::updateNeverMinimizeScrollHeight() {
 }
 
 QWidget *
+ConfigDialog::createNeverCloseFormRow(const QString &characterName) {
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet(
+      "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
+      "border-radius: 4px; padding: 4px; }");
+
+  QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+  rowLayout->setContentsMargins(8, 4, 8, 4);
+  rowLayout->setSpacing(8);
+
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setText(characterName);
+  nameEdit->setPlaceholderText("Character Name");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  rowLayout->addWidget(nameEdit, 1);
+
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(32, 32);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+  deleteButton->setToolTip("Remove this character");
+  deleteButton->setCursor(Qt::PointingHandCursor);
+
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_neverCloseLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    QTimer::singleShot(0, this, &ConfigDialog::updateNeverCloseScrollHeight);
+  });
+
+  rowLayout->addWidget(deleteButton);
+
+  return rowWidget;
+}
+
+void ConfigDialog::updateNeverCloseScrollHeight() {
+  if (m_neverCloseScrollArea && m_neverCloseLayout) {
+    int rowCount = m_neverCloseLayout->count() - 1;
+
+    if (rowCount <= 0) {
+      m_neverCloseScrollArea->setFixedHeight(10);
+    } else {
+      int calculatedHeight = (rowCount * 48) + 10;
+      int finalHeight = qMin(202, qMax(50, calculatedHeight));
+      m_neverCloseScrollArea->setFixedHeight(finalHeight);
+    }
+  }
+}
+
+QWidget *
 ConfigDialog::createHiddenCharactersFormRow(const QString &characterName) {
   QWidget *rowWidget = new QWidget();
   rowWidget->setStyleSheet(
@@ -6559,6 +6721,124 @@ void ConfigDialog::onAddNeverMinimizeCharacter() {
     m_neverMinimizeScrollArea->verticalScrollBar()->setValue(
         m_neverMinimizeScrollArea->verticalScrollBar()->maximum());
   });
+}
+
+void ConfigDialog::onAddNeverCloseCharacter() {
+  QWidget *formRow = createNeverCloseFormRow();
+
+  int count = m_neverCloseLayout->count();
+  m_neverCloseLayout->insertWidget(count - 1, formRow);
+
+  m_neverCloseContainer->updateGeometry();
+  m_neverCloseLayout->activate();
+
+  QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
+  if (nameEdit) {
+    nameEdit->setFocus();
+  }
+
+  updateNeverCloseScrollHeight();
+
+  QTimer::singleShot(0, [this]() {
+    m_neverCloseScrollArea->verticalScrollBar()->setValue(
+        m_neverCloseScrollArea->verticalScrollBar()->maximum());
+  });
+}
+
+void ConfigDialog::onPopulateNeverClose() {
+  WindowCapture capture;
+  QVector<WindowInfo> windows = capture.getEVEWindows();
+
+  if (windows.isEmpty()) {
+    QMessageBox::information(this, "No Windows Found",
+                             "No EVE Online windows are currently open.");
+    return;
+  }
+
+  QMessageBox msgBox(this);
+  msgBox.setWindowTitle("Populate Never Close List");
+  msgBox.setText(QString("Found %1 open EVE Online window%2.")
+                     .arg(windows.count())
+                     .arg(windows.count() == 1 ? "" : "s"));
+  msgBox.setInformativeText(
+      "Do you want to clear existing entries or add to them?");
+
+  QPushButton *clearButton =
+      msgBox.addButton("Clear & Replace", QMessageBox::ActionRole);
+  QPushButton *addButton =
+      msgBox.addButton("Add to Existing", QMessageBox::ActionRole);
+  QPushButton *cancelButton =
+      msgBox.addButton("Cancel", QMessageBox::RejectRole);
+
+  msgBox.setStyleSheet(StyleSheet::getMessageBoxStyleSheet());
+
+  msgBox.exec();
+
+  if (msgBox.clickedButton() == cancelButton) {
+    return;
+  }
+
+  bool clearExisting = (msgBox.clickedButton() == clearButton);
+
+  QSet<QString> existingCharacters;
+  if (!clearExisting) {
+    for (int i = 0; i < m_neverCloseLayout->count() - 1; ++i) {
+      QWidget *rowWidget =
+          qobject_cast<QWidget *>(m_neverCloseLayout->itemAt(i)->widget());
+      if (!rowWidget)
+        continue;
+
+      QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+      if (!nameEdit)
+        continue;
+
+      QString charName = nameEdit->text().trimmed();
+      if (!charName.isEmpty()) {
+        existingCharacters.insert(charName.toLower());
+      }
+    }
+  } else {
+    while (m_neverCloseLayout->count() > 1) {
+      QLayoutItem *item = m_neverCloseLayout->takeAt(0);
+      if (item->widget()) {
+        QWidget *widget = item->widget();
+        widget->setParent(nullptr);
+        delete widget;
+      }
+      delete item;
+    }
+  }
+
+  int addedCount = 0;
+  for (const WindowInfo &window : windows) {
+    QString charName = OverlayInfo::extractCharacterName(window.title);
+    if (charName.isEmpty())
+      continue;
+
+    if (existingCharacters.contains(charName.toLower()))
+      continue;
+
+    QWidget *formRow = createNeverCloseFormRow(charName);
+    int count = m_neverCloseLayout->count();
+    m_neverCloseLayout->insertWidget(count - 1, formRow);
+    existingCharacters.insert(charName.toLower());
+    addedCount++;
+  }
+
+  if (addedCount == 0 && !clearExisting) {
+    QMessageBox::information(
+        this, "No New Characters",
+        "All open characters are already in the Never Close list.");
+  } else {
+    m_neverCloseContainer->updateGeometry();
+    m_neverCloseLayout->activate();
+    updateNeverCloseScrollHeight();
+
+    QTimer::singleShot(0, [this]() {
+      m_neverCloseScrollArea->verticalScrollBar()->setValue(
+          m_neverCloseScrollArea->verticalScrollBar()->maximum());
+    });
+  }
 }
 
 void ConfigDialog::onPopulateNeverMinimize() {

@@ -183,6 +183,9 @@ void Config::loadCacheFromSettings() {
   m_cachedNeverMinimizeCharacters =
       m_settings->value(KEY_WINDOW_NEVER_MINIMIZE_CHARACTERS, QStringList())
           .toStringList();
+  m_cachedNeverCloseCharacters =
+      m_settings->value(KEY_WINDOW_NEVER_CLOSE_CHARACTERS, QStringList())
+          .toStringList();
   m_cachedHiddenCharacters =
       m_settings->value(KEY_THUMBNAIL_HIDDEN_CHARACTERS, QStringList())
           .toStringList();
@@ -702,6 +705,34 @@ void Config::removeNeverMinimizeCharacter(const QString &characterName) {
 
 bool Config::isCharacterNeverMinimize(const QString &characterName) const {
   QStringList characters = neverMinimizeCharacters();
+  return characters.contains(characterName, Qt::CaseInsensitive);
+}
+
+QStringList Config::neverCloseCharacters() const {
+  return m_cachedNeverCloseCharacters;
+}
+
+void Config::setNeverCloseCharacters(const QStringList &characters) {
+  m_settings->setValue(KEY_WINDOW_NEVER_CLOSE_CHARACTERS, characters);
+  m_cachedNeverCloseCharacters = characters;
+}
+
+void Config::addNeverCloseCharacter(const QString &characterName) {
+  QStringList characters = neverCloseCharacters();
+  if (!characters.contains(characterName, Qt::CaseInsensitive)) {
+    characters.append(characterName);
+    setNeverCloseCharacters(characters);
+  }
+}
+
+void Config::removeNeverCloseCharacter(const QString &characterName) {
+  QStringList characters = neverCloseCharacters();
+  characters.removeAll(characterName);
+  setNeverCloseCharacters(characters);
+}
+
+bool Config::isCharacterNeverClose(const QString &characterName) const {
+  QStringList characters = neverCloseCharacters();
   return characters.contains(characterName, Qt::CaseInsensitive);
 }
 
