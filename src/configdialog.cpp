@@ -1305,8 +1305,8 @@ void ConfigDialog::createHotkeysPage() {
   closeAllSectionLayout->addSpacing(10);
 
   m_neverCloseLabel = new QLabel("Never Close Characters");
-  m_neverCloseLabel->setStyleSheet(
-      StyleSheet::getSectionSubHeaderStyleSheet() + " margin-top: 10px;");
+  m_neverCloseLabel->setStyleSheet(StyleSheet::getSectionSubHeaderStyleSheet() +
+                                   " margin-top: 10px;");
   closeAllSectionLayout->addWidget(m_neverCloseLabel);
 
   m_neverCloseInfoLabel = new QLabel(
@@ -1319,8 +1319,7 @@ void ConfigDialog::createHotkeysPage() {
 
   m_neverCloseScrollArea = new QScrollArea();
   m_neverCloseScrollArea->setWidgetResizable(true);
-  m_neverCloseScrollArea->setHorizontalScrollBarPolicy(
-      Qt::ScrollBarAlwaysOff);
+  m_neverCloseScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
   m_neverCloseScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   m_neverCloseScrollArea->setStyleSheet(
       "QScrollArea { background-color: transparent; border: none; }");
@@ -6176,8 +6175,7 @@ void ConfigDialog::updateNeverMinimizeScrollHeight() {
   }
 }
 
-QWidget *
-ConfigDialog::createNeverCloseFormRow(const QString &characterName) {
+QWidget *ConfigDialog::createNeverCloseFormRow(const QString &characterName) {
   QWidget *rowWidget = new QWidget();
   rowWidget->setStyleSheet(
       "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
