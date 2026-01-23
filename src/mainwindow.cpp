@@ -1118,7 +1118,21 @@ void MainWindow::updateActiveWindow() {
       if (!thumbnail)
         continue;
 
+      QString processName = m_windowProcessNames.value(hwnd, "");
+      bool isEVEClient =
+          processName.compare("exefile.exe", Qt::CaseInsensitive) == 0;
+
       QString characterName = m_windowToCharacter.value(hwnd);
+
+      // If cached mapping is empty or potentially stale, extract from window
+      if (isEVEClient && characterName.isEmpty()) {
+        wchar_t titleBuf[256];
+        if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
+          QString currentTitle = QString::fromWCharArray(titleBuf);
+          characterName = OverlayInfo::extractCharacterName(currentTitle);
+        }
+      }
+
       bool isHidden =
           !characterName.isEmpty() && cfg.isCharacterHidden(characterName);
       bool isActive = (hwnd == activeWindow);
@@ -1207,7 +1221,21 @@ void MainWindow::updateActiveWindow() {
       }
     }
 
+    QString processName = m_windowProcessNames.value(hwnd, "");
+    bool isEVEClient =
+        processName.compare("exefile.exe", Qt::CaseInsensitive) == 0;
+
     QString characterName = m_windowToCharacter.value(hwnd);
+
+    // If cached mapping is empty or potentially stale, extract from window
+    if (isEVEClient && characterName.isEmpty()) {
+      wchar_t titleBuf[256];
+      if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
+        QString currentTitle = QString::fromWCharArray(titleBuf);
+        characterName = OverlayInfo::extractCharacterName(currentTitle);
+      }
+    }
+
     bool isHidden =
         !characterName.isEmpty() && cfg.isCharacterHidden(characterName);
 
@@ -2142,7 +2170,18 @@ void MainWindow::applySettings() {
     bool shouldHideThumb = false;
 
     if (isEVEClient) {
+      // Get character name directly from window title to ensure accuracy
       QString characterName = m_windowToCharacter.value(hwnd);
+
+      // If cached mapping is empty or potentially stale, extract from window
+      if (characterName.isEmpty()) {
+        wchar_t titleBuf[256];
+        if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
+          QString currentTitle = QString::fromWCharArray(titleBuf);
+          characterName = OverlayInfo::extractCharacterName(currentTitle);
+        }
+      }
+
       if (!characterName.isEmpty() && cfg.isCharacterHidden(characterName)) {
         shouldHideThumb = true;
       }
@@ -2476,7 +2515,21 @@ void MainWindow::toggleThumbnailsVisibility() {
       thumbnail->hide();
     } else {
       HWND hwnd = it.key();
+      QString processName = m_windowProcessNames.value(hwnd, "");
+      bool isEVEClient =
+          processName.compare("exefile.exe", Qt::CaseInsensitive) == 0;
+
       QString characterName = m_windowToCharacter.value(hwnd);
+
+      // If cached mapping is empty or potentially stale, extract from window
+      if (isEVEClient && characterName.isEmpty()) {
+        wchar_t titleBuf[256];
+        if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
+          QString currentTitle = QString::fromWCharArray(titleBuf);
+          characterName = OverlayInfo::extractCharacterName(currentTitle);
+        }
+      }
+
       bool isHidden =
           !characterName.isEmpty() && cfg.isCharacterHidden(characterName);
       bool isActive = (hwnd == m_lastActiveWindow);
