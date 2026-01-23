@@ -729,17 +729,8 @@ void MainWindow::refreshWindows() {
         xOffset += thumbWidth + margin;
       }
 
-      if (shouldHide) {
-        thumbWidget->hide();
-      } else if (m_thumbnailsManuallyHidden) {
-        thumbWidget->hide();
-      } else if (hideWhenEVENotFocused && !isEVEFocused && !m_configDialog) {
-        thumbWidget->hide();
-      } else if (hideActive && window.handle == activeWindow) {
-        thumbWidget->hide();
-      } else {
-        thumbWidget->show();
-      }
+      // Set initial visibility using centralized logic
+      updateThumbnailVisibility(window.handle);
     } else {
       QString lastTitle = m_lastKnownTitles.value(window.handle, "");
       if (lastTitle != window.title) {
@@ -798,7 +789,8 @@ void MainWindow::refreshWindows() {
             if (!m_thumbnailsManuallyHidden &&
                 !(hideWhenEVENotFocused && !isEVEFocused && !m_configDialog) &&
                 !(hideActive && window.handle == activeWindow)) {
-              thumbWidget->show();
+              // Don't call show() directly - visibility will be handled after
+              // title update by the refreshWindows loop or updateActiveWindow
             }
 
             if (!cfg.preserveLogoutPositions()) {
@@ -824,23 +816,25 @@ void MainWindow::refreshWindows() {
       } else if (!isEVEClient) {
         thumbWidget->setCharacterName(showNonEVEOverlay ? window.title : "");
       } else if (isEVEClient && !characterName.isEmpty()) {
-        if (cfg.isCharacterHidden(characterName)) {
+        // Re-extract character name from current window title to ensure
+        // accuracy
+        QString currentCharacterName = characterName;
+        wchar_t titleBuf[256];
+        if (GetWindowTextW(window.handle, titleBuf, 256) > 0) {
+          QString freshTitle = QString::fromWCharArray(titleBuf);
+          QString freshCharName = OverlayInfo::extractCharacterName(freshTitle);
+          if (!freshCharName.isEmpty()) {
+            currentCharacterName = freshCharName;
+          }
+        }
+
+        if (cfg.isCharacterHidden(currentCharacterName)) {
           shouldHideThisThumbnail = true;
         }
       }
 
-      // Apply consistent show/hide logic for all window types
-      if (shouldHideThisThumbnail) {
-        thumbWidget->hide();
-      } else if (m_thumbnailsManuallyHidden) {
-        thumbWidget->hide();
-      } else if (hideWhenEVENotFocused && !isEVEFocused && !m_configDialog) {
-        thumbWidget->hide();
-      } else if (hideActive && window.handle == activeWindow) {
-        thumbWidget->hide();
-      } else {
-        thumbWidget->show();
-      }
+      // Apply visibility using centralized logic
+      updateThumbnailVisibility(window.handle);
     }
   }
 
@@ -940,6 +934,74 @@ void MainWindow::refreshSingleThumbnail(HWND hwnd) {
 
   ThumbnailWidget *thumbWidget = it.value();
   thumbWidget->forceUpdate();
+}
+
+/// Centralized visibility control - uses cached state with fresh fallback
+void MainWindow::updateThumbnailVisibility(HWND hwnd) {
+  auto it = thumbnails.find(hwnd);
+  if (it == thumbnails.end()) {
+    return;
+  }
+
+  ThumbnailWidget *thumbnail = it.value();
+  const Config &cfg = Config::instance();
+
+  // Get current window info
+  QString processName = m_windowProcessNames.value(hwnd, "");
+  bool isEVEClient =
+      processName.compare("exefile.exe", Qt::CaseInsensitive) == 0;
+
+  // Extract character name - use cache first, query only if empty
+  QString characterName = m_windowToCharacter.value(hwnd);
+  if (isEVEClient && characterName.isEmpty()) {
+    // Cache miss - query window title
+    wchar_t titleBuf[256];
+    if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
+      QString currentTitle = QString::fromWCharArray(titleBuf);
+      characterName = OverlayInfo::extractCharacterName(currentTitle);
+    }
+  }
+
+  // Apply visibility rules in priority order
+  bool shouldShow = true;
+
+  // Rule 1: Manual hide (highest priority)
+  if (m_thumbnailsManuallyHidden) {
+    shouldShow = false;
+  }
+  // Rule 2: Character-specific hiding
+  else if (isEVEClient && !characterName.isEmpty() &&
+           cfg.isCharacterHidden(characterName)) {
+    shouldShow = false;
+  }
+  // Rule 3: Hide when EVE not focused (cache active window)
+  else if (cfg.hideThumbnailsWhenEVENotFocused()) {
+    HWND activeWindow = GetForegroundWindow();
+    bool isEVEFocused = thumbnails.contains(activeWindow);
+    if (!isEVEFocused && !m_configDialog) {
+      shouldShow = false;
+    }
+    // Early return - if already hidden, skip Rule 4 check
+    if (!shouldShow) {
+      thumbnail->hide();
+      return;
+    }
+  }
+  // Rule 4: Hide active client (reuse cached active window from Rule 3 if
+  // possible)
+  if (shouldShow && cfg.hideActiveClientThumbnail()) {
+    HWND activeWindow = GetForegroundWindow();
+    if (hwnd == activeWindow) {
+      shouldShow = false;
+    }
+  }
+
+  // Apply visibility
+  if (shouldShow) {
+    thumbnail->show();
+  } else {
+    thumbnail->hide();
+  }
 }
 
 void MainWindow::handleWindowTitleChange(HWND hwnd) {
@@ -1104,7 +1166,8 @@ void MainWindow::updateActiveWindow() {
   if (hideWhenEVENotFocused && !isEVEFocused && !m_thumbnailsManuallyHidden &&
       !m_configDialog) {
     for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd(); ++it) {
-      it.value()->hide();
+      HWND hwnd = it.key();
+      updateThumbnailVisibility(hwnd);
     }
     wasEVEFocused = false;
     return;
@@ -1112,40 +1175,14 @@ void MainWindow::updateActiveWindow() {
 
   if (hideWhenEVENotFocused && isEVEFocused && eveFocusChanged) {
     wasEVEFocused = true;
+    // EVE regained focus - update all thumbnail visibility
     for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd(); ++it) {
       HWND hwnd = it.key();
       ThumbnailWidget *thumbnail = it.value();
       if (!thumbnail)
         continue;
 
-      QString processName = m_windowProcessNames.value(hwnd, "");
-      bool isEVEClient =
-          processName.compare("exefile.exe", Qt::CaseInsensitive) == 0;
-
-      QString characterName = m_windowToCharacter.value(hwnd);
-
-      // If cached mapping is empty or potentially stale, extract from window
-      if (isEVEClient && characterName.isEmpty()) {
-        wchar_t titleBuf[256];
-        if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
-          QString currentTitle = QString::fromWCharArray(titleBuf);
-          characterName = OverlayInfo::extractCharacterName(currentTitle);
-        }
-      }
-
-      bool isHidden =
-          !characterName.isEmpty() && cfg.isCharacterHidden(characterName);
       bool isActive = (hwnd == activeWindow);
-
-      if (m_thumbnailsManuallyHidden) {
-        thumbnail->hide();
-      } else if (isHidden) {
-        thumbnail->hide();
-      } else if (hideActive && isActive) {
-        thumbnail->hide();
-      } else {
-        thumbnail->show();
-      }
 
       if (highlightActive) {
         thumbnail->setActive(isActive);
@@ -1165,6 +1202,9 @@ void MainWindow::updateActiveWindow() {
           }
         }
       }
+
+      // Use centralized visibility
+      updateThumbnailVisibility(hwnd);
     }
 
     if (activeWindow != nullptr && thumbnails.contains(activeWindow)) {
@@ -1181,10 +1221,8 @@ void MainWindow::updateActiveWindow() {
       auto it = thumbnails.find(previousActiveWindow);
       if (it != thumbnails.end()) {
         it.value()->setActive(false);
-        if (hideActive && !m_thumbnailsManuallyHidden &&
-            !(hideWhenEVENotFocused && !m_configDialog)) {
-          it.value()->show();
-        }
+        // Update visibility using centralized logic
+        updateThumbnailVisibility(previousActiveWindow);
       }
     }
 
@@ -1221,35 +1259,8 @@ void MainWindow::updateActiveWindow() {
       }
     }
 
-    QString processName = m_windowProcessNames.value(hwnd, "");
-    bool isEVEClient =
-        processName.compare("exefile.exe", Qt::CaseInsensitive) == 0;
-
-    QString characterName = m_windowToCharacter.value(hwnd);
-
-    // If cached mapping is empty or potentially stale, extract from window
-    if (isEVEClient && characterName.isEmpty()) {
-      wchar_t titleBuf[256];
-      if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
-        QString currentTitle = QString::fromWCharArray(titleBuf);
-        characterName = OverlayInfo::extractCharacterName(currentTitle);
-      }
-    }
-
-    bool isHidden =
-        !characterName.isEmpty() && cfg.isCharacterHidden(characterName);
-
-    if (m_thumbnailsManuallyHidden) {
-      it.value()->hide();
-    } else if (isHidden) {
-      it.value()->hide();
-    } else if (hideWhenEVENotFocused && !isEVEFocused && !m_configDialog) {
-      it.value()->hide();
-    } else if (hideActive && isActive) {
-      it.value()->hide();
-    } else {
-      it.value()->show();
-    }
+    // Use centralized visibility
+    updateThumbnailVisibility(hwnd);
   };
 
   if (previousActiveWindow != nullptr && previousActiveWindow != activeWindow) {
@@ -1899,21 +1910,12 @@ void MainWindow::showSettings() {
   hotkeyManager->setSuspended(true);
 
   if (!m_thumbnailsManuallyHidden) {
-    const Config &cfg = Config::instance();
-    HWND activeWindow = GetForegroundWindow();
-    bool hideActive = cfg.hideActiveClientThumbnail();
-
+    // Update all thumbnail visibility when opening settings
     for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
       HWND hwnd = it.key();
       ThumbnailWidget *thumb = it.value();
-      QString characterName = m_windowToCharacter.value(hwnd);
-      bool isHidden =
-          !characterName.isEmpty() && cfg.isCharacterHidden(characterName);
-      bool isActive = (hwnd == activeWindow);
 
-      if (!isHidden && !(hideActive && isActive)) {
-        thumb->show();
-      }
+      updateThumbnailVisibility(hwnd);
       thumb->forceOverlayRender();
     }
   } else {
@@ -2166,51 +2168,8 @@ void MainWindow::applySettings() {
 
     thumb->QWidget::update();
 
-    // Apply consistent show/hide logic for all window types (EVE and non-EVE)
-    bool shouldHideThumb = false;
-
-    if (isEVEClient) {
-      // Get character name directly from window title to ensure accuracy
-      QString characterName = m_windowToCharacter.value(hwnd);
-
-      // If cached mapping is empty or potentially stale, extract from window
-      if (characterName.isEmpty()) {
-        wchar_t titleBuf[256];
-        if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
-          QString currentTitle = QString::fromWCharArray(titleBuf);
-          characterName = OverlayInfo::extractCharacterName(currentTitle);
-        }
-      }
-
-      if (!characterName.isEmpty() && cfg.isCharacterHidden(characterName)) {
-        shouldHideThumb = true;
-      }
-    }
-
-    if (shouldHideThumb) {
-      thumb->hide();
-    } else if (m_thumbnailsManuallyHidden) {
-      thumb->hide();
-    } else if (hideWhenEVENotFocused && !isEVECurrentlyFocused &&
-               !m_configDialog) {
-      thumb->hide();
-    } else if (hideActive && hwnd == currentActiveWindow) {
-      thumb->hide();
-    } else {
-      if (isEVEClient && thumb->isHidden()) {
-        wchar_t titleBuf[256];
-        if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
-          QString currentTitle = QString::fromWCharArray(titleBuf);
-          QString charName = OverlayInfo::extractCharacterName(currentTitle);
-          if (!charName.isEmpty()) {
-            thumb->setTitle(currentTitle);
-            thumb->setCharacterName(charName);
-          }
-        }
-      }
-
-      thumb->show();
-    }
+    // Apply visibility using centralized logic
+    updateThumbnailVisibility(hwnd);
   }
 
   if (m_chatLogReader) {
@@ -2500,55 +2459,11 @@ void MainWindow::toggleThumbnailsVisibility() {
     m_hideThumbnailsAction->setChecked(m_thumbnailsManuallyHidden);
   }
 
-  const Config &cfg = Config::instance();
-  const bool hideWhenEVENotFocused = cfg.hideThumbnailsWhenEVENotFocused();
-  const HWND currentActiveWindow = GetForegroundWindow();
-  const bool isEVECurrentlyFocused = thumbnails.contains(currentActiveWindow);
-  const bool hideActive = cfg.hideActiveClientThumbnail();
-
+  // Update all thumbnail visibility using centralized logic
   for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd(); ++it) {
-    ThumbnailWidget *thumbnail = it.value();
-    if (!thumbnail)
-      continue;
-
-    if (m_thumbnailsManuallyHidden) {
-      thumbnail->hide();
-    } else {
-      HWND hwnd = it.key();
-      QString processName = m_windowProcessNames.value(hwnd, "");
-      bool isEVEClient =
-          processName.compare("exefile.exe", Qt::CaseInsensitive) == 0;
-
-      QString characterName = m_windowToCharacter.value(hwnd);
-
-      // If cached mapping is empty or potentially stale, extract from window
-      if (isEVEClient && characterName.isEmpty()) {
-        wchar_t titleBuf[256];
-        if (GetWindowTextW(hwnd, titleBuf, 256) > 0) {
-          QString currentTitle = QString::fromWCharArray(titleBuf);
-          characterName = OverlayInfo::extractCharacterName(currentTitle);
-        }
-      }
-
-      bool isHidden =
-          !characterName.isEmpty() && cfg.isCharacterHidden(characterName);
-      bool isActive = (hwnd == m_lastActiveWindow);
-
-      if (isHidden) {
-        thumbnail->hide();
-      } else if (hideActive && isActive) {
-        thumbnail->hide();
-      } else if (hideWhenEVENotFocused && !isEVECurrentlyFocused &&
-                 !m_configDialog) {
-        thumbnail->hide();
-      } else {
-        thumbnail->show();
-      }
-    }
+    HWND hwnd = it.key();
+    updateThumbnailVisibility(hwnd);
   }
-
-  qDebug() << "Thumbnails visibility toggled:"
-           << (m_thumbnailsManuallyHidden ? "HIDDEN" : "VISIBLE");
 }
 
 void MainWindow::saveCurrentClientLocations() {
@@ -2796,10 +2711,10 @@ void MainWindow::handleProtocolThumbnailHide() {
   if (!m_thumbnailsManuallyHidden) {
     m_thumbnailsManuallyHidden = true;
 
+    // Update all thumbnail visibility using centralized logic
     for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
-      if (it.value()) {
-        it.value()->hide();
-      }
+      HWND hwnd = it.key();
+      updateThumbnailVisibility(hwnd);
     }
 
     if (m_hideThumbnailsAction) {
@@ -2818,10 +2733,10 @@ void MainWindow::handleProtocolThumbnailShow() {
   if (m_thumbnailsManuallyHidden) {
     m_thumbnailsManuallyHidden = false;
 
+    // Update all thumbnail visibility using centralized logic
     for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
-      if (it.value()) {
-        it.value()->show();
-      }
+      HWND hwnd = it.key();
+      updateThumbnailVisibility(hwnd);
     }
 
     if (m_hideThumbnailsAction) {

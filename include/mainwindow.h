@@ -164,6 +164,7 @@ private:
   void updateSnappingLists();
   void refreshSingleThumbnail(HWND hwnd);
   void handleWindowTitleChange(HWND hwnd);
+  void updateThumbnailVisibility(HWND hwnd);
   void scheduleLocationRefresh(HWND hwnd);
   void cleanupLocationRefreshTimer(HWND hwnd);
   QPoint calculateNotLoggedInPosition(int index);
