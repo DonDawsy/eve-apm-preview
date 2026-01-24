@@ -1720,55 +1720,30 @@ void MainWindow::activateCharacter(const QString &characterName) {
 
 void MainWindow::activateWindow(HWND hwnd) {
   const Config &cfg = Config::instance();
+
+  // Check if window needs restoration for refresh tracking
+  bool wasMinimized = IsIconic(hwnd);
+
+  // Use WindowCapture's activation logic (handles all window states properly)
+  WindowCapture::activateWindow(hwnd);
+
+  // Track restored window for thumbnail refresh
+  if (wasMinimized) {
+    m_hwndPendingRefresh = hwnd;
+  }
+
+  // Handle minimize inactive clients feature
   if (cfg.minimizeInactiveClients()) {
-    bool wasMinimized = IsIconic(hwnd);
-
-    if (wasMinimized) {
-      ShowWindowAsync(hwnd, SW_RESTORE);
-      // Give the window time to restore before setting focus
-      // This prevents input issues where clicks are ignored
-      Sleep(30);
-
-      m_hwndPendingRefresh = hwnd;
-    }
-
-    SetForegroundWindow(hwnd);
-    SetFocus(hwnd);
-
-    if (GetForegroundWindow() != hwnd) {
-      HWND currentForeground = GetForegroundWindow();
-      DWORD foregroundThread = 0;
-      if (currentForeground) {
-        foregroundThread = GetWindowThreadProcessId(currentForeground, nullptr);
-      }
-
-      DWORD thisThread = GetCurrentThreadId();
-      BOOL attached = FALSE;
-      if (foregroundThread != 0 && foregroundThread != thisThread) {
-        attached = AttachThreadInput(foregroundThread, thisThread, TRUE);
-      }
-
-      BringWindowToTop(hwnd);
-      SetForegroundWindow(hwnd);
-      SetFocus(hwnd);
-
-      if (attached) {
-        AttachThreadInput(foregroundThread, thisThread, FALSE);
-      }
-    }
-
     m_hwndToActivate = hwnd;
-
     minimizeTimer->start(cfg.minimizeDelay());
-  } else {
-    WindowCapture::activateWindow(hwnd);
   }
 
   updateActiveWindow();
 
   // Ensure thumbnails remain on top after window activation
   // BringWindowToTop can disrupt Z-order even with Qt::WindowStaysOnTopHint
-  ensureThumbnailsOnTop();
+  // Use slight delay to allow Z-order changes to fully complete
+  QTimer::singleShot(10, this, &MainWindow::ensureThumbnailsOnTop);
 }
 
 void MainWindow::minimizeInactiveWindows() {
