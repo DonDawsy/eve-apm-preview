@@ -2819,11 +2819,14 @@ void MainWindow::ensureThumbnailsOnTop() {
     return; // Only restore if always-on-top is enabled
   }
 
-  // Raise all visible thumbnails to restore proper Z-order
+  // Use Windows API to restore TOPMOST status - Qt's raise() is insufficient
+  // after BringWindowToTop() disrupts the Z-order
   for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd(); ++it) {
     ThumbnailWidget *thumbnail = it.value();
     if (thumbnail && thumbnail->isVisible()) {
-      thumbnail->raise();
+      HWND thumbHwnd = reinterpret_cast<HWND>(thumbnail->winId());
+      SetWindowPos(thumbHwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                   SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
   }
 }
