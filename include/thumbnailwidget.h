@@ -61,6 +61,7 @@ public:
   void forceUpdate();
   void updateWindowFlags(bool alwaysOnTop);
   void forceOverlayRender();
+  void ensureTopmost();
   void hideOverlay();
   void showOverlay();
 

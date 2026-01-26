@@ -1198,6 +1198,12 @@ void MainWindow::updateActiveWindow() {
 
       if (isActive) {
         thumbnail->forceUpdate();
+        
+        // Immediately restore topmost after DWM update which can disrupt Z-order
+        if (cfg.alwaysOnTop()) {
+          thumbnail->ensureTopmost();
+        }
+        
         if (thumbnail->hasCombatEvent()) {
           QString currentEventType = thumbnail->getCombatEventType();
           if (!currentEventType.isEmpty() &&
@@ -1253,6 +1259,11 @@ void MainWindow::updateActiveWindow() {
 
     if (isActive) {
       it.value()->forceUpdate();
+
+      // Immediately restore topmost after DWM update which can disrupt Z-order
+      if (cfg.alwaysOnTop()) {
+        it.value()->ensureTopmost();
+      }
 
       if (it.value()->hasCombatEvent()) {
         QString currentEventType = it.value()->getCombatEventType();
@@ -1742,8 +1753,13 @@ void MainWindow::activateWindow(HWND hwnd) {
 
   // Ensure thumbnails remain on top after window activation
   // BringWindowToTop can disrupt Z-order even with Qt::WindowStaysOnTopHint
-  // Use slight delay to allow Z-order changes to fully complete
+  // Use multiple restoration attempts at different intervals for reliability
+  // Windows processes Z-order changes asynchronously and timing varies by
+  // system
+  ensureThumbnailsOnTop();
   QTimer::singleShot(10, this, &MainWindow::ensureThumbnailsOnTop);
+  QTimer::singleShot(50, this, &MainWindow::ensureThumbnailsOnTop);
+  QTimer::singleShot(100, this, &MainWindow::ensureThumbnailsOnTop);
 }
 
 void MainWindow::minimizeInactiveWindows() {
@@ -2794,14 +2810,12 @@ void MainWindow::ensureThumbnailsOnTop() {
     return; // Only restore if always-on-top is enabled
   }
 
-  // Use Windows API to restore TOPMOST status - Qt's raise() is insufficient
-  // after BringWindowToTop() disrupts the Z-order
+  // Restore TOPMOST status for all thumbnails (and their overlay windows)
+  // ThumbnailWidget::ensureTopmost() handles both the thumbnail and overlay
   for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd(); ++it) {
     ThumbnailWidget *thumbnail = it.value();
     if (thumbnail && thumbnail->isVisible()) {
-      HWND thumbHwnd = reinterpret_cast<HWND>(thumbnail->winId());
-      SetWindowPos(thumbHwnd, HWND_TOPMOST, 0, 0, 0, 0,
-                   SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+      thumbnail->ensureTopmost();
     }
   }
 }
