@@ -1198,12 +1198,13 @@ void MainWindow::updateActiveWindow() {
 
       if (isActive) {
         thumbnail->forceUpdate();
-        
-        // Immediately restore topmost after DWM update which can disrupt Z-order
+
+        // Immediately restore topmost after DWM update which can disrupt
+        // Z-order
         if (cfg.alwaysOnTop()) {
           thumbnail->ensureTopmost();
         }
-        
+
         if (thumbnail->hasCombatEvent()) {
           QString currentEventType = thumbnail->getCombatEventType();
           if (!currentEventType.isEmpty() &&

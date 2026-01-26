@@ -775,9 +775,9 @@ void ThumbnailWidget::updateDwmThumbnail() {
   props.rcDestination.bottom = physicalHeight;
 
   DwmUpdateThumbnailProperties(m_dwmThumbnail, &props);
-  
-  // DWM updates can disrupt Z-order, restore TOPMOST if window flags indicate it
-  // Only do this if WindowStaysOnTopHint is set
+
+  // DWM updates can disrupt Z-order, restore TOPMOST if window flags indicate
+  // it Only do this if WindowStaysOnTopHint is set
   if (windowFlags() & Qt::WindowStaysOnTopHint) {
     HWND thumbHwnd = reinterpret_cast<HWND>(winId());
     SetWindowPos(thumbHwnd, HWND_TOPMOST, 0, 0, 0, 0,
