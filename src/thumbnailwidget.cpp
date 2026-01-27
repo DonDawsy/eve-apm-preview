@@ -832,6 +832,13 @@ bool ThumbnailWidget::nativeEvent(const QByteArray &eventType, void *message,
 
 void ThumbnailWidget::showEvent(QShowEvent *event) {
   QWidget::showEvent(event);
+
+  // Apply WS_EX_NOACTIVATE to prevent window from becoming active/foreground
+  // This allows clicks and drags without stealing focus from EVE clients
+  HWND hwnd = reinterpret_cast<HWND>(winId());
+  LONG_PTR exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+  SetWindowLongPtr(hwnd, GWL_EXSTYLE, exStyle | WS_EX_NOACTIVATE);
+
   setupDwmThumbnail();
   if (m_overlayWidget) {
     m_overlayWidget->setGeometry(geometry());
@@ -1016,6 +1023,10 @@ void OverlayWidget::updateWindowFlags(bool alwaysOnTop) {
   }
   setWindowFlags(flags);
   if (isVisible()) {
+    // Apply WS_EX_NOACTIVATE after recreating window with new flags
+    HWND hwnd = reinterpret_cast<HWND>(winId());
+    LONG_PTR exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+    SetWindowLongPtr(hwnd, GWL_EXSTYLE, exStyle | WS_EX_NOACTIVATE);
     show();
   }
 }

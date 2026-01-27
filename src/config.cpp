@@ -94,6 +94,11 @@ void Config::loadCacheFromSettings() {
           ->value(KEY_UI_HIDE_THUMBNAILS_WHEN_EVE_NOT_FOCUSED,
                   DEFAULT_UI_HIDE_THUMBNAILS_WHEN_EVE_NOT_FOCUSED)
           .toBool();
+  m_cachedEveFocusDebounceInterval =
+      m_settings
+          ->value(KEY_UI_EVE_FOCUS_DEBOUNCE_INTERVAL,
+                  DEFAULT_EVE_FOCUS_DEBOUNCE_INTERVAL)
+          .toInt();
   m_cachedHighlightColor = QColor(
       m_settings->value(KEY_UI_HIGHLIGHT_COLOR, DEFAULT_UI_HIGHLIGHT_COLOR)
           .toString());
@@ -502,6 +507,10 @@ bool Config::hideThumbnailsWhenEVENotFocused() const {
 void Config::setHideThumbnailsWhenEVENotFocused(bool enabled) {
   m_settings->setValue(KEY_UI_HIDE_THUMBNAILS_WHEN_EVE_NOT_FOCUSED, enabled);
   m_cachedHideThumbnailsWhenEVENotFocused = enabled;
+}
+
+int Config::eveFocusDebounceInterval() const {
+  return m_cachedEveFocusDebounceInterval;
 }
 
 QColor Config::highlightColor() const { return m_cachedHighlightColor; }
@@ -1310,6 +1319,10 @@ void Config::initializeDefaultProfile() {
   m_settings->setValue(KEY_UI_HIGHLIGHT_ACTIVE, DEFAULT_UI_HIGHLIGHT_ACTIVE);
   m_settings->setValue(KEY_UI_HIDE_ACTIVE_THUMBNAIL,
                        DEFAULT_UI_HIDE_ACTIVE_THUMBNAIL);
+  m_settings->setValue(KEY_UI_HIDE_THUMBNAILS_WHEN_EVE_NOT_FOCUSED,
+                       DEFAULT_UI_HIDE_THUMBNAILS_WHEN_EVE_NOT_FOCUSED);
+  m_settings->setValue(KEY_UI_EVE_FOCUS_DEBOUNCE_INTERVAL,
+                       DEFAULT_EVE_FOCUS_DEBOUNCE_INTERVAL);
   m_settings->setValue(KEY_UI_HIGHLIGHT_COLOR, DEFAULT_UI_HIGHLIGHT_COLOR);
   m_settings->setValue(KEY_UI_HIGHLIGHT_BORDER_WIDTH,
                        DEFAULT_UI_HIGHLIGHT_BORDER_WIDTH);

@@ -87,7 +87,7 @@ MainWindow::MainWindow(QObject *parent)
 
   m_eveFocusDebounceTimer = new QTimer(this);
   m_eveFocusDebounceTimer->setSingleShot(true);
-  m_eveFocusDebounceTimer->setInterval(100);
+  m_eveFocusDebounceTimer->setInterval(cfg.eveFocusDebounceInterval());
   connect(m_eveFocusDebounceTimer, &QTimer::timeout, this,
           &MainWindow::processEVEFocusChange);
 

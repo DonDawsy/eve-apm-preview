@@ -30,6 +30,8 @@ public:
   bool hideThumbnailsWhenEVENotFocused() const;
   void setHideThumbnailsWhenEVENotFocused(bool enabled);
 
+  int eveFocusDebounceInterval() const;
+
   QColor highlightColor() const;
   void setHighlightColor(const QColor &color);
 
@@ -380,6 +382,7 @@ public:
 
   static constexpr bool DEFAULT_HOTKEY_WILDCARD = false;
   static constexpr bool DEFAULT_HOTKEY_ONLY_WHEN_EVE_FOCUSED = false;
+  static constexpr int DEFAULT_EVE_FOCUS_DEBOUNCE_INTERVAL = 200;
 
   static constexpr bool DEFAULT_OVERLAY_SHOW_CHARACTER = true;
   static constexpr const char *DEFAULT_OVERLAY_CHARACTER_COLOR = "#FFFFFF";
@@ -426,6 +429,7 @@ private:
   mutable bool m_cachedHighlightActive;
   mutable bool m_cachedHideActiveThumbnail;
   mutable bool m_cachedHideThumbnailsWhenEVENotFocused;
+  mutable int m_cachedEveFocusDebounceInterval;
   mutable QColor m_cachedHighlightColor;
   mutable int m_cachedHighlightBorderWidth;
   mutable BorderStyle m_cachedActiveBorderStyle;
@@ -557,6 +561,8 @@ private:
       "ui/hideActiveClientThumbnail";
   static constexpr const char *KEY_UI_HIDE_THUMBNAILS_WHEN_EVE_NOT_FOCUSED =
       "ui/hideThumbnailsWhenEVENotFocused";
+  static constexpr const char *KEY_UI_EVE_FOCUS_DEBOUNCE_INTERVAL =
+      "ui/eveFocusDebounceInterval";
   static constexpr const char *KEY_THUMBNAIL_OPACITY = "thumbnail/opacity";
   static constexpr const char *KEY_THUMBNAIL_PROCESS_NAMES =
       "thumbnail/processNames";
