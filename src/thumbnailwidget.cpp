@@ -445,6 +445,7 @@ void ThumbnailWidget::mousePressEvent(QMouseEvent *event) {
   }
 
   if (event->button() == Qt::LeftButton) {
+    m_mousePressed = true;
     if (event->modifiers() & Qt::ShiftModifier) {
       m_dragPosition =
           event->globalPosition().toPoint() - frameGeometry().topLeft();
@@ -488,6 +489,7 @@ void ThumbnailWidget::mousePressEvent(QMouseEvent *event) {
   } else if (event->button() == Qt::RightButton) {
     // Right-click behavior depends on drag button setting
     if (cfg.useDragWithRightClick()) {
+      m_mousePressed = true;
       // Right-click is for dragging (traditional) - only set position, not
       // dragging flag yet
       m_dragPosition =
@@ -604,6 +606,7 @@ void ThumbnailWidget::mouseReleaseEvent(QMouseEvent *event) {
   const Config &cfg = Config::instance();
 
   if (event->button() == Qt::LeftButton) {
+    m_mousePressed = false;
     if (!m_isDragging) {
       // Left-click for switching (works for both drag button modes)
       if (!cfg.switchOnMouseDown()) {
@@ -640,6 +643,7 @@ void ThumbnailWidget::mouseReleaseEvent(QMouseEvent *event) {
   } else if (event->button() == Qt::RightButton) {
     // Right-click behavior depends on drag setting
     if (cfg.useDragWithRightClick() && m_isDragging) {
+      m_mousePressed = false;
       // Right-click drag end (when right-click is drag button)
       emit positionChanged(m_windowId, pos());
 

@@ -985,7 +985,20 @@ void MainWindow::updateThumbnailVisibility(HWND hwnd) {
     HWND activeWindow = GetForegroundWindow();
     bool isEVEFocused = thumbnails.contains(activeWindow);
     if (!isEVEFocused && !m_configDialog) {
-      shouldShow = false;
+      // Don't hide if any thumbnail is being dragged or mouse pressed
+      bool anyThumbnailDragging = false;
+      for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd();
+           ++it) {
+        ThumbnailWidget *thumb = it.value();
+        if (thumb && (thumb->isDragging() || thumb->isGroupDragging() ||
+                      thumb->isMousePressed())) {
+          anyThumbnailDragging = true;
+          break;
+        }
+      }
+      if (!anyThumbnailDragging) {
+        shouldShow = false;
+      }
     }
     // Early return - if already hidden, skip Rule 4 check
     if (!shouldShow) {
@@ -1171,12 +1184,26 @@ void MainWindow::updateActiveWindow() {
 
   if (hideWhenEVENotFocused && !isEVEFocused && !m_thumbnailsManuallyHidden &&
       !m_configDialog) {
+    // Don't hide thumbnails if any of them are being dragged or mouse pressed
+    bool anyThumbnailDragging = false;
     for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd(); ++it) {
-      HWND hwnd = it.key();
-      updateThumbnailVisibility(hwnd);
+      ThumbnailWidget *thumb = it.value();
+      if (thumb && (thumb->isDragging() || thumb->isGroupDragging() ||
+                    thumb->isMousePressed())) {
+        anyThumbnailDragging = true;
+        break;
+      }
     }
-    wasEVEFocused = false;
-    return;
+
+    if (!anyThumbnailDragging) {
+      for (auto it = thumbnails.constBegin(); it != thumbnails.constEnd();
+           ++it) {
+        HWND hwnd = it.key();
+        updateThumbnailVisibility(hwnd);
+      }
+      wasEVEFocused = false;
+      return;
+    }
   }
 
   if (hideWhenEVENotFocused && isEVEFocused && eveFocusChanged) {

@@ -69,6 +69,10 @@ public:
     m_otherThumbnails = others;
   }
 
+  bool isDragging() const { return m_isDragging; }
+  bool isGroupDragging() const { return m_isGroupDragging; }
+  bool isMousePressed() const { return m_mousePressed; }
+
 signals:
   void clicked(quintptr windowId);
   void positionChanged(quintptr windowId, QPoint position);
@@ -101,6 +105,7 @@ private:
   QPoint m_dragPosition;
   bool m_isDragging = false;
   bool m_isGroupDragging = false;
+  bool m_mousePressed = false;
   QPoint m_groupDragStartPos;
   bool m_isActive = false;
   QVector<OverlayElement> m_overlays;
