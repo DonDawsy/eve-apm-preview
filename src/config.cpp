@@ -172,6 +172,10 @@ void Config::loadCacheFromSettings() {
                                   ->value(KEY_WINDOW_SWITCH_ON_MOUSE_DOWN,
                                           DEFAULT_WINDOW_SWITCH_ON_MOUSE_DOWN)
                                   .toBool();
+  m_cachedDragWithRightClick = m_settings
+                                   ->value(KEY_WINDOW_DRAG_WITH_RIGHT_CLICK,
+                                           DEFAULT_WINDOW_DRAG_WITH_RIGHT_CLICK)
+                                   .toBool();
   m_cachedMinimizeInactive = m_settings
                                  ->value(KEY_WINDOW_MINIMIZE_INACTIVE,
                                          DEFAULT_WINDOW_MINIMIZE_INACTIVE)
