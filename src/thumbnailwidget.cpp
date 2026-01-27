@@ -945,13 +945,13 @@ void OverlayWidget::setActiveState(bool active) {
   } else {
     // Check if inactive border needs animation
     const Config &cfg = Config::instance();
-    QColor inactiveCharacterColor =
-        cfg.getCharacterInactiveBorderColor(m_characterName);
-    bool hasCustomInactiveColor = inactiveCharacterColor.isValid();
     bool showGlobalInactiveBorder = cfg.showInactiveBorders();
 
     bool needsInactiveAnimation = false;
-    if (hasCustomInactiveColor || showGlobalInactiveBorder) {
+    if (showGlobalInactiveBorder) {
+      QColor inactiveCharacterColor =
+          cfg.getCharacterInactiveBorderColor(m_characterName);
+      bool hasCustomInactiveColor = inactiveCharacterColor.isValid();
       BorderStyle inactiveStyle = cfg.inactiveBorderStyle();
       needsInactiveAnimation = (inactiveStyle == BorderStyle::Dashed ||
                                 inactiveStyle == BorderStyle::Neon ||
@@ -1070,12 +1070,12 @@ void OverlayWidget::resumeAnimations() {
 
     // Check if inactive border needs animation
     if (!needsAnimation && !m_isActive) {
-      QColor inactiveCharacterColor =
-          cfg.getCharacterInactiveBorderColor(m_characterName);
-      bool hasCustomInactiveColor = inactiveCharacterColor.isValid();
       bool showGlobalInactiveBorder = cfg.showInactiveBorders();
 
-      if (hasCustomInactiveColor || showGlobalInactiveBorder) {
+      if (showGlobalInactiveBorder) {
+        QColor inactiveCharacterColor =
+            cfg.getCharacterInactiveBorderColor(m_characterName);
+        bool hasCustomInactiveColor = inactiveCharacterColor.isValid();
         BorderStyle inactiveStyle = cfg.inactiveBorderStyle();
         needsAnimation = (inactiveStyle == BorderStyle::Dashed ||
                           inactiveStyle == BorderStyle::Neon ||
@@ -1127,14 +1127,13 @@ void OverlayWidget::paintEvent(QPaintEvent *) {
     // Move offset inward for next border
     currentOffset += borderWidth;
   } else if (!m_isActive) {
-    // Draw inactive border (when not active and global setting is enabled OR
-    // per-character color is set)
-    QColor inactiveCharacterColor =
-        cfg.getCharacterInactiveBorderColor(m_characterName);
-    bool hasCustomInactiveColor = inactiveCharacterColor.isValid();
+    // Draw inactive border (only when global setting is enabled)
     bool showGlobalInactiveBorder = cfg.showInactiveBorders();
 
-    if (hasCustomInactiveColor || showGlobalInactiveBorder) {
+    if (showGlobalInactiveBorder) {
+      QColor inactiveCharacterColor =
+          cfg.getCharacterInactiveBorderColor(m_characterName);
+      bool hasCustomInactiveColor = inactiveCharacterColor.isValid();
       int inactiveBorderWidth = cfg.inactiveBorderWidth();
       qreal inactiveHalfWidth = inactiveBorderWidth / 2.0;
 
