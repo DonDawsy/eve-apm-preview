@@ -85,6 +85,7 @@ MainWindow::MainWindow(QObject *parent)
   m_cycleThrottleTimer->setSingleShot(true);
   m_cycleThrottleTimer->setInterval(30);
 
+  const Config &cfg = Config::instance();
   m_eveFocusDebounceTimer = new QTimer(this);
   m_eveFocusDebounceTimer->setSingleShot(true);
   m_eveFocusDebounceTimer->setInterval(cfg.eveFocusDebounceInterval());
