@@ -1053,6 +1053,12 @@ LRESULT CALLBACK HotkeyManager::MessageWindowProc(HWND hwnd, UINT msg,
 
   if (msg == WM_HOTKEY) {
     if (manager && !s_instance.isNull()) {
+      // Check EVE focus requirement first, before any hotkey processing
+      bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
+      if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
+        return 0;
+      }
+
       int hotkeyId = static_cast<int>(wParam);
 
       if (manager->m_wildcardAliases.contains(hotkeyId)) {
@@ -1065,11 +1071,6 @@ LRESULT CALLBACK HotkeyManager::MessageWindowProc(HWND hwnd, UINT msg,
       }
 
       if (manager->m_suspended) {
-        return 0;
-      }
-
-      bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
-      if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
         return 0;
       }
 
@@ -1338,6 +1339,12 @@ LRESULT CALLBACK HotkeyManager::LowLevelMouseProc(int nCode, WPARAM wParam,
 
 void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
                                              bool shift) {
+  // Check EVE focus requirement first, before any hotkey processing
+  bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
+  if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
+    return;
+  }
+
   HotkeyBinding pressedBinding(vkCode, ctrl, alt, shift, true);
 
   // Check suspend hotkeys first
@@ -1353,12 +1360,6 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
   }
 
   if (m_suspended) {
-    return;
-  }
-
-  // Check EVE focus requirement once
-  bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
-  if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
     return;
   }
 
