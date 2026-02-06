@@ -1147,6 +1147,8 @@ void ChatLogWorker::parseLogLine(const QString &line,
                                        Qt::CaseInsensitive);
     int crystalBrokePos = workingLine.indexOf(
         "deactivates due to the destruction", notifyPos, Qt::CaseInsensitive);
+    int asteroidDepletedPos = workingLine.indexOf(
+        "pale shadow of its former glory", notifyPos, Qt::CaseInsensitive);
 
     if (followingPos != -1) {
       static QRegularExpression followWarpPattern(
@@ -1243,6 +1245,38 @@ void ChatLogWorker::parseLogLine(const QString &line,
         return;
       }
     }
+
+    if (asteroidDepletedPos != -1) {
+      static QRegularExpression asteroidPattern(
+          R"(\[\s*[\d.\s:]+\]\s*\(notify\)\s*(.+?)\s+deactivates as it finds the resource it was harvesting a pale shadow of its former glory)");
+
+      QRegularExpressionMatch asteroidMatch =
+          asteroidPattern.match(workingLine);
+      if (asteroidMatch.hasMatch()) {
+        QString module = asteroidMatch.captured(1).trimmed();
+        qDebug() << "ChatLogWorker: Asteroid depleted detected for"
+                 << characterName << "- Module:" << module;
+
+        // Stop the mining timer if it exists
+        QTimer *timer = m_miningTimers.value(characterName, nullptr);
+        if (timer && timer->isActive()) {
+          timer->stop();
+          qDebug() << "ChatLogWorker: Stopped mining timer for"
+                   << characterName;
+        }
+
+        // Mark mining as stopped and emit event
+        if (m_miningActiveState.value(characterName, false)) {
+          m_miningActiveState[characterName] = false;
+          emit combatEventDetected(characterName, "mining_stopped",
+                                   "Mining stopped");
+          qDebug() << "ChatLogWorker: Mining stopped for" << characterName
+                   << "(asteroid depleted)";
+        }
+        return;
+      }
+    }
+
     return;
   }
 
@@ -1315,20 +1349,22 @@ void ChatLogWorker::parseLogLine(const QString &line,
       }
     }
 
-    // Check for conversation requests: "(None) <a href=showinfo:...> ... </a> is inviting you to a conversation"
-    // Note: Only works when coming from someone not in the receiver's contacts.
+    // Check for conversation requests: "(None) <a href=showinfo:...> ... </a>
+    // is inviting you to a conversation" Note: Only works when coming from
+    // someone not in the receiver's contacts.
     if (convoRequestPos != -1) {
       static QRegularExpression convoRequestPattern(
           R"(\[ ([^\]]+) \] \(None\) <a href=showinfo:\d+//\d+>([^<]+)</a> is inviting you to a conversation\.)");
 
-      QRegularExpressionMatch convoRequestMatch = convoRequestPattern.match(workingLine);
+      QRegularExpressionMatch convoRequestMatch =
+          convoRequestPattern.match(workingLine);
       if (convoRequestMatch.hasMatch()) {
         QString timestampStr = convoRequestMatch.captured(1).trimmed();
         QString fromPilot = convoRequestMatch.captured(2).trimmed();
         QString eventText = QString("Convo from: %1").arg(fromPilot);
 
-        qDebug() << "ChatLogWorker: Conversation request for"
-          << characterName << "- From:" << fromPilot;
+        qDebug() << "ChatLogWorker: Conversation request for" << characterName
+                 << "- From:" << fromPilot;
         emit combatEventDetected(characterName, "convo_request", eventText);
       }
     }
