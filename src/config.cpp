@@ -438,7 +438,8 @@ void Config::loadCacheFromSettings() {
     // Skip invalid positions (issue #27)
     // Windows uses (-32000, -32000) for minimized windows
     if (pos.x() == -32000 && pos.y() == -32000) {
-      qDebug() << "Skipping invalid thumbnail position for" << characterName;
+      qDebug() << "Removing invalid thumbnail position for" << characterName;
+      m_settings->remove(characterName);
       continue;
     }
     m_cachedThumbnailPositions[characterName] = pos;
@@ -485,6 +486,12 @@ void Config::loadCacheFromSettings() {
     QRect rect = m_settings->value(characterName).toRect();
     qDebug() << "Loading client window rect for" << characterName << ":" << rect
              << "isValid:" << rect.isValid() << "isEmpty:" << rect.isEmpty();
+    // Check for invalid minimized window coordinates (issue #27)
+    if (rect.x() == -32000 && rect.y() == -32000) {
+      qDebug() << "  -> Removing invalid minimized window coordinates";
+      m_settings->remove(characterName);
+      continue;
+    }
     if (rect.isValid()) {
       m_cachedClientWindowRects[characterName] = rect;
       qDebug() << "  -> Cached successfully";
