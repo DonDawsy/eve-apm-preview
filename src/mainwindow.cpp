@@ -1914,7 +1914,7 @@ void MainWindow::onThumbnailPositionChanged(quintptr windowId,
   }
 
   // Check if position is actually visible on any screen
-  QScreen *screen = QApplication::screenAt(position);
+  QScreen *screen = QGuiApplication::screenAt(position);
   if (!screen) {
     qDebug() << "Thumbnail position" << position << "is off-screen, not saving";
     return;

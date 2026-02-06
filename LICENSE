@@ -1,3 +1,15 @@
+EVE-APM-Preview Licensing Information
+======================================
+
+This application uses multiple components with different licenses:
+
+1. EVE-APM-Preview Application Code (MIT License)
+2. Qt Framework (LGPL v3)
+
+---
+
+## 1. EVE-APM-Preview Application Code
+
 MIT License
 
 Copyright (c) 2025 mrmjstc
@@ -19,3 +31,37 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+## 2. Qt Framework
+
+This application uses the Qt Framework, which is licensed under the GNU Lesser
+General Public License (LGPL) version 3.
+
+Qt is Copyright (C) The Qt Company Ltd. and other contributors.
+
+For Qt LGPL v3 license text, see: https://www.gnu.org/licenses/lgpl-3.0.html
+For Qt licensing information, see: https://www.qt.io/licensing/
+
+### LGPL v3 Compliance Notice
+
+This application dynamically links to Qt libraries (when using standard builds)
+or statically links Qt (in static builds). Under LGPL v3:
+
+- You may use, modify, and distribute this software
+- Qt source code is available at: https://download.qt.io/official_releases/qt/
+- If distributed with static Qt builds, users have the right to relink the
+  application with modified versions of Qt libraries
+- Upon request, object files (.obj) will be provided to allow relinking
+
+For questions about Qt licensing or to request object files for relinking,
+please contact the project maintainer.
+
+---
+
+## Additional Notices
+
+EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights
+are reserved worldwide. All other trademarks are the property of their
+respective owners. This application is not affiliated with or endorsed by CCP hf.
