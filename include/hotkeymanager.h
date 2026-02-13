@@ -213,6 +213,16 @@ private:
   QHash<HotkeyBinding, QString> m_mouseButtonToCharacter;
   QHash<HotkeyBinding, QVector<QString>> m_mouseButtonToCharacters;
   QHash<HotkeyBinding, QPair<QString, bool>> m_mouseButtonToCycleGroup;
+  QHash<HotkeyBinding, bool> m_mouseButtonToSuspend;
+  QHash<HotkeyBinding, bool> m_mouseButtonToNotLoggedInForward;
+  QHash<HotkeyBinding, bool> m_mouseButtonToNotLoggedInBackward;
+  QHash<HotkeyBinding, bool> m_mouseButtonToNonEVEForward;
+  QHash<HotkeyBinding, bool> m_mouseButtonToNonEVEBackward;
+  QHash<HotkeyBinding, bool> m_mouseButtonToCloseAllClients;
+  QHash<HotkeyBinding, bool> m_mouseButtonToMinimizeAllClients;
+  QHash<HotkeyBinding, bool> m_mouseButtonToToggleThumbnailsVisibility;
+  QHash<HotkeyBinding, bool> m_mouseButtonToCycleProfileForward;
+  QHash<HotkeyBinding, bool> m_mouseButtonToCycleProfileBackward;
 
   QVector<HotkeyBinding> m_suspendHotkeys;
   QVector<int> m_suspendHotkeyIds;

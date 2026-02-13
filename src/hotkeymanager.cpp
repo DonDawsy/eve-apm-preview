@@ -184,12 +184,17 @@ bool HotkeyManager::registerHotkeys() {
   m_mouseButtonToCycleGroup.clear();
 
   m_suspendHotkeyIds.clear();
+  m_mouseButtonToSuspend.clear();
   for (const HotkeyBinding &binding : m_suspendHotkeys) {
     if (!binding.enabled)
       continue;
     int hotkeyId;
     if (registerHotkey(binding, hotkeyId)) {
       m_suspendHotkeyIds.append(hotkeyId);
+      // Build mouse button hash map for O(1) lookup
+      if (isMouseButton(binding.keyCode)) {
+        m_mouseButtonToSuspend.insert(binding, true);
+      }
     }
   }
 
@@ -317,27 +322,86 @@ bool HotkeyManager::registerHotkeys() {
     }
   }
 
+  // Register and build mouse button hash maps for action hotkeys
+  m_mouseButtonToNotLoggedInForward.clear();
+  m_mouseButtonToNotLoggedInBackward.clear();
+  m_mouseButtonToNonEVEForward.clear();
+  m_mouseButtonToNonEVEBackward.clear();
+  m_mouseButtonToCloseAllClients.clear();
+  m_mouseButtonToMinimizeAllClients.clear();
+  m_mouseButtonToToggleThumbnailsVisibility.clear();
+  m_mouseButtonToCycleProfileForward.clear();
+  m_mouseButtonToCycleProfileBackward.clear();
+
   registerHotkeyList(m_notLoggedInForwardHotkeys,
                      m_notLoggedInForwardHotkeyIds);
+  for (const HotkeyBinding &b : m_notLoggedInForwardHotkeys) {
+    if (b.enabled && isMouseButton(b.keyCode)) {
+      m_mouseButtonToNotLoggedInForward.insert(b, true);
+    }
+  }
+
   registerHotkeyList(m_notLoggedInBackwardHotkeys,
                      m_notLoggedInBackwardHotkeyIds);
+  for (const HotkeyBinding &b : m_notLoggedInBackwardHotkeys) {
+    if (b.enabled && isMouseButton(b.keyCode)) {
+      m_mouseButtonToNotLoggedInBackward.insert(b, true);
+    }
+  }
 
   registerHotkeyList(m_nonEVEForwardHotkeys, m_nonEVEForwardHotkeyIds);
+  for (const HotkeyBinding &b : m_nonEVEForwardHotkeys) {
+    if (b.enabled && isMouseButton(b.keyCode)) {
+      m_mouseButtonToNonEVEForward.insert(b, true);
+    }
+  }
+
   registerHotkeyList(m_nonEVEBackwardHotkeys, m_nonEVEBackwardHotkeyIds);
+  for (const HotkeyBinding &b : m_nonEVEBackwardHotkeys) {
+    if (b.enabled && isMouseButton(b.keyCode)) {
+      m_mouseButtonToNonEVEBackward.insert(b, true);
+    }
+  }
 
   registerHotkeyList(m_closeAllClientsHotkeys, m_closeAllClientsHotkeyIds,
                      false);
+  for (const HotkeyBinding &b : m_closeAllClientsHotkeys) {
+    if (b.enabled && isMouseButton(b.keyCode)) {
+      m_mouseButtonToCloseAllClients.insert(b, true);
+    }
+  }
 
   registerHotkeyList(m_minimizeAllClientsHotkeys, m_minimizeAllClientsHotkeyIds,
                      false);
+  for (const HotkeyBinding &b : m_minimizeAllClientsHotkeys) {
+    if (b.enabled && isMouseButton(b.keyCode)) {
+      m_mouseButtonToMinimizeAllClients.insert(b, true);
+    }
+  }
 
   registerHotkeyList(m_toggleThumbnailsVisibilityHotkeys,
                      m_toggleThumbnailsVisibilityHotkeyIds, false);
+  for (const HotkeyBinding &b : m_toggleThumbnailsVisibilityHotkeys) {
+    if (b.enabled && isMouseButton(b.keyCode)) {
+      m_mouseButtonToToggleThumbnailsVisibility.insert(b, true);
+    }
+  }
 
   registerHotkeyList(m_cycleProfileForwardHotkeys,
                      m_cycleProfileForwardHotkeyIds, false);
+  for (const HotkeyBinding &b : m_cycleProfileForwardHotkeys) {
+    if (b.enabled && isMouseButton(b.keyCode)) {
+      m_mouseButtonToCycleProfileForward.insert(b, true);
+    }
+  }
+
   registerHotkeyList(m_cycleProfileBackwardHotkeys,
                      m_cycleProfileBackwardHotkeyIds, false);
+  for (const HotkeyBinding &b : m_cycleProfileBackwardHotkeys) {
+    if (b.enabled && isMouseButton(b.keyCode)) {
+      m_mouseButtonToCycleProfileBackward.insert(b, true);
+    }
+  }
 
   registerProfileHotkeys();
 
@@ -1347,16 +1411,10 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
 
   HotkeyBinding pressedBinding(vkCode, ctrl, alt, shift, true);
 
-  // Check suspend hotkeys first
-  if (!m_suspendHotkeys.isEmpty()) {
-    for (const HotkeyBinding &binding : m_suspendHotkeys) {
-      if (binding.enabled && binding.keyCode == vkCode &&
-          binding.ctrl == ctrl && binding.alt == alt &&
-          binding.shift == shift) {
-        toggleSuspended();
-        return;
-      }
-    }
+  // Check suspend hotkeys first - O(1) hash lookup
+  if (m_mouseButtonToSuspend.contains(pressedBinding)) {
+    toggleSuspended();
+    return;
   }
 
   if (m_suspended) {
@@ -1392,44 +1450,49 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
     return;
   }
 
-  // Check other hotkey lists (these typically have few entries)
-  for (const HotkeyBinding &binding : m_notLoggedInForwardHotkeys) {
-    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
-        binding.alt == alt && binding.shift == shift) {
-      emit notLoggedInCycleForwardPressed();
-      return;
-    }
+  // O(1) hash lookups for action hotkeys
+  if (m_mouseButtonToNotLoggedInForward.contains(pressedBinding)) {
+    emit notLoggedInCycleForwardPressed();
+    return;
   }
 
-  for (const HotkeyBinding &binding : m_notLoggedInBackwardHotkeys) {
-    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
-        binding.alt == alt && binding.shift == shift) {
-      emit notLoggedInCycleBackwardPressed();
-      return;
-    }
+  if (m_mouseButtonToNotLoggedInBackward.contains(pressedBinding)) {
+    emit notLoggedInCycleBackwardPressed();
+    return;
   }
 
-  for (const HotkeyBinding &binding : m_nonEVEForwardHotkeys) {
-    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
-        binding.alt == alt && binding.shift == shift) {
-      emit nonEVECycleForwardPressed();
-      return;
-    }
+  if (m_mouseButtonToNonEVEForward.contains(pressedBinding)) {
+    emit nonEVECycleForwardPressed();
+    return;
   }
 
-  for (const HotkeyBinding &binding : m_nonEVEBackwardHotkeys) {
-    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
-        binding.alt == alt && binding.shift == shift) {
-      emit nonEVECycleBackwardPressed();
-      return;
-    }
+  if (m_mouseButtonToNonEVEBackward.contains(pressedBinding)) {
+    emit nonEVECycleBackwardPressed();
+    return;
   }
 
-  for (const HotkeyBinding &binding : m_closeAllClientsHotkeys) {
-    if (binding.enabled && binding.keyCode == vkCode && binding.ctrl == ctrl &&
-        binding.alt == alt && binding.shift == shift) {
-      emit closeAllClientsRequested();
-      return;
-    }
+  if (m_mouseButtonToCloseAllClients.contains(pressedBinding)) {
+    emit closeAllClientsRequested();
+    return;
+  }
+
+  if (m_mouseButtonToMinimizeAllClients.contains(pressedBinding)) {
+    emit minimizeAllClientsRequested();
+    return;
+  }
+
+  if (m_mouseButtonToToggleThumbnailsVisibility.contains(pressedBinding)) {
+    emit toggleThumbnailsVisibilityRequested();
+    return;
+  }
+
+  if (m_mouseButtonToCycleProfileForward.contains(pressedBinding)) {
+    emit cycleProfileForwardRequested();
+    return;
+  }
+
+  if (m_mouseButtonToCycleProfileBackward.contains(pressedBinding)) {
+    emit cycleProfileBackwardRequested();
+    return;
   }
 }
