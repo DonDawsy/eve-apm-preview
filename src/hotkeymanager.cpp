@@ -1153,7 +1153,8 @@ LRESULT CALLBACK HotkeyManager::MessageWindowProc(HWND hwnd, UINT msg,
         hotkeyId = manager->m_wildcardAliases.value(hotkeyId);
       }
 
-      // Check suspend hotkey first - it should always work regardless of focus or suspended state
+      // Check suspend hotkey first - it should always work regardless of focus
+      // or suspended state
       if (manager->m_suspendHotkeyIds.contains(hotkeyId)) {
         manager->toggleSuspended();
         return 0;
@@ -1442,7 +1443,8 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
                                              bool shift) {
   HotkeyBinding pressedBinding(vkCode, ctrl, alt, shift, true);
 
-  // Check suspend hotkey first - it should always work regardless of focus or suspended state
+  // Check suspend hotkey first - it should always work regardless of focus or
+  // suspended state
   if (m_mouseButtonToSuspend.contains(pressedBinding)) {
     toggleSuspended();
     return;
