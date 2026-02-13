@@ -1149,6 +1149,8 @@ void ChatLogWorker::parseLogLine(const QString &line,
         "deactivates due to the destruction", notifyPos, Qt::CaseInsensitive);
     int asteroidDepletedPos = workingLine.indexOf(
         "pale shadow of its former glory", notifyPos, Qt::CaseInsensitive);
+    int cargoFullPos = workingLine.indexOf("has completed operations",
+                                           notifyPos, Qt::CaseInsensitive);
 
     if (followingPos != -1) {
       static QRegularExpression followWarpPattern(
@@ -1272,6 +1274,36 @@ void ChatLogWorker::parseLogLine(const QString &line,
                                    "Mining stopped");
           qDebug() << "ChatLogWorker: Mining stopped for" << characterName
                    << "(asteroid depleted)";
+        }
+        return;
+      }
+    }
+
+    if (cargoFullPos != -1) {
+      static QRegularExpression cargoPattern(
+          R"(\[\s*[\d.\s:]+\]\s*\(notify\)\s*Your\s+(.+?)\s+has completed operations\.\s+Ship's cargo hold is full\.)");
+
+      QRegularExpressionMatch cargoMatch = cargoPattern.match(workingLine);
+      if (cargoMatch.hasMatch()) {
+        QString module = cargoMatch.captured(1).trimmed();
+        qDebug() << "ChatLogWorker: Cargo full detected for" << characterName
+                 << "- Module:" << module;
+
+        // Stop the mining timer if it exists
+        QTimer *timer = m_miningTimers.value(characterName, nullptr);
+        if (timer && timer->isActive()) {
+          timer->stop();
+          qDebug() << "ChatLogWorker: Stopped mining timer for"
+                   << characterName;
+        }
+
+        // Mark mining as stopped and emit event
+        if (m_miningActiveState.value(characterName, false)) {
+          m_miningActiveState[characterName] = false;
+          emit combatEventDetected(characterName, "mining_stopped",
+                                   "Mining stopped");
+          qDebug() << "ChatLogWorker: Mining stopped for" << characterName
+                   << "(cargo full)";
         }
         return;
       }
