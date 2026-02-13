@@ -1078,8 +1078,7 @@ void HotkeyManager::saveToConfig() {
   settings.endGroup();
 
   settings.beginGroup("toggleLockPositionsHotkeys");
-  saveHotkeyList(settings, "toggleLockPositions",
-                 m_toggleLockPositionsHotkeys);
+  saveHotkeyList(settings, "toggleLockPositions", m_toggleLockPositionsHotkeys);
   settings.endGroup();
 
   settings.sync();

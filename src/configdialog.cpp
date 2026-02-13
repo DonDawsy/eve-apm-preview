@@ -1479,8 +1479,8 @@ void ConfigDialog::createHotkeysPage() {
       StyleSheet::getSectionHeaderStyleSheet());
   toggleLockPositionsSectionLayout->addWidget(toggleLockPositionsHeader);
 
-  QLabel *toggleLockPositionsInfoLabel = new QLabel(
-      "Hotkey to toggle thumbnail position lock on/off.");
+  QLabel *toggleLockPositionsInfoLabel =
+      new QLabel("Hotkey to toggle thumbnail position lock on/off.");
   toggleLockPositionsInfoLabel->setWordWrap(true);
   toggleLockPositionsInfoLabel->setStyleSheet(
       StyleSheet::getInfoLabelStyleSheet());

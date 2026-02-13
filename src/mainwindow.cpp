@@ -113,7 +113,8 @@ MainWindow::MainWindow(QObject *parent)
 
   m_lockPositionsAction = new QAction("Lock Positions", this);
   m_lockPositionsAction->setCheckable(true);
-  m_lockPositionsAction->setChecked(Config::instance().lockThumbnailPositions());
+  m_lockPositionsAction->setChecked(
+      Config::instance().lockThumbnailPositions());
   connect(m_lockPositionsAction, &QAction::triggered, this,
           &MainWindow::toggleLockPositions);
   m_trayMenu->addAction(m_lockPositionsAction);
@@ -2572,7 +2573,7 @@ void MainWindow::toggleLockPositions() {
   Config &cfg = Config::instance();
   bool currentLock = cfg.lockThumbnailPositions();
   cfg.setLockThumbnailPositions(!currentLock);
-  
+
   if (m_lockPositionsAction) {
     m_lockPositionsAction->setChecked(!currentLock);
   }
