@@ -1147,24 +1147,26 @@ LRESULT CALLBACK HotkeyManager::MessageWindowProc(HWND hwnd, UINT msg,
 
   if (msg == WM_HOTKEY) {
     if (manager && !s_instance.isNull()) {
-      // Check EVE focus requirement first, before any hotkey processing
-      bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
-      if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
-        return 0;
-      }
-
       int hotkeyId = static_cast<int>(wParam);
 
       if (manager->m_wildcardAliases.contains(hotkeyId)) {
         hotkeyId = manager->m_wildcardAliases.value(hotkeyId);
       }
 
+      // Check suspend hotkey first - it should always work regardless of focus or suspended state
       if (manager->m_suspendHotkeyIds.contains(hotkeyId)) {
         manager->toggleSuspended();
         return 0;
       }
 
+      // Check if hotkeys are suspended
       if (manager->m_suspended) {
+        return 0;
+      }
+
+      // Check EVE focus requirement for non-suspend hotkeys
+      bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
+      if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
         return 0;
       }
 
@@ -1438,21 +1440,22 @@ LRESULT CALLBACK HotkeyManager::LowLevelMouseProc(int nCode, WPARAM wParam,
 
 void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
                                              bool shift) {
-  // Check EVE focus requirement first, before any hotkey processing
-  bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
-  if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
-    return;
-  }
-
   HotkeyBinding pressedBinding(vkCode, ctrl, alt, shift, true);
 
-  // Check suspend hotkeys first - O(1) hash lookup
+  // Check suspend hotkey first - it should always work regardless of focus or suspended state
   if (m_mouseButtonToSuspend.contains(pressedBinding)) {
     toggleSuspended();
     return;
   }
 
+  // Check if hotkeys are suspended
   if (m_suspended) {
+    return;
+  }
+
+  // Check EVE focus requirement for non-suspend hotkeys
+  bool onlyWhenEVEFocused = Config::instance().hotkeysOnlyWhenEVEFocused();
+  if (onlyWhenEVEFocused && !isForegroundWindowEVEClient()) {
     return;
   }
 
