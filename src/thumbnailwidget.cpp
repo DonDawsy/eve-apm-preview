@@ -815,7 +815,6 @@ void ThumbnailWidget::moveEvent(QMoveEvent *event) {
 bool ThumbnailWidget::nativeEvent(const QByteArray &eventType, void *message,
                                   qintptr *result) {
   Q_UNUSED(eventType);
-  Q_UNUSED(result);
 
   MSG *msg = static_cast<MSG *>(message);
 
@@ -825,6 +824,14 @@ bool ThumbnailWidget::nativeEvent(const QByteArray &eventType, void *message,
     if (m_overlayWidget) {
       m_overlayWidget->invalidateCache();
     }
+  } else if (msg->message == WM_MOUSEACTIVATE) {
+    // Return MA_NOACTIVATE to allow mouse input without activating the window
+    // This ensures clicks are processed even with WS_EX_NOACTIVATE style
+    // Fixes issue #35: Sometimes requires double-click to switch windows
+    if (result) {
+      *result = MA_NOACTIVATE;
+    }
+    return true;
   }
 
   return false;

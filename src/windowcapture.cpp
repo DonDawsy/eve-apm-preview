@@ -158,10 +158,15 @@ void WindowCapture::activateWindow(HWND hwnd) {
     Sleep(30);
   }
 
+  // First attempt to activate
   SetForegroundWindow(hwnd);
   SetFocus(hwnd);
 
+  // Check if activation succeeded
   if (GetForegroundWindow() != hwnd) {
+    qDebug() << "WindowCapture: First activation attempt failed, using "
+                "fallback method";
+
     HWND currentForeground = GetForegroundWindow();
     DWORD foregroundThread = 0;
     if (currentForeground) {
@@ -186,6 +191,22 @@ void WindowCapture::activateWindow(HWND hwnd) {
 
     if (attached) {
       AttachThreadInput(foregroundThread, thisThread, FALSE);
+    }
+
+    // Final validation: Check if window became foreground (issue #35)
+    // If not, try one more time with a small delay
+    if (GetForegroundWindow() != hwnd) {
+      qDebug() << "WindowCapture: Second activation attempt failed, trying "
+                  "final retry (issue #35)";
+      Sleep(10);
+      SetForegroundWindow(hwnd);
+      SetFocus(hwnd);
+
+      // Log if activation still failed
+      if (GetForegroundWindow() != hwnd) {
+        qDebug() << "WindowCapture: WARNING - Window activation failed after "
+                    "all retries (issue #35)";
+      }
     }
   }
 }
