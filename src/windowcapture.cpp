@@ -158,32 +158,66 @@ void WindowCapture::activateWindow(HWND hwnd) {
     Sleep(30);
   }
 
-  // First attempt to activate
+  // Get thread information for robust activation
+  HWND currentForeground = GetForegroundWindow();
+  DWORD foregroundThread = 0;
+  if (currentForeground) {
+    foregroundThread = GetWindowThreadProcessId(currentForeground, nullptr);
+  }
+
+  DWORD thisThread = GetCurrentThreadId();
+  BOOL attached = FALSE;
+  if (foregroundThread != 0 && foregroundThread != thisThread) {
+    // Attach to the foreground thread to bypass focus stealing prevention
+    attached = AttachThreadInput(foregroundThread, thisThread, TRUE);
+  }
+
+  // First attempt to activate (with thread input attachment for reliability)
+  // For maximized windows, use BringWindowToTop; for others, use SetWindowPos
+  // to avoid any potential state changes
+  if (wasMaximized && !wasMinimized) {
+    BringWindowToTop(hwnd);
+  } else {
+    // Use SetWindowPos with flags to skip animations for faster activation
+    SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOCOPYBITS | SWP_ASYNCWINDOWPOS);
+  }
+
   SetForegroundWindow(hwnd);
   SetFocus(hwnd);
 
-  // Check if activation succeeded
-  if (GetForegroundWindow() != hwnd) {
-    qDebug() << "WindowCapture: First activation attempt failed, using "
-                "fallback method";
+  if (attached) {
+    AttachThreadInput(foregroundThread, thisThread, FALSE);
+  }
 
-    HWND currentForeground = GetForegroundWindow();
-    DWORD foregroundThread = 0;
+  // Double-check and restore maximized state if it was lost (issue #26)
+  if (wasMaximized && !wasMinimized) {
+    WINDOWPLACEMENT currentPlacement;
+    currentPlacement.length = sizeof(WINDOWPLACEMENT);
+    GetWindowPlacement(hwnd, &currentPlacement);
+
+    if (currentPlacement.showCmd != SW_SHOWMAXIMIZED) {
+      ShowWindow(hwnd, SW_MAXIMIZE);
+    }
+  }
+
+  // Final validation: Check if window became foreground (issue #35)
+  // If first attempt failed, try one more time with a small delay
+  if (GetForegroundWindow() != hwnd) {
+    qDebug() << "WindowCapture: First activation attempt failed, retrying "
+                "after brief delay (issue #35)";
+    Sleep(10);
+
+    // Re-attach thread input and retry
+    currentForeground = GetForegroundWindow();
+    foregroundThread = 0;
     if (currentForeground) {
       foregroundThread = GetWindowThreadProcessId(currentForeground, nullptr);
     }
 
-    DWORD thisThread = GetCurrentThreadId();
-    BOOL attached = FALSE;
+    attached = FALSE;
     if (foregroundThread != 0 && foregroundThread != thisThread) {
       attached = AttachThreadInput(foregroundThread, thisThread, TRUE);
-    }
-
-    BringWindowToTop(hwnd);
-
-    // Only restore if it was minimized; otherwise just bring to front
-    if (wasMinimized) {
-      ShowWindowAsync(hwnd, wasMaximized ? SW_SHOWMAXIMIZED : SW_RESTORE);
     }
 
     SetForegroundWindow(hwnd);
@@ -193,32 +227,10 @@ void WindowCapture::activateWindow(HWND hwnd) {
       AttachThreadInput(foregroundThread, thisThread, FALSE);
     }
 
-    // BringWindowToTop can cause maximized windows to unmaximize (issue #26)
-    // Check and restore maximized state if it was lost
-    if (wasMaximized && !wasMinimized) {
-      WINDOWPLACEMENT currentPlacement;
-      currentPlacement.length = sizeof(WINDOWPLACEMENT);
-      GetWindowPlacement(hwnd, &currentPlacement);
-
-      if (currentPlacement.showCmd != SW_SHOWMAXIMIZED) {
-        ShowWindow(hwnd, SW_MAXIMIZE);
-      }
-    }
-
-    // Final validation: Check if window became foreground (issue #35)
-    // If not, try one more time with a small delay
+    // Log if activation still failed
     if (GetForegroundWindow() != hwnd) {
-      qDebug() << "WindowCapture: Second activation attempt failed, trying "
-                  "final retry (issue #35)";
-      Sleep(10);
-      SetForegroundWindow(hwnd);
-      SetFocus(hwnd);
-
-      // Log if activation still failed
-      if (GetForegroundWindow() != hwnd) {
-        qDebug() << "WindowCapture: WARNING - Window activation failed after "
-                    "all retries (issue #35)";
-      }
+      qDebug() << "WindowCapture: WARNING - Window activation failed after "
+                  "all retries (issue #35)";
     }
   }
 }
