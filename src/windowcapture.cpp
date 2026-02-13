@@ -193,6 +193,18 @@ void WindowCapture::activateWindow(HWND hwnd) {
       AttachThreadInput(foregroundThread, thisThread, FALSE);
     }
 
+    // BringWindowToTop can cause maximized windows to unmaximize (issue #26)
+    // Check and restore maximized state if it was lost
+    if (wasMaximized && !wasMinimized) {
+      WINDOWPLACEMENT currentPlacement;
+      currentPlacement.length = sizeof(WINDOWPLACEMENT);
+      GetWindowPlacement(hwnd, &currentPlacement);
+
+      if (currentPlacement.showCmd != SW_SHOWMAXIMIZED) {
+        ShowWindow(hwnd, SW_MAXIMIZE);
+      }
+    }
+
     // Final validation: Check if window became foreground (issue #35)
     // If not, try one more time with a small delay
     if (GetForegroundWindow() != hwnd) {
