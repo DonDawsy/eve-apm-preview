@@ -1463,6 +1463,62 @@ void ConfigDialog::createHotkeysPage() {
 
   layout->addWidget(toggleThumbnailsSection);
 
+  // Toggle Lock Positions Hotkeys Section
+  QWidget *toggleLockPositionsSection = new QWidget();
+  toggleLockPositionsSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
+  QVBoxLayout *toggleLockPositionsSectionLayout =
+      new QVBoxLayout(toggleLockPositionsSection);
+  toggleLockPositionsSectionLayout->setContentsMargins(16, 12, 16, 12);
+  toggleLockPositionsSectionLayout->setSpacing(10);
+
+  tagWidget(toggleLockPositionsSection,
+            {"lock", "position", "toggle", "hotkey", "thumbnail"});
+
+  QLabel *toggleLockPositionsHeader = new QLabel("Toggle Lock Positions");
+  toggleLockPositionsHeader->setStyleSheet(
+      StyleSheet::getSectionHeaderStyleSheet());
+  toggleLockPositionsSectionLayout->addWidget(toggleLockPositionsHeader);
+
+  QLabel *toggleLockPositionsInfoLabel = new QLabel(
+      "Hotkey to toggle thumbnail position lock on/off.");
+  toggleLockPositionsInfoLabel->setWordWrap(true);
+  toggleLockPositionsInfoLabel->setStyleSheet(
+      StyleSheet::getInfoLabelStyleSheet());
+  toggleLockPositionsSectionLayout->addWidget(toggleLockPositionsInfoLabel);
+
+  QGridLayout *toggleLockPositionsGrid = new QGridLayout();
+  toggleLockPositionsGrid->setHorizontalSpacing(10);
+  toggleLockPositionsGrid->setVerticalSpacing(8);
+  toggleLockPositionsGrid->setColumnMinimumWidth(0, 120);
+  toggleLockPositionsGrid->setColumnStretch(2, 1);
+
+  QLabel *toggleLockPositionsLabel = new QLabel("Toggle lock:");
+  toggleLockPositionsLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_toggleLockPositionsCapture = new HotkeyCapture();
+  m_toggleLockPositionsCapture->setFixedWidth(150);
+  m_toggleLockPositionsCapture->setStyleSheet(
+      StyleSheet::getHotkeyCaptureStandaloneStyleSheet());
+
+  connect(m_toggleLockPositionsCapture, &HotkeyCapture::hotkeyChanged, this,
+          &ConfigDialog::onHotkeyChanged);
+
+  QPushButton *clearToggleLockPositionsButton = new QPushButton("Clear");
+  clearToggleLockPositionsButton->setFixedWidth(60);
+  clearToggleLockPositionsButton->setStyleSheet(
+      StyleSheet::getSecondaryButtonStyleSheet());
+  connect(clearToggleLockPositionsButton, &QPushButton::clicked,
+          [this]() { m_toggleLockPositionsCapture->clearHotkey(); });
+
+  toggleLockPositionsGrid->addWidget(toggleLockPositionsLabel, 0, 0,
+                                     Qt::AlignLeft);
+  toggleLockPositionsGrid->addWidget(m_toggleLockPositionsCapture, 0, 1);
+  toggleLockPositionsGrid->addWidget(clearToggleLockPositionsButton, 0, 2,
+                                     Qt::AlignLeft);
+
+  toggleLockPositionsSectionLayout->addLayout(toggleLockPositionsGrid);
+
+  layout->addWidget(toggleLockPositionsSection);
+
   // Cycle Profile Hotkeys Section
   QWidget *cycleProfileSection = new QWidget();
   cycleProfileSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
@@ -4277,6 +4333,21 @@ void ConfigDialog::loadSettings() {
       m_toggleThumbnailsVisibilityCapture->clearHotkey();
     }
 
+    QVector<HotkeyBinding> toggleLockPositionsBindings =
+        hotkeyMgr->getToggleLockPositionsHotkeys();
+    if (!toggleLockPositionsBindings.isEmpty()) {
+      QVector<HotkeyCombination> toggleLockPositionsCombos;
+      for (const HotkeyBinding &binding : toggleLockPositionsBindings) {
+        toggleLockPositionsCombos.append(HotkeyCombination(
+            binding.keyCode, binding.getModifiers() & MOD_CONTROL,
+            binding.getModifiers() & MOD_ALT,
+            binding.getModifiers() & MOD_SHIFT));
+      }
+      m_toggleLockPositionsCapture->setHotkeys(toggleLockPositionsCombos);
+    } else {
+      m_toggleLockPositionsCapture->clearHotkey();
+    }
+
     QVector<HotkeyBinding> cycleProfileFwdBindings =
         hotkeyMgr->getCycleProfileForwardHotkeys();
     if (!cycleProfileFwdBindings.isEmpty()) {
@@ -4960,6 +5031,15 @@ void ConfigDialog::saveSettings() {
           HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
     }
     hotkeyMgr->setToggleThumbnailsVisibilityHotkeys(toggleThumbnailsBindings);
+
+    QVector<HotkeyBinding> toggleLockPositionsBindings;
+    QVector<HotkeyCombination> toggleLockPositionsCombos =
+        m_toggleLockPositionsCapture->getHotkeys();
+    for (const HotkeyCombination &combo : toggleLockPositionsCombos) {
+      toggleLockPositionsBindings.append(
+          HotkeyBinding(combo.keyCode, combo.ctrl, combo.alt, combo.shift));
+    }
+    hotkeyMgr->setToggleLockPositionsHotkeys(toggleLockPositionsBindings);
 
     QVector<HotkeyBinding> cycleProfileFwdBindings;
     QVector<HotkeyCombination> cycleProfileFwdCombos =

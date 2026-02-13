@@ -67,6 +67,8 @@ MainWindow::MainWindow(QObject *parent)
   connect(hotkeyManager.get(),
           &HotkeyManager::toggleThumbnailsVisibilityRequested, this,
           &MainWindow::toggleThumbnailsVisibility);
+  connect(hotkeyManager.get(), &HotkeyManager::toggleLockPositionsRequested,
+          this, &MainWindow::toggleLockPositions);
   connect(hotkeyManager.get(), &HotkeyManager::cycleProfileForwardRequested,
           this, &MainWindow::handleCycleProfileForward);
   connect(hotkeyManager.get(), &HotkeyManager::cycleProfileBackwardRequested,
@@ -108,6 +110,13 @@ MainWindow::MainWindow(QObject *parent)
   connect(m_suspendHotkeysAction, &QAction::triggered, this,
           &MainWindow::toggleSuspendHotkeys);
   m_trayMenu->addAction(m_suspendHotkeysAction);
+
+  m_lockPositionsAction = new QAction("Lock Positions", this);
+  m_lockPositionsAction->setCheckable(true);
+  m_lockPositionsAction->setChecked(Config::instance().lockThumbnailPositions());
+  connect(m_lockPositionsAction, &QAction::triggered, this,
+          &MainWindow::toggleLockPositions);
+  m_trayMenu->addAction(m_lockPositionsAction);
 
   m_hideThumbnailsAction = new QAction("Hide Thumbnails", this);
   m_hideThumbnailsAction->setCheckable(true);
@@ -2556,6 +2565,16 @@ void MainWindow::toggleSuspendHotkeys() {
 void MainWindow::onHotkeysSuspendedChanged(bool suspended) {
   if (m_suspendHotkeysAction) {
     m_suspendHotkeysAction->setChecked(suspended);
+  }
+}
+
+void MainWindow::toggleLockPositions() {
+  Config &cfg = Config::instance();
+  bool currentLock = cfg.lockThumbnailPositions();
+  cfg.setLockThumbnailPositions(!currentLock);
+  
+  if (m_lockPositionsAction) {
+    m_lockPositionsAction->setChecked(!currentLock);
   }
 }
 

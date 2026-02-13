@@ -149,6 +149,11 @@ public:
     return m_toggleThumbnailsVisibilityHotkeys;
   }
 
+  void setToggleLockPositionsHotkeys(const QVector<HotkeyBinding> &bindings);
+  QVector<HotkeyBinding> getToggleLockPositionsHotkeys() const {
+    return m_toggleLockPositionsHotkeys;
+  }
+
   void setMinimizeAllClientsHotkeys(const QVector<HotkeyBinding> &bindings);
   QVector<HotkeyBinding> getMinimizeAllClientsHotkeys() const {
     return m_minimizeAllClientsHotkeys;
@@ -194,6 +199,7 @@ signals:
   void closeAllClientsRequested();
   void minimizeAllClientsRequested();
   void toggleThumbnailsVisibilityRequested();
+  void toggleLockPositionsRequested();
 
 private:
   QHash<QString, HotkeyBinding> m_characterHotkeys;
@@ -221,6 +227,7 @@ private:
   QHash<HotkeyBinding, bool> m_mouseButtonToCloseAllClients;
   QHash<HotkeyBinding, bool> m_mouseButtonToMinimizeAllClients;
   QHash<HotkeyBinding, bool> m_mouseButtonToToggleThumbnailsVisibility;
+  QHash<HotkeyBinding, bool> m_mouseButtonToToggleLockPositions;
   QHash<HotkeyBinding, bool> m_mouseButtonToCycleProfileForward;
   QHash<HotkeyBinding, bool> m_mouseButtonToCycleProfileBackward;
 
@@ -246,6 +253,9 @@ private:
 
   QVector<HotkeyBinding> m_toggleThumbnailsVisibilityHotkeys;
   QSet<int> m_toggleThumbnailsVisibilityHotkeyIds;
+
+  QVector<HotkeyBinding> m_toggleLockPositionsHotkeys;
+  QSet<int> m_toggleLockPositionsHotkeyIds;
 
   QVector<HotkeyBinding> m_cycleProfileForwardHotkeys;
   QVector<HotkeyBinding> m_cycleProfileBackwardHotkeys;

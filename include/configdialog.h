@@ -428,6 +428,7 @@ private:
   HotkeyCapture *m_closeAllClientsCapture;
   HotkeyCapture *m_minimizeAllClientsCapture;
   HotkeyCapture *m_toggleThumbnailsVisibilityCapture;
+  HotkeyCapture *m_toggleLockPositionsCapture;
   HotkeyCapture *m_cycleProfileForwardCapture;
   HotkeyCapture *m_cycleProfileBackwardCapture;
   QCheckBox *m_wildcardHotkeysCheck;

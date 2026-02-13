@@ -69,6 +69,7 @@ private slots:
                              const QString &eventText);
   void onHotkeysSuspendedChanged(bool suspended);
   void toggleSuspendHotkeys();
+  void toggleLockPositions();
   void closeAllEVEClients();
   void minimizeAllEVEClients();
   void toggleThumbnailsVisibility();
@@ -84,6 +85,7 @@ private:
   QMenu *m_trayMenu;
   QMenu *m_profilesMenu;
   QAction *m_suspendHotkeysAction;
+  QAction *m_lockPositionsAction;
   QAction *m_hideThumbnailsAction;
   ConfigDialog *m_configDialog = nullptr;
 

@@ -330,6 +330,7 @@ bool HotkeyManager::registerHotkeys() {
   m_mouseButtonToCloseAllClients.clear();
   m_mouseButtonToMinimizeAllClients.clear();
   m_mouseButtonToToggleThumbnailsVisibility.clear();
+  m_mouseButtonToToggleLockPositions.clear();
   m_mouseButtonToCycleProfileForward.clear();
   m_mouseButtonToCycleProfileBackward.clear();
 
@@ -384,6 +385,14 @@ bool HotkeyManager::registerHotkeys() {
   for (const HotkeyBinding &b : m_toggleThumbnailsVisibilityHotkeys) {
     if (b.enabled && isMouseButton(b.keyCode)) {
       m_mouseButtonToToggleThumbnailsVisibility.insert(b, true);
+    }
+  }
+
+  registerHotkeyList(m_toggleLockPositionsHotkeys,
+                     m_toggleLockPositionsHotkeyIds, false);
+  for (const HotkeyBinding &b : m_toggleLockPositionsHotkeys) {
+    if (b.enabled && isMouseButton(b.keyCode)) {
+      m_mouseButtonToToggleLockPositions.insert(b, true);
     }
   }
 
@@ -470,6 +479,11 @@ void HotkeyManager::unregisterHotkeys() {
     unregisterHotkey(hotkeyId);
   }
   m_toggleThumbnailsVisibilityHotkeyIds.clear();
+
+  for (int hotkeyId : m_toggleLockPositionsHotkeyIds) {
+    unregisterHotkey(hotkeyId);
+  }
+  m_toggleLockPositionsHotkeyIds.clear();
 
   for (int hotkeyId : m_cycleProfileForwardHotkeyIds) {
     unregisterHotkey(hotkeyId);
@@ -729,6 +743,12 @@ void HotkeyManager::setToggleThumbnailsVisibilityHotkeys(
   registerHotkeys();
 }
 
+void HotkeyManager::setToggleLockPositionsHotkeys(
+    const QVector<HotkeyBinding> &bindings) {
+  m_toggleLockPositionsHotkeys = bindings;
+  registerHotkeys();
+}
+
 void HotkeyManager::setProfileHotkeys(const QString &profileName,
                                       const QVector<HotkeyBinding> &bindings) {
   if (bindings.isEmpty()) {
@@ -939,6 +959,12 @@ void HotkeyManager::loadFromConfig() {
       loadHotkeyList(settings, "toggleThumbnailsVisibility");
   settings.endGroup();
 
+  m_toggleLockPositionsHotkeys.clear();
+  settings.beginGroup("toggleLockPositionsHotkeys");
+  m_toggleLockPositionsHotkeys =
+      loadHotkeyList(settings, "toggleLockPositions");
+  settings.endGroup();
+
   // Load cycle profile hotkeys from global settings
   m_cycleProfileForwardHotkeys.clear();
   m_cycleProfileBackwardHotkeys.clear();
@@ -1049,6 +1075,11 @@ void HotkeyManager::saveToConfig() {
   settings.beginGroup("toggleThumbnailsVisibilityHotkeys");
   saveHotkeyList(settings, "toggleThumbnailsVisibility",
                  m_toggleThumbnailsVisibilityHotkeys);
+  settings.endGroup();
+
+  settings.beginGroup("toggleLockPositionsHotkeys");
+  saveHotkeyList(settings, "toggleLockPositions",
+                 m_toggleLockPositionsHotkeys);
   settings.endGroup();
 
   settings.sync();
@@ -1195,6 +1226,11 @@ LRESULT CALLBACK HotkeyManager::MessageWindowProc(HWND hwnd, UINT msg,
 
       if (manager->m_toggleThumbnailsVisibilityHotkeyIds.contains(hotkeyId)) {
         emit manager->toggleThumbnailsVisibilityRequested();
+        return 0;
+      }
+
+      if (manager->m_toggleLockPositionsHotkeyIds.contains(hotkeyId)) {
+        emit manager->toggleLockPositionsRequested();
         return 0;
       }
 
@@ -1483,6 +1519,11 @@ void HotkeyManager::checkMouseButtonBindings(int vkCode, bool ctrl, bool alt,
 
   if (m_mouseButtonToToggleThumbnailsVisibility.contains(pressedBinding)) {
     emit toggleThumbnailsVisibilityRequested();
+    return;
+  }
+
+  if (m_mouseButtonToToggleLockPositions.contains(pressedBinding)) {
+    emit toggleLockPositionsRequested();
     return;
   }
 
