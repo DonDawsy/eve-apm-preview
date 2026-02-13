@@ -142,87 +142,56 @@ void WindowCapture::activateWindow(HWND hwnd) {
     return;
   }
 
-  // Save the current window placement to preserve maximized state
+  // Get current window placement to preserve maximized state
   WINDOWPLACEMENT placement;
   placement.length = sizeof(WINDOWPLACEMENT);
-  GetWindowPlacement(hwnd, &placement);
+  if (!GetWindowPlacement(hwnd, &placement)) {
+    qDebug() << "WindowCapture: Failed to get window placement";
+    return;
+  }
 
   bool wasMinimized = (placement.showCmd == SW_SHOWMINIMIZED);
   bool wasMaximized = (placement.showCmd == SW_SHOWMAXIMIZED);
 
+  // If window is minimized, restore it WITHOUT activating to prevent taskbar
+  // flashing Using SW_SHOWNOACTIVATE makes the window visible without bringing
+  // it to foreground
   if (wasMinimized) {
-    // Restore minimized window to its previous state (maximized or normal)
-    ShowWindowAsync(hwnd, wasMaximized ? SW_SHOWMAXIMIZED : SW_RESTORE);
+    ShowWindowAsync(hwnd, SW_SHOWNOACTIVATE);
     // Give the window time to restore before setting focus
     // This prevents input issues where clicks are ignored
     Sleep(30);
   }
 
-  // Get thread information for robust activation
-  HWND currentForeground = GetForegroundWindow();
-  DWORD foregroundThread = 0;
-  if (currentForeground) {
-    foregroundThread = GetWindowThreadProcessId(currentForeground, nullptr);
-  }
-
-  DWORD thisThread = GetCurrentThreadId();
-  BOOL attached = FALSE;
-  if (foregroundThread != 0 && foregroundThread != thisThread) {
-    // Attach to the foreground thread to bypass focus stealing prevention
-    attached = AttachThreadInput(foregroundThread, thisThread, TRUE);
-  }
-
-  // First attempt to activate (with thread input attachment for reliability)
-  // For maximized windows, use BringWindowToTop; for others, use SetWindowPos
-  // to avoid any potential state changes
-  if (wasMaximized && !wasMinimized) {
-    BringWindowToTop(hwnd);
-  } else {
-    // Use SetWindowPos with flags to skip animations for faster activation
-    SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0,
-                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOCOPYBITS | SWP_ASYNCWINDOWPOS);
-  }
-
+  // First attempt: Simple activation without thread attachment
   SetForegroundWindow(hwnd);
   SetFocus(hwnd);
 
-  if (attached) {
-    AttachThreadInput(foregroundThread, thisThread, FALSE);
-  }
-
-  // Double-check and restore maximized state if it was lost (issue #26)
-  if (wasMaximized && !wasMinimized) {
-    WINDOWPLACEMENT currentPlacement;
-    currentPlacement.length = sizeof(WINDOWPLACEMENT);
-    GetWindowPlacement(hwnd, &currentPlacement);
-
-    if (currentPlacement.showCmd != SW_SHOWMAXIMIZED) {
-      ShowWindow(hwnd, SW_MAXIMIZE);
-    }
-  }
-
-  // Final validation: Check if window became foreground (issue #35)
-  // If first attempt failed, try one more time with a small delay
+  // Check if activation succeeded
   if (GetForegroundWindow() != hwnd) {
-    qDebug() << "WindowCapture: First activation attempt failed, retrying "
-                "after brief delay (issue #35)";
-    Sleep(10);
+    qDebug() << "WindowCapture: First activation attempt failed, using "
+                "fallback with thread attachment (issue #35)";
 
-    // Re-attach thread input and retry
-    currentForeground = GetForegroundWindow();
-    foregroundThread = 0;
+    // Get current foreground window for thread attachment
+    HWND currentForeground = GetForegroundWindow();
+    DWORD foregroundThread = 0;
     if (currentForeground) {
       foregroundThread = GetWindowThreadProcessId(currentForeground, nullptr);
     }
 
-    attached = FALSE;
+    DWORD thisThread = GetCurrentThreadId();
+    BOOL attached = FALSE;
     if (foregroundThread != 0 && foregroundThread != thisThread) {
+      // Attach to the foreground thread to bypass focus stealing prevention
       attached = AttachThreadInput(foregroundThread, thisThread, TRUE);
     }
 
+    // Retry activation with thread attached
+    BringWindowToTop(hwnd);
     SetForegroundWindow(hwnd);
     SetFocus(hwnd);
 
+    // Detach thread after retry
     if (attached) {
       AttachThreadInput(foregroundThread, thisThread, FALSE);
     }
@@ -230,7 +199,25 @@ void WindowCapture::activateWindow(HWND hwnd) {
     // Log if activation still failed
     if (GetForegroundWindow() != hwnd) {
       qDebug() << "WindowCapture: WARNING - Window activation failed after "
-                  "all retries (issue #35)";
+                  "retry with thread attachment (issue #35)";
+    }
+  }
+
+  // If window was minimized, NOW restore it to proper state (maximized or
+  // normal) after it has focus, so no taskbar flash occurs
+  if (wasMinimized) {
+    ShowWindowAsync(hwnd, wasMaximized ? SW_SHOWMAXIMIZED : SW_RESTORE);
+  }
+
+  // Double-check and restore maximized state if it was lost during activation
+  // (issue #26)
+  if (wasMaximized && !wasMinimized) {
+    WINDOWPLACEMENT currentPlacement;
+    currentPlacement.length = sizeof(WINDOWPLACEMENT);
+    if (GetWindowPlacement(hwnd, &currentPlacement)) {
+      if (currentPlacement.showCmd != SW_SHOWMAXIMIZED) {
+        ShowWindow(hwnd, SW_MAXIMIZE);
+      }
     }
   }
 }
