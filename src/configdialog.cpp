@@ -6841,8 +6841,8 @@ void ConfigDialog::onEditCycleGroupCharacters() {
   });
 
   connect(removeButton, &QPushButton::clicked, [=]() {
-    QListWidgetItem *item = characterList->currentItem();
-    if (item) {
+    QList<QListWidgetItem *> selectedItems = characterList->selectedItems();
+    for (QListWidgetItem *item : selectedItems) {
       delete item;
     }
   });
