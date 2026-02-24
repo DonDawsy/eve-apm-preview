@@ -5,6 +5,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
+#include <QRubberBand>
 #include <QVBoxLayout>
 #include <cmath>
 #include <dwmapi.h>
@@ -119,6 +120,18 @@ protected:
     m_isSelecting = true;
     m_dragStart = clampPointToPreview(event->position().toPoint());
     m_dragCurrent = m_dragStart;
+    if (!m_rubberBand) {
+      m_rubberBand = new QRubberBand(QRubberBand::Rectangle, this);
+      m_rubberBand->setStyleSheet(
+          "QRubberBand {"
+          "  border: 2px solid rgba(253, 204, 18, 230);"
+          "  background-color: rgba(253, 204, 18, 40);"
+          "}");
+    }
+    m_rubberBand->setGeometry(
+        QRect(m_dragStart, m_dragCurrent).normalized().intersected(preview));
+    m_rubberBand->show();
+    m_rubberBand->raise();
     event->accept();
   }
 
@@ -130,6 +143,11 @@ protected:
 
     m_dragCurrent = clampPointToPreview(event->position().toPoint());
     QRect candidate = QRect(m_dragStart, m_dragCurrent).normalized();
+    if (m_rubberBand) {
+      m_rubberBand->setGeometry(candidate.intersected(previewRect()));
+      m_rubberBand->show();
+      m_rubberBand->raise();
+    }
 
     QRectF normalized = selectionRectToNormalized(candidate);
     if (normalized.width() > 0.0 && normalized.height() > 0.0) {
@@ -149,6 +167,9 @@ protected:
 
     m_isSelecting = false;
     m_dragCurrent = clampPointToPreview(event->position().toPoint());
+    if (m_rubberBand) {
+      m_rubberBand->hide();
+    }
 
     QRect candidate = QRect(m_dragStart, m_dragCurrent).normalized();
     if (candidate.width() >= 3 && candidate.height() >= 3) {
@@ -366,6 +387,7 @@ private:
   bool m_isSelecting = false;
   QPoint m_dragStart;
   QPoint m_dragCurrent;
+  QRubberBand *m_rubberBand = nullptr;
 };
 
 CropPickerDialog::CropPickerDialog(HWND sourceWindow, const QRectF &initialCrop,
