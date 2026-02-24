@@ -59,6 +59,7 @@ public:
   }
 
   QRectF selectionNormalized() const { return m_selectionNormalized; }
+  QSize sourceSizePixels() const { return QSize(m_sourceSize.cx, m_sourceSize.cy); }
 
 signals:
   void selectionChanged(const QRectF &selection);
@@ -102,6 +103,14 @@ protected:
         painter.setPen(QPen(QColor(253, 204, 18), 2));
         painter.drawRect(selection.adjusted(0, 0, -1, -1));
       }
+
+      if (m_isSelecting) {
+        QRect dragRect = dragRectInWidget();
+        if (dragRect.width() > 0 && dragRect.height() > 0) {
+          painter.setPen(QPen(QColor(255, 255, 255, 240), 2, Qt::DashLine));
+          painter.drawRect(dragRect.adjusted(0, 0, -1, -1));
+        }
+      }
     }
   }
 
@@ -121,17 +130,19 @@ protected:
     m_dragStart = clampPointToPreview(event->position().toPoint());
     m_dragCurrent = m_dragStart;
     if (!m_rubberBand) {
-      m_rubberBand = new QRubberBand(QRubberBand::Rectangle, this);
+      QWidget *topLevel = window() ? window() : this;
+      m_rubberBand = new QRubberBand(QRubberBand::Rectangle, topLevel);
+      m_rubberBand->setAttribute(Qt::WA_TransparentForMouseEvents, true);
       m_rubberBand->setStyleSheet(
           "QRubberBand {"
-          "  border: 2px solid rgba(253, 204, 18, 230);"
-          "  background-color: rgba(253, 204, 18, 40);"
+          "  border: 2px solid rgba(255, 255, 255, 245);"
+          "  background-color: rgba(255, 255, 255, 30);"
           "}");
     }
-    m_rubberBand->setGeometry(
-        QRect(m_dragStart, m_dragCurrent).normalized().intersected(preview));
+    updateRubberBandGeometry(dragRectInWidget());
     m_rubberBand->show();
     m_rubberBand->raise();
+    update();
     event->accept();
   }
 
@@ -144,7 +155,7 @@ protected:
     m_dragCurrent = clampPointToPreview(event->position().toPoint());
     QRect candidate = QRect(m_dragStart, m_dragCurrent).normalized();
     if (m_rubberBand) {
-      m_rubberBand->setGeometry(candidate.intersected(previewRect()));
+      updateRubberBandGeometry(candidate.intersected(previewRect()));
       m_rubberBand->show();
       m_rubberBand->raise();
     }
@@ -342,6 +353,36 @@ private:
     return selection.intersected(preview);
   }
 
+  QRect dragRectInWidget() const {
+    QRect preview = previewRect();
+    if (preview.isEmpty()) {
+      return QRect();
+    }
+
+    return QRect(m_dragStart, m_dragCurrent).normalized().intersected(preview);
+  }
+
+  void updateRubberBandGeometry(const QRect &rectInWidget) {
+    if (!m_rubberBand) {
+      return;
+    }
+
+    QWidget *topLevel = window();
+    if (!topLevel) {
+      return;
+    }
+
+    QRect clamped = rectInWidget.intersected(previewRect());
+    if (clamped.isEmpty()) {
+      m_rubberBand->hide();
+      return;
+    }
+
+    QPoint topLeft = mapTo(topLevel, clamped.topLeft());
+    QRect inTopLevel(topLeft, clamped.size());
+    m_rubberBand->setGeometry(inTopLevel.intersected(topLevel->rect()));
+  }
+
   QRectF selectionRectToNormalized(const QRect &selection) const {
     QRect preview = previewRect();
     if (preview.isEmpty()) {
@@ -444,6 +485,24 @@ QRectF CropPickerDialog::selectedCropNormalized() const {
   return normalizeOrFull(m_selectedCrop);
 }
 
+QSize CropPickerDialog::selectedCropPixelSize() const {
+  QSize source = sourceSizePixels();
+  if (source.width() <= 0 || source.height() <= 0) {
+    return QSize();
+  }
+
+  QRectF crop = selectedCropNormalized();
+  int pixelWidth =
+      qMax(1, static_cast<int>(std::lround(crop.width() * source.width())));
+  int pixelHeight =
+      qMax(1, static_cast<int>(std::lround(crop.height() * source.height())));
+  return QSize(pixelWidth, pixelHeight);
+}
+
+QSize CropPickerDialog::sourceSizePixels() const {
+  return m_previewWidget ? m_previewWidget->sourceSizePixels() : QSize();
+}
+
 void CropPickerDialog::onResetClicked() {
   QRectF full(0.0, 0.0, 1.0, 1.0);
   m_previewWidget->setSelectionNormalized(full);
@@ -457,10 +516,24 @@ void CropPickerDialog::updateSelectionSummary(const QRectF &selection) {
   const qreal w = m_selectedCrop.width() * 100.0;
   const qreal h = m_selectedCrop.height() * 100.0;
 
-  m_summaryLabel->setText(
-      QString("Selected crop: x=%1%, y=%2%, w=%3%, h=%4%")
-          .arg(QString::number(x, 'f', 1), QString::number(y, 'f', 1),
-               QString::number(w, 'f', 1), QString::number(h, 'f', 1)));
+  QSize source = sourceSizePixels();
+  QSize cropPixels = selectedCropPixelSize();
+  if (source.width() > 0 && source.height() > 0 && cropPixels.width() > 0 &&
+      cropPixels.height() > 0) {
+    qreal ratio = static_cast<qreal>(cropPixels.width()) / cropPixels.height();
+    m_summaryLabel->setText(
+        QString("Selected crop: x=%1%, y=%2%, w=%3%, h=%4%  (~%5x%6 px, ratio %7:1)")
+            .arg(QString::number(x, 'f', 1), QString::number(y, 'f', 1),
+                 QString::number(w, 'f', 1), QString::number(h, 'f', 1),
+                 QString::number(cropPixels.width()),
+                 QString::number(cropPixels.height()),
+                 QString::number(ratio, 'f', 3)));
+  } else {
+    m_summaryLabel->setText(
+        QString("Selected crop: x=%1%, y=%2%, w=%3%, h=%4%")
+            .arg(QString::number(x, 'f', 1), QString::number(y, 'f', 1),
+                 QString::number(w, 'f', 1), QString::number(h, 'f', 1)));
+  }
 }
 
 #include "croppickerdialog.moc"
