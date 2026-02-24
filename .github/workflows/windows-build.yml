@@ -44,16 +44,19 @@ jobs:
 
           python -m aqt install-qt windows desktop $env:QT_VERSION $selectedArch --outputdir C:\Qt
           echo "QT_ARCH_SELECTED=$selectedArch" >> $env:GITHUB_ENV
-          echo "QT_PATH=C:\Qt\$env:QT_VERSION\$selectedArch" >> $env:GITHUB_ENV
+
+          $qtConfig = Get-ChildItem -Path C:\Qt -Recurse -Filter Qt6Config.cmake | Select-Object -First 1
+          if (-not $qtConfig) { throw "Qt6Config.cmake not found after Qt install" }
+
+          # Qt6Config.cmake lives at <prefix>\lib\cmake\Qt6\Qt6Config.cmake
+          $qtPrefix = (Resolve-Path (Join-Path $qtConfig.Directory.FullName "..\..\..")).Path
+          echo "QT_PATH=$qtPrefix" >> $env:GITHUB_ENV
+          Write-Host "Detected QT_PATH: $qtPrefix"
 
       - name: Configure CMake
         shell: pwsh
         run: |
-          if ($env:QT_ARCH_SELECTED -eq "win64_msvc2019_64") {
-            cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -T v142 -DCMAKE_PREFIX_PATH="$env:QT_PATH"
-          } else {
-            cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="$env:QT_PATH"
-          }
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="$env:QT_PATH"
 
       - name: Build
         run: cmake --build build --config Release --parallel
