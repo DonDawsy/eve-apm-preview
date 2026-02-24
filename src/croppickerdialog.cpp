@@ -42,7 +42,14 @@ public:
     setMinimumSize(720, 405);
   }
 
-  ~CropPreviewWidget() override { cleanupThumbnail(); }
+  ~CropPreviewWidget() override {
+    if (m_rubberBand) {
+      m_rubberBand->hide();
+      delete m_rubberBand;
+      m_rubberBand = nullptr;
+    }
+    cleanupThumbnail();
+  }
 
   void setSelectionNormalized(const QRectF &selection) {
     QRectF normalized = normalizeOrFull(selection);
@@ -130,13 +137,13 @@ protected:
     m_dragStart = clampPointToPreview(event->position().toPoint());
     m_dragCurrent = m_dragStart;
     if (!m_rubberBand) {
-      QWidget *topLevel = window() ? window() : this;
-      m_rubberBand = new QRubberBand(QRubberBand::Rectangle, topLevel);
+      m_rubberBand = new QRubberBand(QRubberBand::Rectangle, nullptr);
+      m_rubberBand->setWindowFlags(Qt::FramelessWindowHint | Qt::ToolTip);
       m_rubberBand->setAttribute(Qt::WA_TransparentForMouseEvents, true);
       m_rubberBand->setStyleSheet(
           "QRubberBand {"
-          "  border: 2px solid rgba(255, 255, 255, 245);"
-          "  background-color: rgba(255, 255, 255, 30);"
+          "  border: 2px solid rgba(253, 204, 18, 255);"
+          "  background-color: rgba(253, 204, 18, 48);"
           "}");
     }
     updateRubberBandGeometry(dragRectInWidget());
@@ -367,20 +374,15 @@ private:
       return;
     }
 
-    QWidget *topLevel = window();
-    if (!topLevel) {
-      return;
-    }
-
     QRect clamped = rectInWidget.intersected(previewRect());
     if (clamped.isEmpty()) {
       m_rubberBand->hide();
       return;
     }
 
-    QPoint topLeft = mapTo(topLevel, clamped.topLeft());
-    QRect inTopLevel(topLeft, clamped.size());
-    m_rubberBand->setGeometry(inTopLevel.intersected(topLevel->rect()));
+    QPoint globalTopLeft = mapToGlobal(clamped.topLeft());
+    QRect globalRect(globalTopLeft, clamped.size());
+    m_rubberBand->setGeometry(globalRect);
   }
 
   QRectF selectionRectToNormalized(const QRect &selection) const {
