@@ -1,0 +1,62 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      QT_VERSION: 6.7.3
+      QT_ARCH: win64_msvc2022_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install aqt (Qt installer CLI)
+        run: python -m pip install --upgrade pip aqtinstall
+
+      - name: Install Qt
+        shell: pwsh
+        run: |
+          python -m aqt install-qt windows desktop $env:QT_VERSION $env:QT_ARCH --outputdir C:\Qt
+          echo "QT_PATH=C:\Qt\$env:QT_VERSION\$env:QT_ARCH" >> $env:GITHUB_ENV
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="$env:QT_PATH"
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Deploy Qt runtime
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path build -Recurse -Filter EVEAPMPreview.exe | Select-Object -First 1
+          if (-not $exe) { throw "EVEAPMPreview.exe not found" }
+
+          $dist = Join-Path $pwd "dist"
+          New-Item -ItemType Directory -Force -Path $dist | Out-Null
+          Copy-Item $exe.FullName $dist
+
+          & "$env:QT_PATH\bin\windeployqt.exe" --no-translations --no-system-d3d-compiler --no-opengl-sw "$dist\EVEAPMPreview.exe"
+
+      - name: Zip artifact
+        shell: pwsh
+        run: Compress-Archive -Path dist\* -DestinationPath EVEAPMPreview-windows.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: EVEAPMPreview-windows
+          path: EVEAPMPreview-windows.zip
