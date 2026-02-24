@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <QList>
 #include <QPixmap>
+#include <QRectF>
 #include <QTimer>
 #include <QVector>
 #include <QWidget>
@@ -57,6 +58,8 @@ public:
   bool hasCombatEvent() const { return !m_combatEvents.isEmpty(); }
   QString getCombatEventType() const;
   QStringList getActiveCombatEventTypes() const;
+
+  void setCropRegionNormalized(const QRectF &crop);
 
   void forceUpdate();
   void updateWindowFlags(bool alwaysOnTop);
@@ -114,6 +117,7 @@ private:
   HTHUMBNAIL m_dwmThumbnail = nullptr;
   QTimer *m_updateTimer = nullptr;
   bool m_isUpdatingDwm = false;
+  QRectF m_cropRegionNormalized = QRectF(0.0, 0.0, 1.0, 1.0);
 
   OverlayWidget *m_overlayWidget = nullptr;
 

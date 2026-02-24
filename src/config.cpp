@@ -10,6 +10,27 @@
 #include <QRegularExpression>
 #include <QStandardPaths>
 
+namespace {
+QRectF clampNormalizedCropRect(const QRectF &crop) {
+  QRectF normalized = crop.normalized();
+
+  qreal left = qBound(0.0, normalized.left(), 1.0);
+  qreal top = qBound(0.0, normalized.top(), 1.0);
+  qreal right = qBound(0.0, normalized.right(), 1.0);
+  qreal bottom = qBound(0.0, normalized.bottom(), 1.0);
+
+  QRectF clamped(QPointF(left, top), QPointF(right, bottom));
+  clamped = clamped.normalized();
+
+  return clamped;
+}
+
+bool isValidNormalizedCropRect(const QRectF &crop) {
+  static constexpr qreal kMinSize = 0.0001;
+  return crop.isValid() && crop.width() >= kMinSize && crop.height() >= kMinSize;
+}
+} // namespace
+
 Config::Config() {
   loadGlobalSettings();
 
@@ -453,6 +474,26 @@ void Config::loadCacheFromSettings() {
     QSize size = m_settings->value(characterName).toSize();
     if (size.isValid()) {
       m_cachedThumbnailSizes[characterName] = size;
+    }
+  }
+  m_settings->endGroup();
+
+  m_cachedThumbnailCrops.clear();
+  m_settings->beginGroup("thumbnailCrops");
+  QStringList cropCharNames = m_settings->childKeys();
+  for (const QString &characterName : cropCharNames) {
+    QRectF crop = m_settings->value(characterName).toRectF();
+    QRectF clampedCrop = clampNormalizedCropRect(crop);
+    auto approxEqual = [](qreal a, qreal b) { return qAbs(a - b) < 0.0001; };
+    bool isFull = approxEqual(clampedCrop.x(), 0.0) &&
+                  approxEqual(clampedCrop.y(), 0.0) &&
+                  approxEqual(clampedCrop.width(), 1.0) &&
+                  approxEqual(clampedCrop.height(), 1.0);
+
+    if (isValidNormalizedCropRect(clampedCrop) && !isFull) {
+      m_cachedThumbnailCrops[characterName] = clampedCrop;
+    } else {
+      m_settings->remove(characterName);
     }
   }
   m_settings->endGroup();
@@ -908,6 +949,47 @@ bool Config::hasCustomThumbnailSize(const QString &characterName) const {
 
 QHash<QString, QSize> Config::getAllCustomThumbnailSizes() const {
   return m_cachedThumbnailSizes;
+}
+
+QRectF Config::getCharacterThumbnailCrop(const QString &characterName) const {
+  return m_cachedThumbnailCrops.value(characterName, QRectF(0.0, 0.0, 1.0, 1.0));
+}
+
+void Config::setCharacterThumbnailCrop(const QString &characterName,
+                                       const QRectF &crop) {
+  QRectF clampedCrop = clampNormalizedCropRect(crop);
+  if (!isValidNormalizedCropRect(clampedCrop)) {
+    return;
+  }
+
+  // Full-frame crop is the default behavior; avoid storing redundant values.
+  QRectF fullCrop(0.0, 0.0, 1.0, 1.0);
+  auto approxEqual = [](qreal a, qreal b) { return qAbs(a - b) < 0.0001; };
+  if (approxEqual(clampedCrop.x(), fullCrop.x()) &&
+      approxEqual(clampedCrop.y(), fullCrop.y()) &&
+      approxEqual(clampedCrop.width(), fullCrop.width()) &&
+      approxEqual(clampedCrop.height(), fullCrop.height())) {
+    removeCharacterThumbnailCrop(characterName);
+    return;
+  }
+
+  QString key = QString("thumbnailCrops/%1").arg(characterName);
+  m_settings->setValue(key, clampedCrop);
+  m_cachedThumbnailCrops[characterName] = clampedCrop;
+}
+
+void Config::removeCharacterThumbnailCrop(const QString &characterName) {
+  QString key = QString("thumbnailCrops/%1").arg(characterName);
+  m_settings->remove(key);
+  m_cachedThumbnailCrops.remove(characterName);
+}
+
+bool Config::hasCharacterThumbnailCrop(const QString &characterName) const {
+  return m_cachedThumbnailCrops.contains(characterName);
+}
+
+QHash<QString, QRectF> Config::getAllCharacterThumbnailCrops() const {
+  return m_cachedThumbnailCrops;
 }
 
 QSize Config::getProcessThumbnailSize(const QString &processName) const {

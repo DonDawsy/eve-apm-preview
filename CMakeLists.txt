@@ -32,6 +32,7 @@ set(SOURCES
     src/hotkeymanager.cpp
     src/hookthread.cpp
     src/configdialog.cpp
+    src/croppickerdialog.cpp
     src/hotkeycapture.cpp
     src/settingbinding.cpp
     src/stylesheet.cpp
@@ -53,6 +54,7 @@ set(HEADERS
     include/hotkeymanager.h
     include/hookthread.h
     include/configdialog.h
+    include/croppickerdialog.h
     include/hotkeycapture.h
     include/settingbinding.h
     include/stylesheet.h

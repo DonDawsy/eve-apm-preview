@@ -9,6 +9,7 @@
 #include <QPair>
 #include <QPoint>
 #include <QRect>
+#include <QRectF>
 #include <QSettings>
 #include <QString>
 #include <QStringList>
@@ -147,6 +148,13 @@ public:
   void removeThumbnailSize(const QString &characterName);
   bool hasCustomThumbnailSize(const QString &characterName) const;
   QHash<QString, QSize> getAllCustomThumbnailSizes() const;
+
+  QRectF getCharacterThumbnailCrop(const QString &characterName) const;
+  void setCharacterThumbnailCrop(const QString &characterName,
+                                 const QRectF &crop);
+  void removeCharacterThumbnailCrop(const QString &characterName);
+  bool hasCharacterThumbnailCrop(const QString &characterName) const;
+  QHash<QString, QRectF> getAllCharacterThumbnailCrops() const;
 
   QSize getProcessThumbnailSize(const QString &processName) const;
   void setProcessThumbnailSize(const QString &processName, const QSize &size);
@@ -520,6 +528,7 @@ private:
   mutable QHash<QString, QColor> m_cachedCharacterInactiveBorderColors;
   mutable QHash<QString, QPoint> m_cachedThumbnailPositions;
   mutable QHash<QString, QSize> m_cachedThumbnailSizes;
+  mutable QHash<QString, QRectF> m_cachedThumbnailCrops;
   mutable QHash<QString, QSize> m_cachedProcessThumbnailSizes;
   mutable QHash<QString, QString> m_cachedCustomThumbnailNames;
   mutable QHash<QString, QRect> m_cachedClientWindowRects;

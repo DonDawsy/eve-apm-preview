@@ -11,6 +11,7 @@
 #include <QListWidget>
 #include <QMap>
 #include <QPushButton>
+#include <QRectF>
 #include <QSet>
 #include <QSlider>
 #include <QSoundEffect>
@@ -74,6 +75,9 @@ private slots:
   void onPopulateThumbnailSizes();
   void onRemoveThumbnailSize();
   void onResetThumbnailSizesToDefault();
+  void onAddThumbnailCrop();
+  void onPopulateThumbnailCrops();
+  void onResetThumbnailCropsToDefault();
   void onAddCustomName();
   void onPopulateCustomNames();
   void onBrowseLegacySettings();
@@ -124,6 +128,11 @@ private:
   QWidget *createThumbnailSizeFormRow(const QString &characterName = "",
                                       int width = 0, int height = 0);
   void updateThumbnailSizesScrollHeight();
+  QWidget *createThumbnailCropFormRow(const QString &characterName = "",
+                                      const QRectF &crop = QRectF());
+  void updateThumbnailCropsScrollHeight();
+  void updateThumbnailCropSummary(QWidget *rowWidget);
+  void openCropPickerForRow(QWidget *rowWidget);
   QWidget *createProcessThumbnailSizeFormRow(const QString &processName = "",
                                              int width = 0, int height = 0);
   void updateProcessThumbnailSizesScrollHeight();
@@ -309,6 +318,13 @@ private:
   QVBoxLayout *m_customNamesLayout;
   QPushButton *m_addCustomNameButton;
   QPushButton *m_populateCustomNamesButton;
+
+  QScrollArea *m_thumbnailCropsScrollArea;
+  QWidget *m_thumbnailCropsContainer;
+  QVBoxLayout *m_thumbnailCropsLayout;
+  QPushButton *m_addThumbnailCropButton;
+  QPushButton *m_populateThumbnailCropsButton;
+  QPushButton *m_resetThumbnailCropsButton;
 
   QCheckBox *m_showCharacterNameCheck;
   QPushButton *m_characterNameColorButton;

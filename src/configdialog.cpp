@@ -1,7 +1,9 @@
 #include "configdialog.h"
 #include "config.h"
+#include "croppickerdialog.h"
 #include "hotkeycapture.h"
 #include "hotkeymanager.h"
+#include "overlayinfo.h"
 #include "stylesheet.h"
 #include "systemcolorsdialog.h"
 #include "thumbnailwidget.h"
@@ -393,6 +395,80 @@ void ConfigDialog::createAppearancePage() {
   thumbnailSizesSectionLayout->addLayout(thumbnailSizesButtonLayout);
 
   layout->addWidget(thumbnailSizesSection);
+
+  QWidget *thumbnailCropsSection = new QWidget();
+  thumbnailCropsSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
+  QVBoxLayout *thumbnailCropsSectionLayout =
+      new QVBoxLayout(thumbnailCropsSection);
+  thumbnailCropsSectionLayout->setContentsMargins(16, 12, 16, 12);
+  thumbnailCropsSectionLayout->setSpacing(10);
+
+  tagWidget(thumbnailCropsSection,
+            {"thumbnail", "crop", "cropping", "zoom", "focus", "region",
+             "per-character"});
+
+  QLabel *thumbnailCropsHeader = new QLabel("Per-Character Thumbnail Crops");
+  thumbnailCropsHeader->setStyleSheet(StyleSheet::getSectionHeaderStyleSheet());
+  thumbnailCropsSectionLayout->addWidget(thumbnailCropsHeader);
+
+  QLabel *thumbnailCropsInfoLabel =
+      new QLabel("Set custom crop regions for specific characters. "
+                 "The selected region fills the entire thumbnail.");
+  thumbnailCropsInfoLabel->setWordWrap(true);
+  thumbnailCropsInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
+  thumbnailCropsSectionLayout->addWidget(thumbnailCropsInfoLabel);
+
+  m_thumbnailCropsScrollArea = new QScrollArea();
+  m_thumbnailCropsScrollArea->setWidgetResizable(true);
+  m_thumbnailCropsScrollArea->setFrameShape(QFrame::NoFrame);
+  m_thumbnailCropsScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_thumbnailCropsScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  m_thumbnailCropsScrollArea->setSizePolicy(QSizePolicy::Preferred,
+                                            QSizePolicy::Preferred);
+  m_thumbnailCropsScrollArea->setMinimumHeight(10);
+  m_thumbnailCropsScrollArea->setMaximumHeight(280);
+  m_thumbnailCropsScrollArea->setFixedHeight(10);
+  m_thumbnailCropsScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_thumbnailCropsContainer = new QWidget();
+  m_thumbnailCropsContainer->setStyleSheet(
+      "QWidget { background-color: transparent; }");
+  m_thumbnailCropsLayout = new QVBoxLayout(m_thumbnailCropsContainer);
+  m_thumbnailCropsLayout->setContentsMargins(0, 0, 0, 0);
+  m_thumbnailCropsLayout->setSpacing(8);
+  m_thumbnailCropsLayout->addStretch();
+
+  m_thumbnailCropsScrollArea->setWidget(m_thumbnailCropsContainer);
+  thumbnailCropsSectionLayout->addWidget(m_thumbnailCropsScrollArea);
+
+  thumbnailCropsSectionLayout->addSpacing(-8);
+
+  QHBoxLayout *thumbnailCropsButtonLayout = new QHBoxLayout();
+  m_addThumbnailCropButton = new QPushButton("Add Character");
+  m_populateThumbnailCropsButton = new QPushButton("Populate from Open Clients");
+  m_resetThumbnailCropsButton = new QPushButton("Reset All Crops");
+
+  QString thumbnailCropsButtonStyle = StyleSheet::getSecondaryButtonStyleSheet();
+  m_addThumbnailCropButton->setStyleSheet(thumbnailCropsButtonStyle);
+  m_populateThumbnailCropsButton->setStyleSheet(thumbnailCropsButtonStyle);
+  m_resetThumbnailCropsButton->setStyleSheet(thumbnailCropsButtonStyle);
+
+  connect(m_addThumbnailCropButton, &QPushButton::clicked, this,
+          &ConfigDialog::onAddThumbnailCrop);
+  connect(m_populateThumbnailCropsButton, &QPushButton::clicked, this,
+          &ConfigDialog::onPopulateThumbnailCrops);
+  connect(m_resetThumbnailCropsButton, &QPushButton::clicked, this,
+          &ConfigDialog::onResetThumbnailCropsToDefault);
+
+  thumbnailCropsButtonLayout->addWidget(m_addThumbnailCropButton);
+  thumbnailCropsButtonLayout->addWidget(m_populateThumbnailCropsButton);
+  thumbnailCropsButtonLayout->addWidget(m_resetThumbnailCropsButton);
+  thumbnailCropsButtonLayout->addStretch();
+  thumbnailCropsSectionLayout->addLayout(thumbnailCropsButtonLayout);
+
+  layout->addWidget(thumbnailCropsSection);
 
   QWidget *customNamesSection = new QWidget();
   customNamesSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
@@ -4655,6 +4731,31 @@ void ConfigDialog::loadSettings() {
 
   updateThumbnailSizesScrollHeight();
 
+  while (m_thumbnailCropsLayout->count() > 1) {
+    QLayoutItem *item = m_thumbnailCropsLayout->takeAt(0);
+    if (item->widget()) {
+      QWidget *widget = item->widget();
+      widget->setParent(nullptr);
+      delete widget;
+    }
+    delete item;
+  }
+
+  QHash<QString, QRectF> customCrops = config.getAllCharacterThumbnailCrops();
+  for (auto it = customCrops.constBegin(); it != customCrops.constEnd(); ++it) {
+    QWidget *formRow = createThumbnailCropFormRow(it.key(), it.value());
+    int count = m_thumbnailCropsLayout->count();
+    m_thumbnailCropsLayout->insertWidget(count - 1, formRow);
+  }
+
+  if (customCrops.isEmpty()) {
+    QWidget *formRow = createThumbnailCropFormRow();
+    int count = m_thumbnailCropsLayout->count();
+    m_thumbnailCropsLayout->insertWidget(count - 1, formRow);
+  }
+
+  updateThumbnailCropsScrollHeight();
+
   while (m_processThumbnailSizesLayout->count() > 1) {
     QLayoutItem *item = m_processThumbnailSizesLayout->takeAt(0);
     if (item->widget()) {
@@ -5134,6 +5235,44 @@ void ConfigDialog::saveSettings() {
 
     QSize size(widthSpin->value(), heightSpin->value());
     cfg.setThumbnailSize(charName, size);
+  }
+
+  QHash<QString, QRectF> existingCrops = cfg.getAllCharacterThumbnailCrops();
+  for (const QString &charName : existingCrops.keys()) {
+    cfg.removeCharacterThumbnailCrop(charName);
+  }
+
+  auto approxEqual = [](qreal a, qreal b) { return qAbs(a - b) < 0.0001; };
+  for (int i = 0; i < m_thumbnailCropsLayout->count() - 1; ++i) {
+    QWidget *rowWidget =
+        qobject_cast<QWidget *>(m_thumbnailCropsLayout->itemAt(i)->widget());
+    if (!rowWidget) {
+      continue;
+    }
+
+    QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+    if (!nameEdit) {
+      continue;
+    }
+
+    QString charName = nameEdit->text().trimmed();
+    if (charName.isEmpty()) {
+      continue;
+    }
+
+    QRectF crop = rowWidget->property("cropRect").toRectF();
+    if (!crop.isValid() || crop.width() <= 0.0 || crop.height() <= 0.0) {
+      continue;
+    }
+
+    bool isFull = approxEqual(crop.x(), 0.0) && approxEqual(crop.y(), 0.0) &&
+                  approxEqual(crop.width(), 1.0) &&
+                  approxEqual(crop.height(), 1.0);
+    if (isFull) {
+      continue;
+    }
+
+    cfg.setCharacterThumbnailCrop(charName, crop);
   }
 
   QHash<QString, QSize> existingProcessSizes =
@@ -5758,6 +5897,181 @@ void ConfigDialog::updateThumbnailSizesScrollHeight() {
 
     int finalHeight = qMin(240, qMax(50, calculatedHeight));
     m_thumbnailSizesScrollArea->setFixedHeight(finalHeight);
+  }
+}
+
+QWidget *ConfigDialog::createThumbnailCropFormRow(const QString &characterName,
+                                                  const QRectF &crop) {
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet(
+      "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
+      "border-radius: 4px; padding: 4px; }");
+
+  QRectF initialCrop = crop;
+  if (!initialCrop.isValid() || initialCrop.width() <= 0.0 ||
+      initialCrop.height() <= 0.0) {
+    initialCrop = QRectF(0.0, 0.0, 1.0, 1.0);
+  }
+  rowWidget->setProperty("cropRect", initialCrop);
+
+  QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+  rowLayout->setContentsMargins(8, 4, 8, 4);
+  rowLayout->setSpacing(8);
+
+  QLineEdit *nameEdit = new QLineEdit();
+  nameEdit->setText(characterName);
+  nameEdit->setPlaceholderText("Character Name");
+  nameEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  nameEdit->setMinimumWidth(150);
+  rowLayout->addWidget(nameEdit, 1);
+
+  QLabel *summaryLabel = new QLabel();
+  summaryLabel->setObjectName("cropSummaryLabel");
+  summaryLabel->setStyleSheet("QLabel { color: #cccccc; background-color: "
+                              "transparent; border: none; }");
+  summaryLabel->setMinimumWidth(220);
+  rowLayout->addWidget(summaryLabel);
+
+  QPushButton *pickButton = new QPushButton("Pick Crop...");
+  pickButton->setStyleSheet(StyleSheet::getSecondaryButtonStyleSheet());
+  connect(pickButton, &QPushButton::clicked, this,
+          [this, rowWidget]() { openCropPickerForRow(rowWidget); });
+  rowLayout->addWidget(pickButton);
+
+  QPushButton *resetButton = new QPushButton("Reset");
+  resetButton->setStyleSheet(StyleSheet::getSecondaryButtonStyleSheet());
+  connect(resetButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    rowWidget->setProperty("cropRect", QRectF(0.0, 0.0, 1.0, 1.0));
+    updateThumbnailCropSummary(rowWidget);
+  });
+  rowLayout->addWidget(resetButton);
+
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(32, 32);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+  deleteButton->setToolTip("Remove this character crop override");
+  deleteButton->setCursor(Qt::PointingHandCursor);
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_thumbnailCropsLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    QTimer::singleShot(0, this,
+                       &ConfigDialog::updateThumbnailCropsScrollHeight);
+  });
+  rowLayout->addWidget(deleteButton);
+
+  updateThumbnailCropSummary(rowWidget);
+  return rowWidget;
+}
+
+void ConfigDialog::updateThumbnailCropsScrollHeight() {
+  int rowCount = m_thumbnailCropsLayout->count() - 1;
+
+  if (rowCount <= 0) {
+    m_thumbnailCropsScrollArea->setFixedHeight(10);
+  } else {
+    int calculatedHeight = (rowCount * 52) + 10;
+    int finalHeight = qMin(280, qMax(58, calculatedHeight));
+    m_thumbnailCropsScrollArea->setFixedHeight(finalHeight);
+  }
+}
+
+void ConfigDialog::updateThumbnailCropSummary(QWidget *rowWidget) {
+  if (!rowWidget) {
+    return;
+  }
+
+  QLabel *summaryLabel = rowWidget->findChild<QLabel *>("cropSummaryLabel");
+  if (!summaryLabel) {
+    return;
+  }
+
+  QRectF crop = rowWidget->property("cropRect").toRectF();
+  if (!crop.isValid() || crop.width() <= 0.0 || crop.height() <= 0.0) {
+    crop = QRectF(0.0, 0.0, 1.0, 1.0);
+  }
+
+  auto approxEqual = [](qreal a, qreal b) { return qAbs(a - b) < 0.0001; };
+  bool isFull = approxEqual(crop.x(), 0.0) && approxEqual(crop.y(), 0.0) &&
+                approxEqual(crop.width(), 1.0) &&
+                approxEqual(crop.height(), 1.0);
+
+  if (isFull) {
+    summaryLabel->setText("Crop: Full frame");
+    return;
+  }
+
+  summaryLabel->setText(
+      QString("Crop: x=%1%, y=%2%, w=%3%, h=%4%")
+          .arg(QString::number(crop.x() * 100.0, 'f', 1),
+               QString::number(crop.y() * 100.0, 'f', 1),
+               QString::number(crop.width() * 100.0, 'f', 1),
+               QString::number(crop.height() * 100.0, 'f', 1)));
+}
+
+void ConfigDialog::openCropPickerForRow(QWidget *rowWidget) {
+  if (!rowWidget) {
+    return;
+  }
+
+  QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+  if (!nameEdit) {
+    return;
+  }
+
+  QString characterName = nameEdit->text().trimmed();
+  if (characterName.isEmpty()) {
+    QMessageBox::information(this, "Character Required",
+                             "Enter a character name before picking a crop.");
+    return;
+  }
+
+  WindowCapture capture;
+  QVector<WindowInfo> windows = capture.getEVEWindows();
+
+  HWND targetWindow = nullptr;
+  for (const WindowInfo &window : windows) {
+    QString extractedName = OverlayInfo::extractCharacterName(window.title);
+    if (!extractedName.isEmpty() &&
+        extractedName.compare(characterName, Qt::CaseInsensitive) == 0) {
+      targetWindow = window.handle;
+      break;
+    }
+  }
+
+  if (!targetWindow) {
+    QMessageBox::information(
+        this, "Character Not Open",
+        QString("No open EVE window found for '%1'. The character must be "
+                "logged in to pick a crop interactively.")
+            .arg(characterName));
+    return;
+  }
+
+  QRectF initialCrop = rowWidget->property("cropRect").toRectF();
+  if (!initialCrop.isValid() || initialCrop.width() <= 0.0 ||
+      initialCrop.height() <= 0.0) {
+    initialCrop = QRectF(0.0, 0.0, 1.0, 1.0);
+  }
+
+  CropPickerDialog dialog(targetWindow, initialCrop, this);
+  if (dialog.exec() == QDialog::Accepted) {
+    rowWidget->setProperty("cropRect", dialog.selectedCropNormalized());
+    updateThumbnailCropSummary(rowWidget);
   }
 }
 
@@ -7689,6 +8003,164 @@ void ConfigDialog::onResetThumbnailSizesToDefault() {
   }
 }
 
+void ConfigDialog::onAddThumbnailCrop() {
+  QWidget *formRow = createThumbnailCropFormRow();
+
+  int count = m_thumbnailCropsLayout->count();
+  m_thumbnailCropsLayout->insertWidget(count - 1, formRow);
+
+  m_thumbnailCropsContainer->updateGeometry();
+  m_thumbnailCropsLayout->activate();
+
+  QLineEdit *nameEdit = formRow->findChild<QLineEdit *>();
+  if (nameEdit) {
+    nameEdit->setFocus();
+    nameEdit->selectAll();
+  }
+
+  updateThumbnailCropsScrollHeight();
+
+  QTimer::singleShot(10, this, [this, formRow]() {
+    m_thumbnailCropsScrollArea->ensureWidgetVisible(formRow, 10, 10);
+    QScrollBar *scrollBar = m_thumbnailCropsScrollArea->verticalScrollBar();
+    if (scrollBar) {
+      scrollBar->setValue(scrollBar->maximum());
+    }
+  });
+}
+
+void ConfigDialog::onPopulateThumbnailCrops() {
+  WindowCapture capture;
+  QVector<WindowInfo> windows = capture.getEVEWindows();
+
+  if (windows.isEmpty()) {
+    QMessageBox::information(this, "No Windows Found",
+                             "No EVE Online windows are currently open.");
+    return;
+  }
+
+  QStringList characterNames;
+  for (const WindowInfo &window : windows) {
+    QString characterName = OverlayInfo::extractCharacterName(window.title);
+    if (characterName.isEmpty()) {
+      continue;
+    }
+
+    if (!characterNames.contains(characterName)) {
+      characterNames.append(characterName);
+    }
+  }
+
+  if (characterNames.isEmpty()) {
+    QMessageBox::information(this, "No Characters Found",
+                             "No logged-in EVE characters detected.");
+    return;
+  }
+
+  QMessageBox msgBox(this);
+  msgBox.setWindowTitle("Populate Thumbnail Crops");
+  msgBox.setText(QString("Found %1 logged-in character%2.")
+                     .arg(characterNames.count())
+                     .arg(characterNames.count() == 1 ? "" : "s"));
+  msgBox.setInformativeText(
+      "Do you want to clear existing entries or add to them?");
+
+  QPushButton *clearButton =
+      msgBox.addButton("Clear & Replace", QMessageBox::ActionRole);
+  QPushButton *addButton =
+      msgBox.addButton("Add to Existing", QMessageBox::ActionRole);
+  QPushButton *cancelButton =
+      msgBox.addButton("Cancel", QMessageBox::RejectRole);
+
+  Q_UNUSED(addButton);
+
+  msgBox.setStyleSheet(StyleSheet::getMessageBoxStyleSheet());
+  msgBox.exec();
+
+  if (msgBox.clickedButton() == cancelButton) {
+    return;
+  }
+
+  bool clearExisting = (msgBox.clickedButton() == clearButton);
+
+  QSet<QString> existingCharacters;
+  if (!clearExisting) {
+    for (int i = 0; i < m_thumbnailCropsLayout->count() - 1; ++i) {
+      QWidget *rowWidget =
+          qobject_cast<QWidget *>(m_thumbnailCropsLayout->itemAt(i)->widget());
+      if (!rowWidget) {
+        continue;
+      }
+
+      QLineEdit *nameEdit = rowWidget->findChild<QLineEdit *>();
+      if (nameEdit) {
+        existingCharacters.insert(nameEdit->text().trimmed());
+      }
+    }
+  } else {
+    while (m_thumbnailCropsLayout->count() > 1) {
+      QLayoutItem *item = m_thumbnailCropsLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+  }
+
+  Config &cfg = Config::instance();
+  int addedCount = 0;
+  for (const QString &characterName : characterNames) {
+    if (!clearExisting && existingCharacters.contains(characterName)) {
+      continue;
+    }
+
+    QRectF crop = cfg.hasCharacterThumbnailCrop(characterName)
+                      ? cfg.getCharacterThumbnailCrop(characterName)
+                      : QRectF(0.0, 0.0, 1.0, 1.0);
+
+    QWidget *formRow = createThumbnailCropFormRow(characterName, crop);
+    int count = m_thumbnailCropsLayout->count();
+    m_thumbnailCropsLayout->insertWidget(count - 1, formRow);
+    addedCount++;
+  }
+
+  updateThumbnailCropsScrollHeight();
+
+  QString resultMsg = clearExisting ? QString("Replaced with %1 character%2.")
+                                          .arg(addedCount)
+                                          .arg(addedCount == 1 ? "" : "s")
+                                    : QString("Added %1 new character%2.")
+                                          .arg(addedCount)
+                                          .arg(addedCount == 1 ? "" : "s");
+
+  QMessageBox::information(this, "Populate Complete", resultMsg);
+}
+
+void ConfigDialog::onResetThumbnailCropsToDefault() {
+  int rowCount = m_thumbnailCropsLayout->count() - 1;
+  if (rowCount == 0) {
+    return;
+  }
+
+  QMessageBox::StandardButton reply = QMessageBox::question(
+      this, "Reset All Crops",
+      "Are you sure you want to remove all custom thumbnail crops?\n"
+      "All characters will revert to full-frame thumbnails.",
+      QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+
+  if (reply == QMessageBox::Yes) {
+    while (m_thumbnailCropsLayout->count() > 1) {
+      QLayoutItem *item = m_thumbnailCropsLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+
+    updateThumbnailCropsScrollHeight();
+  }
+}
+
 void ConfigDialog::onAddProcessThumbnailSize() {
   QWidget *formRow = createProcessThumbnailSizeFormRow();
 
@@ -8298,7 +8770,7 @@ void ConfigDialog::onResetAppearanceDefaults() {
   msgBox.setText("Are you sure you want to reset all appearance settings to "
                  "their default values?");
   msgBox.setInformativeText("This will reset thumbnail size, opacity, "
-                            "highlighting, and overlay settings.");
+                            "highlighting, overlays, and custom crops.");
   msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
   msgBox.setDefaultButton(QMessageBox::No);
   msgBox.setStyleSheet(StyleSheet::getMessageBoxStyleSheet());
@@ -8343,6 +8815,19 @@ void ConfigDialog::onResetAppearanceDefaults() {
     updateColorButton(m_backgroundColorButton, m_backgroundColor);
     m_backgroundOpacitySpin->setValue(
         Config::DEFAULT_OVERLAY_BACKGROUND_OPACITY);
+
+    while (m_thumbnailCropsLayout->count() > 1) {
+      QLayoutItem *item = m_thumbnailCropsLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+
+    QWidget *cropRow = createThumbnailCropFormRow();
+    int cropCount = m_thumbnailCropsLayout->count();
+    m_thumbnailCropsLayout->insertWidget(cropCount - 1, cropRow);
+    updateThumbnailCropsScrollHeight();
 
     QMessageBox::information(
         this, "Reset Complete",

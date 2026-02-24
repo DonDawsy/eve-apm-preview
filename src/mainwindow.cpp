@@ -652,6 +652,12 @@ void MainWindow::refreshWindows() {
       thumbWidget->hide();
 
       thumbWidget->setCharacterName(displayName);
+      QRectF cropRect(0.0, 0.0, 1.0, 1.0);
+      if (isEVEClient && !characterName.isEmpty() &&
+          cfg.hasCharacterThumbnailCrop(characterName)) {
+        cropRect = cfg.getCharacterThumbnailCrop(characterName);
+      }
+      thumbWidget->setCropRegionNormalized(cropRect);
       thumbWidget->setWindowOpacity(thumbnailOpacity);
       thumbWidget->updateWindowFlags(cfg.alwaysOnTop());
 
@@ -856,6 +862,13 @@ void MainWindow::refreshWindows() {
       }
 
       // Apply visibility using centralized logic
+      QRectF cropRect(0.0, 0.0, 1.0, 1.0);
+      if (isEVEClient && !characterName.isEmpty() &&
+          cfg.hasCharacterThumbnailCrop(characterName)) {
+        cropRect = cfg.getCharacterThumbnailCrop(characterName);
+      }
+      thumbWidget->setCropRegionNormalized(cropRect);
+
       updateThumbnailVisibility(window.handle);
     }
   }
@@ -1187,6 +1200,13 @@ void MainWindow::handleWindowTitleChange(HWND hwnd) {
       thumbWidget->forceUpdate();
     }
 
+    if (cfg.hasCharacterThumbnailCrop(newCharacterName)) {
+      thumbWidget->setCropRegionNormalized(
+          cfg.getCharacterThumbnailCrop(newCharacterName));
+    } else {
+      thumbWidget->setCropRegionNormalized(QRectF(0.0, 0.0, 1.0, 1.0));
+    }
+
     if (cfg.rememberPositions()) {
       QPoint savedPos = cfg.getThumbnailPosition(newCharacterName);
       if (savedPos != QPoint(-1, -1)) {
@@ -1225,6 +1245,8 @@ void MainWindow::handleWindowTitleChange(HWND hwnd) {
       QPoint pos = calculateNotLoggedInPosition(notLoggedInIndex);
       thumbWidget->move(pos);
     }
+
+    thumbWidget->setCropRegionNormalized(QRectF(0.0, 0.0, 1.0, 1.0));
 
     m_needsMappingUpdate = true;
     updateCharacterMappings();
@@ -2239,14 +2261,27 @@ void MainWindow::applySettings() {
           newSize = cfg.getThumbnailSize(characterName);
         }
 
+        if (cfg.hasCharacterThumbnailCrop(characterName)) {
+          thumb->setCropRegionNormalized(
+              cfg.getCharacterThumbnailCrop(characterName));
+        } else {
+          thumb->setCropRegionNormalized(QRectF(0.0, 0.0, 1.0, 1.0));
+        }
+
         QString customName = cfg.getCustomThumbnailName(characterName);
         if (!customName.isEmpty()) {
           thumb->setCustomName(customName);
         } else {
           thumb->setCustomName(QString());
         }
+      } else {
+        thumb->setCropRegionNormalized(QRectF(0.0, 0.0, 1.0, 1.0));
       }
-    } else if (!isEVEClient && cfg.hasCustomProcessThumbnailSize(processName)) {
+    } else {
+      thumb->setCropRegionNormalized(QRectF(0.0, 0.0, 1.0, 1.0));
+    }
+
+    if (!isEVEClient && cfg.hasCustomProcessThumbnailSize(processName)) {
       newSize = cfg.getProcessThumbnailSize(processName);
     }
 

@@ -14,6 +14,28 @@
 
 #pragma comment(lib, "dwmapi.lib")
 
+namespace {
+QRectF normalizedCropOrFull(const QRectF &crop) {
+  QRectF normalized = crop.normalized();
+
+  qreal left = qBound(0.0, normalized.left(), 1.0);
+  qreal top = qBound(0.0, normalized.top(), 1.0);
+  qreal right = qBound(0.0, normalized.right(), 1.0);
+  qreal bottom = qBound(0.0, normalized.bottom(), 1.0);
+
+  QRectF clamped(QPointF(left, top), QPointF(right, bottom));
+  clamped = clamped.normalized();
+
+  static constexpr qreal kMinSize = 0.0001;
+  if (!clamped.isValid() || clamped.width() < kMinSize ||
+      clamped.height() < kMinSize) {
+    return QRectF(0.0, 0.0, 1.0, 1.0);
+  }
+
+  return clamped;
+}
+} // namespace
+
 ThumbnailWidget::ThumbnailWidget(quintptr windowId, const QString &title,
                                  QWidget *parent)
     : QWidget(parent), m_windowId(windowId), m_title(title) {
@@ -166,6 +188,20 @@ void ThumbnailWidget::setCombatMessage(const QString &message,
   if (m_overlayWidget) {
     m_overlayWidget->setCombatEventTypes(getActiveCombatEventTypes());
   }
+}
+
+void ThumbnailWidget::setCropRegionNormalized(const QRectF &crop) {
+  QRectF normalizedCrop = normalizedCropOrFull(crop);
+  auto approxEqual = [](qreal a, qreal b) { return qAbs(a - b) < 0.0001; };
+  if (approxEqual(m_cropRegionNormalized.x(), normalizedCrop.x()) &&
+      approxEqual(m_cropRegionNormalized.y(), normalizedCrop.y()) &&
+      approxEqual(m_cropRegionNormalized.width(), normalizedCrop.width()) &&
+      approxEqual(m_cropRegionNormalized.height(), normalizedCrop.height())) {
+    return;
+  }
+
+  m_cropRegionNormalized = normalizedCrop;
+  updateDwmThumbnail();
 }
 
 void ThumbnailWidget::setActive(bool active) {
@@ -763,6 +799,9 @@ void ThumbnailWidget::updateDwmThumbnail() {
 
   int physicalWidth = static_cast<int>(width() * dpr);
   int physicalHeight = static_cast<int>(height() * dpr);
+  if (physicalWidth <= 0 || physicalHeight <= 0) {
+    return;
+  }
 
   DWM_THUMBNAIL_PROPERTIES props = {};
   props.dwFlags = DWM_TNP_RECTSOURCE | DWM_TNP_RECTDESTINATION |
@@ -772,10 +811,50 @@ void ThumbnailWidget::updateDwmThumbnail() {
   props.opacity = 255;
   props.fSourceClientAreaOnly = TRUE;
 
-  props.rcSource.left = 0;
-  props.rcSource.top = 0;
-  props.rcSource.right = sourceSize.cx;
-  props.rcSource.bottom = sourceSize.cy;
+  QRectF normalizedCrop = normalizedCropOrFull(m_cropRegionNormalized);
+
+  int cropLeft =
+      qBound(0, static_cast<int>(std::floor(normalizedCrop.left() * sourceSize.cx)),
+             sourceSize.cx - 1);
+  int cropTop =
+      qBound(0, static_cast<int>(std::floor(normalizedCrop.top() * sourceSize.cy)),
+             sourceSize.cy - 1);
+  int cropRight = qBound(
+      cropLeft + 1,
+      static_cast<int>(std::ceil(normalizedCrop.right() * sourceSize.cx)),
+      sourceSize.cx);
+  int cropBottom = qBound(
+      cropTop + 1,
+      static_cast<int>(std::ceil(normalizedCrop.bottom() * sourceSize.cy)),
+      sourceSize.cy);
+
+  int cropWidth = qMax(1, cropRight - cropLeft);
+  int cropHeight = qMax(1, cropBottom - cropTop);
+
+  const qreal sourceAspect = static_cast<qreal>(cropWidth) / cropHeight;
+  const qreal destinationAspect =
+      static_cast<qreal>(physicalWidth) / physicalHeight;
+
+  if (sourceAspect > destinationAspect) {
+    int targetWidth =
+        qMax(1, static_cast<int>(std::lround(cropHeight * destinationAspect)));
+    targetWidth = qMin(targetWidth, cropWidth);
+    int trimX = (cropWidth - targetWidth) / 2;
+    cropLeft += trimX;
+    cropRight = cropLeft + targetWidth;
+  } else if (sourceAspect < destinationAspect) {
+    int targetHeight =
+        qMax(1, static_cast<int>(std::lround(cropWidth / destinationAspect)));
+    targetHeight = qMin(targetHeight, cropHeight);
+    int trimY = (cropHeight - targetHeight) / 2;
+    cropTop += trimY;
+    cropBottom = cropTop + targetHeight;
+  }
+
+  props.rcSource.left = cropLeft;
+  props.rcSource.top = cropTop;
+  props.rcSource.right = cropRight;
+  props.rcSource.bottom = cropBottom;
 
   props.rcDestination.left = 0;
   props.rcDestination.top = 0;
