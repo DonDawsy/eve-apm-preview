@@ -164,22 +164,40 @@ protected:
   }
 
 private:
+  HWND destinationWindowHandle() const {
+    QWidget *topLevelWindow = window();
+    if (!topLevelWindow) {
+      return nullptr;
+    }
+    return reinterpret_cast<HWND>(topLevelWindow->winId());
+  }
+
   void ensureThumbnailRegistered() {
-    if (m_thumbnail || !m_sourceWindow || !IsWindow(m_sourceWindow)) {
+    if (!m_sourceWindow || !IsWindow(m_sourceWindow)) {
       return;
     }
 
-    HWND destination = reinterpret_cast<HWND>(winId());
+    HWND destination = destinationWindowHandle();
     if (!destination) {
       return;
+    }
+
+    if (m_thumbnail && m_destinationWindow == destination) {
+      return;
+    }
+
+    if (m_thumbnail && m_destinationWindow != destination) {
+      cleanupThumbnail();
     }
 
     HRESULT hr = DwmRegisterThumbnail(destination, m_sourceWindow, &m_thumbnail);
     if (FAILED(hr)) {
       m_thumbnail = nullptr;
+      m_destinationWindow = nullptr;
       return;
     }
 
+    m_destinationWindow = destination;
     DwmQueryThumbnailSourceSize(m_thumbnail, &m_sourceSize);
   }
 
@@ -188,6 +206,7 @@ private:
       DwmUnregisterThumbnail(m_thumbnail);
       m_thumbnail = nullptr;
     }
+    m_destinationWindow = nullptr;
   }
 
   void updateThumbnail() {
@@ -206,6 +225,14 @@ private:
       return;
     }
 
+    QWidget *topLevelWindow = window();
+    if (!topLevelWindow) {
+      return;
+    }
+
+    QPoint previewTopLeftInDestination = mapTo(topLevelWindow, preview.topLeft());
+    QRect previewInDestination(previewTopLeftInDestination, preview.size());
+
     qreal dpr = devicePixelRatio();
 
     DWM_THUMBNAIL_PROPERTIES props = {};
@@ -221,12 +248,16 @@ private:
     props.rcSource.right = m_sourceSize.cx;
     props.rcSource.bottom = m_sourceSize.cy;
 
-    props.rcDestination.left = static_cast<int>(std::floor(preview.left() * dpr));
-    props.rcDestination.top = static_cast<int>(std::floor(preview.top() * dpr));
-    props.rcDestination.right =
-        static_cast<int>(std::ceil((preview.left() + preview.width()) * dpr));
-    props.rcDestination.bottom =
-        static_cast<int>(std::ceil((preview.top() + preview.height()) * dpr));
+    props.rcDestination.left =
+        static_cast<int>(std::floor(previewInDestination.left() * dpr));
+    props.rcDestination.top =
+        static_cast<int>(std::floor(previewInDestination.top() * dpr));
+    props.rcDestination.right = static_cast<int>(
+        std::ceil((previewInDestination.left() + previewInDestination.width()) *
+                  dpr));
+    props.rcDestination.bottom = static_cast<int>(
+        std::ceil((previewInDestination.top() + previewInDestination.height()) *
+                  dpr));
 
     DwmUpdateThumbnailProperties(m_thumbnail, &props);
     update();
@@ -327,6 +358,7 @@ private:
   }
 
   HWND m_sourceWindow = nullptr;
+  HWND m_destinationWindow = nullptr;
   HTHUMBNAIL m_thumbnail = nullptr;
   SIZE m_sourceSize = {0, 0};
   QRectF m_selectionNormalized = QRectF(0.0, 0.0, 1.0, 1.0);
