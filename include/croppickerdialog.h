@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QRectF>
+#include <QSize>
 #include <Windows.h>
 
 class QLabel;
@@ -17,6 +18,8 @@ public:
                             QWidget *parent = nullptr);
 
   QRectF selectedCropNormalized() const;
+  QSize selectedCropPixelSize() const;
+  QSize sourceSizePixels() const;
 
 private slots:
   void onResetClicked();

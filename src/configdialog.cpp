@@ -20,6 +20,7 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QIcon>
 #include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -30,6 +31,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPainter>
+#include <QPixmap>
 #include <QPropertyAnimation>
 #include <QRegularExpression>
 #include <QScrollArea>
@@ -6261,7 +6263,15 @@ void ConfigDialog::openCropPickerForRow(QWidget *rowWidget) {
     updateThumbnailCropSummary(rowWidget);
 
     if (!isFullFrameCrop(selectedCrop) && selectedCrop.height() > 0.0) {
-      const qreal cropAspectRatio = selectedCrop.width() / selectedCrop.height();
+      QSize cropPixelSize = dialog.selectedCropPixelSize();
+      qreal cropAspectRatio = 0.0;
+      if (cropPixelSize.width() > 0 && cropPixelSize.height() > 0) {
+        cropAspectRatio =
+            static_cast<qreal>(cropPixelSize.width()) / cropPixelSize.height();
+      } else {
+        cropAspectRatio = selectedCrop.width() / selectedCrop.height();
+      }
+
       if (cropAspectRatio > 0.0001) {
         QWidget *targetSizeRow = nullptr;
         QWidget *emptySizeRow = nullptr;
