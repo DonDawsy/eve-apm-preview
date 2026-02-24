@@ -29,18 +29,100 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QPainter>
 #include <QPropertyAnimation>
 #include <QRegularExpression>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSignalBlocker>
 #include <QSslError>
 #include <QSslSocket>
 #include <QTabWidget>
 #include <QTimer>
+#include <QToolButton>
 #include <QUrl>
 #include <QVBoxLayout>
 #include <Windows.h>
 #include <algorithm>
+#include <cmath>
+
+namespace {
+constexpr int kThumbnailSizeMinPx = 50;
+constexpr int kThumbnailSizeMaxPx = 2000;
+
+bool approxEqual(qreal a, qreal b) { return qAbs(a - b) < 0.0001; }
+
+bool isFullFrameCrop(const QRectF &crop) {
+  return approxEqual(crop.x(), 0.0) && approxEqual(crop.y(), 0.0) &&
+         approxEqual(crop.width(), 1.0) && approxEqual(crop.height(), 1.0);
+}
+
+QSize sizeAdjustedToAspect(const QSize &baseSize, qreal aspectRatio) {
+  int baseWidth = qBound(kThumbnailSizeMinPx, baseSize.width(), kThumbnailSizeMaxPx);
+  int baseHeight =
+      qBound(kThumbnailSizeMinPx, baseSize.height(), kThumbnailSizeMaxPx);
+
+  if (aspectRatio <= 0.0001) {
+    return QSize(baseWidth, baseHeight);
+  }
+
+  const qreal baseArea = qMax<qreal>(1.0, static_cast<qreal>(baseWidth) * baseHeight);
+
+  int targetWidth = qBound(
+      kThumbnailSizeMinPx,
+      static_cast<int>(std::lround(std::sqrt(baseArea * aspectRatio))),
+      kThumbnailSizeMaxPx);
+  int targetHeight =
+      qBound(kThumbnailSizeMinPx,
+             static_cast<int>(std::lround(targetWidth / aspectRatio)),
+             kThumbnailSizeMaxPx);
+
+  targetWidth = qBound(kThumbnailSizeMinPx,
+                       static_cast<int>(std::lround(targetHeight * aspectRatio)),
+                       kThumbnailSizeMaxPx);
+  targetHeight = qBound(kThumbnailSizeMinPx,
+                        static_cast<int>(std::lround(targetWidth / aspectRatio)),
+                        kThumbnailSizeMaxPx);
+
+  return QSize(targetWidth, targetHeight);
+}
+
+QIcon createAspectLockIcon(bool locked) {
+  QPixmap pixmap(16, 16);
+  pixmap.fill(Qt::transparent);
+
+  QPainter painter(&pixmap);
+  painter.setRenderHint(QPainter::Antialiasing, true);
+  painter.setPen(QPen(QColor("#f5f5f5"), 1.4, Qt::SolidLine, Qt::RoundCap,
+                      Qt::RoundJoin));
+  painter.setBrush(Qt::NoBrush);
+
+  QRectF body(4.0, 7.0, 8.0, 6.0);
+  painter.drawRoundedRect(body, 1.4, 1.4);
+
+  if (locked) {
+    painter.drawArc(QRectF(4.0, 2.0, 8.0, 8.0), 0 * 16, 180 * 16);
+    painter.drawLine(QPointF(4.0, 6.0), QPointF(4.0, 7.0));
+    painter.drawLine(QPointF(12.0, 6.0), QPointF(12.0, 7.0));
+  } else {
+    painter.drawArc(QRectF(3.0, 2.0, 8.0, 8.0), 25 * 16, 270 * 16);
+    painter.drawLine(QPointF(4.0, 6.0), QPointF(4.0, 7.0));
+  }
+
+  return QIcon(pixmap);
+}
+
+void updateAspectLockButton(QToolButton *button, bool locked) {
+  if (!button) {
+    return;
+  }
+
+  button->setIcon(createAspectLockIcon(locked));
+  button->setToolTip(
+      locked ? "Lock aspect ratio (width/height stay linked)"
+             : "Unlock aspect ratio (width/height edit independently)");
+}
+} // namespace
 
 ConfigDialog::ConfigDialog(QWidget *parent)
     : QDialog(parent), m_skipProfileSwitchConfirmation(false),
@@ -335,7 +417,8 @@ void ConfigDialog::createAppearancePage() {
 
   QLabel *thumbnailSizesInfoLabel =
       new QLabel("Set custom thumbnail sizes for specific characters. "
-                 "Leave empty to use the default size above.");
+                 "Leave empty to use the default size above. Use the lock "
+                 "icon to keep width and height in sync.");
   thumbnailSizesInfoLabel->setWordWrap(true);
   thumbnailSizesInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   thumbnailSizesSectionLayout->addWidget(thumbnailSizesInfoLabel);
@@ -5833,6 +5916,7 @@ QWidget *ConfigDialog::createThumbnailSizeFormRow(const QString &characterName,
   rowLayout->addWidget(widthLabel);
 
   QSpinBox *widthSpin = new QSpinBox();
+  widthSpin->setObjectName("thumbnailSizeWidthSpin");
   widthSpin->setRange(50, 2000);
   widthSpin->setSuffix(" px");
   widthSpin->setValue(width > 0 ? width : Config::instance().thumbnailWidth());
@@ -5846,6 +5930,7 @@ QWidget *ConfigDialog::createThumbnailSizeFormRow(const QString &characterName,
   rowLayout->addWidget(heightLabel);
 
   QSpinBox *heightSpin = new QSpinBox();
+  heightSpin->setObjectName("thumbnailSizeHeightSpin");
   heightSpin->setRange(50, 2000);
   heightSpin->setSuffix(" px");
   heightSpin->setValue(height > 0 ? height
@@ -5853,6 +5938,107 @@ QWidget *ConfigDialog::createThumbnailSizeFormRow(const QString &characterName,
   heightSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
   heightSpin->setFixedWidth(100);
   rowLayout->addWidget(heightSpin);
+
+  rowWidget->setProperty(
+      "aspectRatio",
+      static_cast<qreal>(widthSpin->value()) / qMax(1, heightSpin->value()));
+  rowWidget->setProperty("aspectSyncing", false);
+
+  QToolButton *lockButton = new QToolButton();
+  lockButton->setObjectName("aspectLockButton");
+  lockButton->setCheckable(true);
+  lockButton->setChecked(true);
+  lockButton->setIconSize(QSize(16, 16));
+  lockButton->setFixedSize(30, 30);
+  lockButton->setCursor(Qt::PointingHandCursor);
+  lockButton->setStyleSheet(
+      "QToolButton {"
+      "    background-color: #3a3a3a;"
+      "    border: 1px solid #555555;"
+      "    border-radius: 4px;"
+      "}"
+      "QToolButton:hover {"
+      "    background-color: #4a4a4a;"
+      "}"
+      "QToolButton:checked {"
+      "    background-color: #4f4a2f;"
+      "    border: 1px solid #b89b2e;"
+      "}");
+  updateAspectLockButton(lockButton, true);
+  rowLayout->addWidget(lockButton);
+
+  connect(lockButton, &QToolButton::toggled, this,
+          [rowWidget, widthSpin, heightSpin, lockButton](bool checked) {
+            updateAspectLockButton(lockButton, checked);
+            if (checked) {
+              rowWidget->setProperty(
+                  "aspectRatio", static_cast<qreal>(widthSpin->value()) /
+                                     qMax(1, heightSpin->value()));
+            }
+          });
+
+  connect(widthSpin, qOverload<int>(&QSpinBox::valueChanged), this,
+          [rowWidget, widthSpin, heightSpin, lockButton](int newWidth) {
+            if (rowWidget->property("aspectSyncing").toBool()) {
+              return;
+            }
+
+            const int currentHeight = qMax(1, heightSpin->value());
+            if (!lockButton->isChecked()) {
+              rowWidget->setProperty("aspectRatio",
+                                     static_cast<qreal>(newWidth) / currentHeight);
+              return;
+            }
+
+            qreal aspectRatio = rowWidget->property("aspectRatio").toDouble();
+            if (aspectRatio <= 0.0001) {
+              aspectRatio = static_cast<qreal>(newWidth) / currentHeight;
+            }
+
+            int targetHeight = qBound(
+                heightSpin->minimum(),
+                static_cast<int>(std::lround(newWidth / aspectRatio)),
+                heightSpin->maximum());
+
+            rowWidget->setProperty("aspectSyncing", true);
+            heightSpin->setValue(targetHeight);
+            rowWidget->setProperty("aspectSyncing", false);
+            rowWidget->setProperty(
+                "aspectRatio", static_cast<qreal>(widthSpin->value()) /
+                                   qMax(1, heightSpin->value()));
+          });
+
+  connect(heightSpin, qOverload<int>(&QSpinBox::valueChanged), this,
+          [rowWidget, widthSpin, heightSpin, lockButton](int newHeight) {
+            if (rowWidget->property("aspectSyncing").toBool()) {
+              return;
+            }
+
+            const int safeHeight = qMax(1, newHeight);
+            if (!lockButton->isChecked()) {
+              rowWidget->setProperty(
+                  "aspectRatio",
+                  static_cast<qreal>(widthSpin->value()) / safeHeight);
+              return;
+            }
+
+            qreal aspectRatio = rowWidget->property("aspectRatio").toDouble();
+            if (aspectRatio <= 0.0001) {
+              aspectRatio = static_cast<qreal>(widthSpin->value()) / safeHeight;
+            }
+
+            int targetWidth = qBound(
+                widthSpin->minimum(),
+                static_cast<int>(std::lround(safeHeight * aspectRatio)),
+                widthSpin->maximum());
+
+            rowWidget->setProperty("aspectSyncing", true);
+            widthSpin->setValue(targetWidth);
+            rowWidget->setProperty("aspectSyncing", false);
+            rowWidget->setProperty(
+                "aspectRatio", static_cast<qreal>(widthSpin->value()) /
+                                   qMax(1, heightSpin->value()));
+          });
 
   QPushButton *deleteButton = new QPushButton("×");
   deleteButton->setFixedSize(32, 32);
@@ -6070,8 +6256,99 @@ void ConfigDialog::openCropPickerForRow(QWidget *rowWidget) {
 
   CropPickerDialog dialog(targetWindow, initialCrop, this);
   if (dialog.exec() == QDialog::Accepted) {
-    rowWidget->setProperty("cropRect", dialog.selectedCropNormalized());
+    QRectF selectedCrop = dialog.selectedCropNormalized();
+    rowWidget->setProperty("cropRect", selectedCrop);
     updateThumbnailCropSummary(rowWidget);
+
+    if (!isFullFrameCrop(selectedCrop) && selectedCrop.height() > 0.0) {
+      const qreal cropAspectRatio = selectedCrop.width() / selectedCrop.height();
+      if (cropAspectRatio > 0.0001) {
+        QWidget *targetSizeRow = nullptr;
+        QWidget *emptySizeRow = nullptr;
+
+        for (int i = 0; i < m_thumbnailSizesLayout->count() - 1; ++i) {
+          QWidget *candidate =
+              qobject_cast<QWidget *>(m_thumbnailSizesLayout->itemAt(i)->widget());
+          if (!candidate) {
+            continue;
+          }
+
+          QLineEdit *candidateNameEdit = candidate->findChild<QLineEdit *>();
+          if (!candidateNameEdit) {
+            continue;
+          }
+
+          QString candidateName = candidateNameEdit->text().trimmed();
+          if (candidateName.compare(characterName, Qt::CaseInsensitive) == 0) {
+            targetSizeRow = candidate;
+            break;
+          }
+
+          if (!candidateNameEdit->isReadOnly() && candidateName.isEmpty() &&
+              !emptySizeRow) {
+            emptySizeRow = candidate;
+          }
+        }
+
+        if (!targetSizeRow && emptySizeRow) {
+          targetSizeRow = emptySizeRow;
+          QLineEdit *emptyNameEdit = targetSizeRow->findChild<QLineEdit *>();
+          if (emptyNameEdit) {
+            emptyNameEdit->setText(characterName);
+          }
+        }
+
+        QSize baseSize(
+            m_thumbnailWidthSpin ? m_thumbnailWidthSpin->value()
+                                 : Config::instance().thumbnailWidth(),
+            m_thumbnailHeightSpin ? m_thumbnailHeightSpin->value()
+                                  : Config::instance().thumbnailHeight());
+
+        if (targetSizeRow) {
+          QSpinBox *existingWidthSpin =
+              targetSizeRow->findChild<QSpinBox *>("thumbnailSizeWidthSpin");
+          QSpinBox *existingHeightSpin =
+              targetSizeRow->findChild<QSpinBox *>("thumbnailSizeHeightSpin");
+          if (existingWidthSpin && existingHeightSpin) {
+            baseSize = QSize(existingWidthSpin->value(), existingHeightSpin->value());
+          }
+        }
+
+        QSize adjustedSize = sizeAdjustedToAspect(baseSize, cropAspectRatio);
+
+        if (!targetSizeRow) {
+          targetSizeRow = createThumbnailSizeFormRow(
+              characterName, adjustedSize.width(), adjustedSize.height());
+          int sizeCount = m_thumbnailSizesLayout->count();
+          m_thumbnailSizesLayout->insertWidget(sizeCount - 1, targetSizeRow);
+          updateThumbnailSizesScrollHeight();
+        }
+
+        QSpinBox *widthSpin =
+            targetSizeRow->findChild<QSpinBox *>("thumbnailSizeWidthSpin");
+        QSpinBox *heightSpin =
+            targetSizeRow->findChild<QSpinBox *>("thumbnailSizeHeightSpin");
+        if (widthSpin && heightSpin) {
+          QSignalBlocker widthBlock(widthSpin);
+          QSignalBlocker heightBlock(heightSpin);
+          widthSpin->setValue(adjustedSize.width());
+          heightSpin->setValue(adjustedSize.height());
+        }
+
+        targetSizeRow->setProperty("aspectRatio", cropAspectRatio);
+        targetSizeRow->setProperty("aspectSyncing", false);
+
+        QToolButton *lockButton =
+            targetSizeRow->findChild<QToolButton *>("aspectLockButton");
+        if (lockButton) {
+          if (!lockButton->isChecked()) {
+            lockButton->setChecked(true);
+          } else {
+            updateAspectLockButton(lockButton, true);
+          }
+        }
+      }
+    }
   }
 }
 
