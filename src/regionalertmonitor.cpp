@@ -125,24 +125,32 @@ bool isFrameLowContrastDark(const QImage &image) {
 RegionAlertMonitor::RegionAlertMonitor(QObject *parent) : QObject(parent) {
   m_pollTimer.setSingleShot(false);
   connect(&m_pollTimer, &QTimer::timeout, this, &RegionAlertMonitor::pollRules);
-
-  QDir debugDir(debugOutputDirectoryPath());
-  if (!debugDir.exists()) {
-    debugDir.mkpath(QStringLiteral("."));
-  }
-
-  const QStringList existingDebugImages =
-      debugDir.entryList(QStringList() << QStringLiteral("*.png"), QDir::Files);
-  for (const QString &fileName : existingDebugImages) {
-    debugDir.remove(fileName);
-  }
-
-  writeDebugLog(QStringLiteral("RegionAlertMonitor initialized. Debug output: %1")
-                    .arg(debugOutputDirectoryPath()));
 }
 
 void RegionAlertMonitor::reloadFromConfig() {
   const Config &cfg = Config::instance();
+  const bool debugOutputEnabled = cfg.regionAlertsDebugOutputEnabled();
+
+  if (debugOutputEnabled && !m_debugOutputEnabled) {
+    m_recentDebugImagePaths.clear();
+    m_debugComparisonSequence = 0;
+
+    QDir debugDir(debugOutputDirectoryPath());
+    if (!debugDir.exists()) {
+      debugDir.mkpath(QStringLiteral("."));
+    }
+
+    const QStringList existingDebugImages =
+        debugDir.entryList(QStringList() << QStringLiteral("*.png"), QDir::Files);
+    for (const QString &fileName : existingDebugImages) {
+      debugDir.remove(fileName);
+    }
+  } else if (!debugOutputEnabled && m_debugOutputEnabled) {
+    m_recentDebugImagePaths.clear();
+    m_debugComparisonSequence = 0;
+  }
+
+  m_debugOutputEnabled = debugOutputEnabled;
 
   m_enabled = cfg.regionAlertsEnabled();
   m_pollIntervalMs = qBound(100, cfg.regionAlertsPollIntervalMs(), 10000);
@@ -150,12 +158,14 @@ void RegionAlertMonitor::reloadFromConfig() {
   m_rules = cfg.regionAlertRules();
 
   writeDebugLog(
-      QStringLiteral(
-          "Reload config: enabled=%1 pollIntervalMs=%2 cooldownMs=%3 rules=%4")
+      QStringLiteral("Reload config: enabled=%1 pollIntervalMs=%2 cooldownMs=%3 "
+                     "rules=%4 debugOutput=%5")
           .arg(m_enabled ? QStringLiteral("true") : QStringLiteral("false"))
           .arg(m_pollIntervalMs)
           .arg(m_cooldownMs)
-          .arg(m_rules.size()));
+          .arg(m_rules.size())
+          .arg(m_debugOutputEnabled ? QStringLiteral("true")
+                                    : QStringLiteral("false")));
 
   QSet<QString> activeRuleKeys;
   for (const RegionAlertRule &rule : m_rules) {
@@ -504,6 +514,10 @@ void RegionAlertMonitor::resetRuleState(const QString &ruleKey) {
 }
 
 void RegionAlertMonitor::writeDebugLog(const QString &message) {
+  if (!m_debugOutputEnabled) {
+    return;
+  }
+
   const QString debugDirPath = debugOutputDirectoryPath();
   QDir debugDir(debugDirPath);
   if (!debugDir.exists()) {
@@ -540,6 +554,10 @@ void RegionAlertMonitor::writeComparisonDebugImage(
     const QString &ruleKey, const QString &characterName, const QImage &baselineFrame,
     const QImage &currentFrame, double score, int threshold, bool isAboveThreshold,
     bool inCooldown) {
+  if (!m_debugOutputEnabled) {
+    return;
+  }
+
   const QString debugDirPath = debugOutputDirectoryPath();
   QDir debugDir(debugDirPath);
   if (!debugDir.exists()) {

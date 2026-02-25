@@ -75,6 +75,7 @@ private:
   QHash<QString, HWND> m_characterWindows;
   QHash<QString, QPointer<ThumbnailWidget>> m_characterThumbnails;
   QHash<QString, RuleState> m_ruleStateById;
+  bool m_debugOutputEnabled = false;
   QStringList m_recentDebugImagePaths;
   quint64 m_debugComparisonSequence = 0;
 };

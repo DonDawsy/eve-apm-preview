@@ -335,6 +335,7 @@ private:
   QPushButton *m_populateThumbnailCropsButton;
   QPushButton *m_resetThumbnailCropsButton;
   QCheckBox *m_regionAlertsEnabledCheck;
+  QCheckBox *m_regionAlertsDebugOutputCheck;
   QLabel *m_regionAlertsPollIntervalLabel;
   QSpinBox *m_regionAlertsPollIntervalSpin;
   QLabel *m_regionAlertsCooldownLabel;

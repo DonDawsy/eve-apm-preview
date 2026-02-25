@@ -463,6 +463,11 @@ void Config::loadCacheFromSettings() {
                          DEFAULT_REGION_ALERTS_COOLDOWN_MS)
                  .toInt(),
              60000);
+  m_cachedRegionAlertsDebugOutputEnabled =
+      m_settings
+          ->value(KEY_REGION_ALERTS_DEBUG_OUTPUT_ENABLED,
+                  DEFAULT_REGION_ALERTS_DEBUG_OUTPUT_ENABLED)
+          .toBool();
   m_cachedRegionAlertRules.clear();
   QSet<QString> seenRegionRuleIds;
   int regionRuleCount = m_settings->beginReadArray(KEY_REGION_ALERT_RULES_ARRAY);
@@ -1598,6 +1603,8 @@ void Config::initializeDefaultProfile() {
                        DEFAULT_REGION_ALERTS_POLL_INTERVAL_MS);
   m_settings->setValue(KEY_REGION_ALERTS_COOLDOWN_MS,
                        DEFAULT_REGION_ALERTS_COOLDOWN_MS);
+  m_settings->setValue(KEY_REGION_ALERTS_DEBUG_OUTPUT_ENABLED,
+                       DEFAULT_REGION_ALERTS_DEBUG_OUTPUT_ENABLED);
 
   m_settings->sync();
 
@@ -1796,6 +1803,8 @@ bool Config::createProfile(const QString &profileName, bool useDefaults) {
                         DEFAULT_REGION_ALERTS_POLL_INTERVAL_MS);
     newProfile.setValue(KEY_REGION_ALERTS_COOLDOWN_MS,
                         DEFAULT_REGION_ALERTS_COOLDOWN_MS);
+    newProfile.setValue(KEY_REGION_ALERTS_DEBUG_OUTPUT_ENABLED,
+                        DEFAULT_REGION_ALERTS_DEBUG_OUTPUT_ENABLED);
   }
 
   newProfile.sync();
@@ -2261,6 +2270,15 @@ void Config::setRegionAlertsCooldownMs(int cooldownMs) {
   int clamped = qBound(0, cooldownMs, 60000);
   m_settings->setValue(KEY_REGION_ALERTS_COOLDOWN_MS, clamped);
   m_cachedRegionAlertsCooldownMs = clamped;
+}
+
+bool Config::regionAlertsDebugOutputEnabled() const {
+  return m_cachedRegionAlertsDebugOutputEnabled;
+}
+
+void Config::setRegionAlertsDebugOutputEnabled(bool enabled) {
+  m_settings->setValue(KEY_REGION_ALERTS_DEBUG_OUTPUT_ENABLED, enabled);
+  m_cachedRegionAlertsDebugOutputEnabled = enabled;
 }
 
 QVector<RegionAlertRule> Config::regionAlertRules() const {

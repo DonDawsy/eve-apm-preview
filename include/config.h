@@ -327,6 +327,9 @@ public:
   int regionAlertsCooldownMs() const;
   void setRegionAlertsCooldownMs(int cooldownMs);
 
+  bool regionAlertsDebugOutputEnabled() const;
+  void setRegionAlertsDebugOutputEnabled(bool enabled);
+
   QVector<RegionAlertRule> regionAlertRules() const;
   void setRegionAlertRules(const QVector<RegionAlertRule> &rules);
 
@@ -451,6 +454,7 @@ public:
   static constexpr bool DEFAULT_REGION_ALERTS_ENABLED = false;
   static constexpr int DEFAULT_REGION_ALERTS_POLL_INTERVAL_MS = 750;
   static constexpr int DEFAULT_REGION_ALERTS_COOLDOWN_MS = 3000;
+  static constexpr bool DEFAULT_REGION_ALERTS_DEBUG_OUTPUT_ENABLED = false;
   static constexpr int DEFAULT_REGION_ALERT_THRESHOLD_PERCENT = 6;
   static inline QStringList DEFAULT_COMBAT_MESSAGE_EVENT_TYPES() {
     return QStringList{"fleet_invite",   "follow_warp",  "regroup",
@@ -551,6 +555,7 @@ private:
   mutable bool m_cachedRegionAlertsEnabled;
   mutable int m_cachedRegionAlertsPollIntervalMs;
   mutable int m_cachedRegionAlertsCooldownMs;
+  mutable bool m_cachedRegionAlertsDebugOutputEnabled;
   mutable QVector<RegionAlertRule> m_cachedRegionAlertRules;
 
   mutable QHash<QString, QColor> m_cachedCharacterBorderColors;
@@ -716,6 +721,8 @@ private:
       "regionAlerts/pollIntervalMs";
   static constexpr const char *KEY_REGION_ALERTS_COOLDOWN_MS =
       "regionAlerts/cooldownMs";
+  static constexpr const char *KEY_REGION_ALERTS_DEBUG_OUTPUT_ENABLED =
+      "regionAlerts/debugOutput";
   static constexpr const char *KEY_REGION_ALERT_RULES_ARRAY =
       "regionAlerts/rules";
 

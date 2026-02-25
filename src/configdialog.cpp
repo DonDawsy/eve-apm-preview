@@ -3748,6 +3748,12 @@ void ConfigDialog::createDataSourcesPage() {
   m_regionAlertsEnabledCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
   regionAlertsSectionLayout->addWidget(m_regionAlertsEnabledCheck);
 
+  m_regionAlertsDebugOutputCheck =
+      new QCheckBox("Write debug output (log + comparison images)");
+  m_regionAlertsDebugOutputCheck->setStyleSheet(
+      StyleSheet::getCheckBoxStyleSheet());
+  regionAlertsSectionLayout->addWidget(m_regionAlertsDebugOutputCheck);
+
   QHBoxLayout *regionPollLayout = new QHBoxLayout();
   regionPollLayout->setContentsMargins(24, 0, 0, 0);
   m_regionAlertsPollIntervalLabel = new QLabel("Poll interval:");
@@ -3841,6 +3847,7 @@ void ConfigDialog::createDataSourcesPage() {
             m_addRegionAlertRuleButton->setEnabled(enabled);
             m_populateRegionAlertRulesButton->setEnabled(enabled);
             m_resetRegionAlertRulesButton->setEnabled(enabled);
+            m_regionAlertsDebugOutputCheck->setEnabled(enabled);
           });
 
   layout->addWidget(regionAlertsSection);
@@ -4410,6 +4417,12 @@ void ConfigDialog::setupBindings() {
       [&config](bool value) { config.setRegionAlertsEnabled(value); },
       Config::DEFAULT_REGION_ALERTS_ENABLED));
 
+  m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
+      m_regionAlertsDebugOutputCheck,
+      [&config]() { return config.regionAlertsDebugOutputEnabled(); },
+      [&config](bool value) { config.setRegionAlertsDebugOutputEnabled(value); },
+      Config::DEFAULT_REGION_ALERTS_DEBUG_OUTPUT_ENABLED));
+
   m_bindingManager.addBinding(BindingHelpers::bindSpinBox(
       m_regionAlertsPollIntervalSpin,
       [&config]() { return config.regionAlertsPollIntervalMs(); },
@@ -4915,6 +4928,7 @@ void ConfigDialog::loadSettings() {
   m_addRegionAlertRuleButton->setEnabled(regionAlertsEnabled);
   m_populateRegionAlertRulesButton->setEnabled(regionAlertsEnabled);
   m_resetRegionAlertRulesButton->setEnabled(regionAlertsEnabled);
+  m_regionAlertsDebugOutputCheck->setEnabled(regionAlertsEnabled);
 
   bool combatMessagesEnabled = config.showCombatMessages();
   m_combatMessagePositionCombo->setEnabled(combatMessagesEnabled);
