@@ -8,7 +8,9 @@
 #include <QKeySequence>
 #include <QPoint>
 #include <QRegularExpression>
+#include <QSet>
 #include <QStandardPaths>
+#include <QUuid>
 
 namespace {
 QRectF clampNormalizedCropRect(const QRectF &crop) {
@@ -28,6 +30,29 @@ QRectF clampNormalizedCropRect(const QRectF &crop) {
 bool isValidNormalizedCropRect(const QRectF &crop) {
   static constexpr qreal kMinSize = 0.0001;
   return crop.isValid() && crop.width() >= kMinSize && crop.height() >= kMinSize;
+}
+
+RegionAlertRule sanitizeRegionAlertRule(const RegionAlertRule &rawRule) {
+  RegionAlertRule rule = rawRule;
+
+  rule.id = rule.id.trimmed();
+  if (rule.id.isEmpty()) {
+    rule.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+  }
+
+  rule.characterName = rule.characterName.trimmed();
+  rule.label = rule.label.trimmed();
+  if (rule.label.isEmpty()) {
+    rule.label = QStringLiteral("Region Alert");
+  }
+
+  rule.regionNormalized = clampNormalizedCropRect(rule.regionNormalized);
+  if (!isValidNormalizedCropRect(rule.regionNormalized)) {
+    rule.regionNormalized = QRectF(0.0, 0.0, 1.0, 1.0);
+  }
+
+  rule.thresholdPercent = qBound(1, rule.thresholdPercent, 100);
+  return rule;
 }
 } // namespace
 
@@ -372,7 +397,11 @@ void Config::loadCacheFromSettings() {
   m_cachedCombatEventColors.clear();
   m_cachedCombatEventDurations.clear();
   m_cachedCombatEventBorderHighlights.clear();
+  m_cachedCombatEventSuppressFocused.clear();
   m_cachedCombatBorderStyles.clear();
+  m_cachedCombatEventSoundsEnabled.clear();
+  m_cachedCombatEventSoundFiles.clear();
+  m_cachedCombatEventSoundVolumes.clear();
   QStringList eventTypes = DEFAULT_COMBAT_MESSAGE_EVENT_TYPES();
   for (const QString &eventType : eventTypes) {
     QString colorKey = combatEventColorKey(eventType);
@@ -417,6 +446,50 @@ void Config::loadCacheFromSettings() {
       m_settings
           ->value(KEY_MINING_TIMEOUT_SECONDS, DEFAULT_MINING_TIMEOUT_SECONDS)
           .toInt();
+  m_cachedRegionAlertsEnabled =
+      m_settings->value(KEY_REGION_ALERTS_ENABLED, DEFAULT_REGION_ALERTS_ENABLED)
+          .toBool();
+  m_cachedRegionAlertsPollIntervalMs =
+      qBound(100,
+             m_settings
+                 ->value(KEY_REGION_ALERTS_POLL_INTERVAL_MS,
+                         DEFAULT_REGION_ALERTS_POLL_INTERVAL_MS)
+                 .toInt(),
+             10000);
+  m_cachedRegionAlertsCooldownMs =
+      qBound(0,
+             m_settings
+                 ->value(KEY_REGION_ALERTS_COOLDOWN_MS,
+                         DEFAULT_REGION_ALERTS_COOLDOWN_MS)
+                 .toInt(),
+             60000);
+  m_cachedRegionAlertRules.clear();
+  QSet<QString> seenRegionRuleIds;
+  int regionRuleCount = m_settings->beginReadArray(KEY_REGION_ALERT_RULES_ARRAY);
+  for (int i = 0; i < regionRuleCount; ++i) {
+    m_settings->setArrayIndex(i);
+
+    RegionAlertRule rule;
+    rule.id = m_settings->value("id").toString();
+    rule.characterName = m_settings->value("characterName").toString();
+    rule.label = m_settings->value("label").toString();
+    rule.regionNormalized =
+        m_settings->value("regionNormalized", QRectF(0.0, 0.0, 1.0, 1.0))
+            .toRectF();
+    rule.thresholdPercent =
+        m_settings
+            ->value("thresholdPercent", DEFAULT_REGION_ALERT_THRESHOLD_PERCENT)
+            .toInt();
+    rule.enabled = m_settings->value("enabled", true).toBool();
+
+    RegionAlertRule sanitizedRule = sanitizeRegionAlertRule(rule);
+    while (seenRegionRuleIds.contains(sanitizedRule.id)) {
+      sanitizedRule.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    }
+    seenRegionRuleIds.insert(sanitizedRule.id);
+    m_cachedRegionAlertRules.append(sanitizedRule);
+  }
+  m_settings->endArray();
 
   m_cachedCharacterBorderColors.clear();
   m_settings->beginGroup("characterBorderColors");
@@ -1520,6 +1593,11 @@ void Config::initializeDefaultProfile() {
                        DEFAULT_COMBAT_MESSAGE_EVENT_TYPES());
   m_settings->setValue(KEY_MINING_TIMEOUT_SECONDS,
                        DEFAULT_MINING_TIMEOUT_SECONDS);
+  m_settings->setValue(KEY_REGION_ALERTS_ENABLED, DEFAULT_REGION_ALERTS_ENABLED);
+  m_settings->setValue(KEY_REGION_ALERTS_POLL_INTERVAL_MS,
+                       DEFAULT_REGION_ALERTS_POLL_INTERVAL_MS);
+  m_settings->setValue(KEY_REGION_ALERTS_COOLDOWN_MS,
+                       DEFAULT_REGION_ALERTS_COOLDOWN_MS);
 
   m_settings->sync();
 
@@ -1713,6 +1791,11 @@ bool Config::createProfile(const QString &profileName, bool useDefaults) {
                         DEFAULT_COMBAT_MESSAGE_EVENT_TYPES());
     newProfile.setValue(KEY_MINING_TIMEOUT_SECONDS,
                         DEFAULT_MINING_TIMEOUT_SECONDS);
+    newProfile.setValue(KEY_REGION_ALERTS_ENABLED, DEFAULT_REGION_ALERTS_ENABLED);
+    newProfile.setValue(KEY_REGION_ALERTS_POLL_INTERVAL_MS,
+                        DEFAULT_REGION_ALERTS_POLL_INTERVAL_MS);
+    newProfile.setValue(KEY_REGION_ALERTS_COOLDOWN_MS,
+                        DEFAULT_REGION_ALERTS_COOLDOWN_MS);
   }
 
   newProfile.sync();
@@ -2083,12 +2166,13 @@ void Config::setCombatEventBorderHighlight(const QString &eventType,
 }
 
 bool Config::combatEventSuppressFocused(const QString &eventType) const {
+  const bool defaultValue = (eventType == QStringLiteral("region_change"));
   if (!m_cachedCombatEventSuppressFocused.contains(eventType)) {
     QString key = combatEventSuppressFocusedKey(eventType);
-    bool value = m_settings->value(key, false).toBool();
+    bool value = m_settings->value(key, defaultValue).toBool();
     m_cachedCombatEventSuppressFocused[eventType] = value;
   }
-  return m_cachedCombatEventSuppressFocused.value(eventType, false);
+  return m_cachedCombatEventSuppressFocused.value(eventType, defaultValue);
 }
 
 void Config::setCombatEventSuppressFocused(const QString &eventType,
@@ -2150,4 +2234,65 @@ void Config::setCombatEventSoundVolume(const QString &eventType, int volume) {
   QString key = combatEventSoundVolumeKey(eventType);
   m_settings->setValue(key, volume);
   m_cachedCombatEventSoundVolumes[eventType] = volume;
+}
+
+bool Config::regionAlertsEnabled() const { return m_cachedRegionAlertsEnabled; }
+
+void Config::setRegionAlertsEnabled(bool enabled) {
+  m_settings->setValue(KEY_REGION_ALERTS_ENABLED, enabled);
+  m_cachedRegionAlertsEnabled = enabled;
+}
+
+int Config::regionAlertsPollIntervalMs() const {
+  return m_cachedRegionAlertsPollIntervalMs;
+}
+
+void Config::setRegionAlertsPollIntervalMs(int intervalMs) {
+  int clamped = qBound(100, intervalMs, 10000);
+  m_settings->setValue(KEY_REGION_ALERTS_POLL_INTERVAL_MS, clamped);
+  m_cachedRegionAlertsPollIntervalMs = clamped;
+}
+
+int Config::regionAlertsCooldownMs() const {
+  return m_cachedRegionAlertsCooldownMs;
+}
+
+void Config::setRegionAlertsCooldownMs(int cooldownMs) {
+  int clamped = qBound(0, cooldownMs, 60000);
+  m_settings->setValue(KEY_REGION_ALERTS_COOLDOWN_MS, clamped);
+  m_cachedRegionAlertsCooldownMs = clamped;
+}
+
+QVector<RegionAlertRule> Config::regionAlertRules() const {
+  return m_cachedRegionAlertRules;
+}
+
+void Config::setRegionAlertRules(const QVector<RegionAlertRule> &rules) {
+  QVector<RegionAlertRule> normalizedRules;
+  normalizedRules.reserve(rules.size());
+
+  QSet<QString> usedIds;
+  for (const RegionAlertRule &rawRule : rules) {
+    RegionAlertRule rule = sanitizeRegionAlertRule(rawRule);
+    while (usedIds.contains(rule.id)) {
+      rule.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    }
+    usedIds.insert(rule.id);
+    normalizedRules.append(rule);
+  }
+
+  m_settings->beginWriteArray(KEY_REGION_ALERT_RULES_ARRAY);
+  for (int i = 0; i < normalizedRules.size(); ++i) {
+    const RegionAlertRule &rule = normalizedRules.at(i);
+    m_settings->setArrayIndex(i);
+    m_settings->setValue("id", rule.id);
+    m_settings->setValue("characterName", rule.characterName);
+    m_settings->setValue("label", rule.label);
+    m_settings->setValue("regionNormalized", rule.regionNormalized);
+    m_settings->setValue("thresholdPercent", rule.thresholdPercent);
+    m_settings->setValue("enabled", rule.enabled);
+  }
+  m_settings->endArray();
+
+  m_cachedRegionAlertRules = normalizedRules;
 }

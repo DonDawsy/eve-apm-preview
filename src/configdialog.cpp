@@ -3247,6 +3247,9 @@ void ConfigDialog::createDataSourcesPage() {
   combatTabs->addTab(createEventTab("crystal_broke", "Mining Crystal Broke",
                                     m_combatEventCrystalBrokeCheck),
                      "Crystal Broke");
+  combatTabs->addTab(createEventTab("region_change", "Region Alerts",
+                                    m_combatEventRegionChangeCheck),
+                     "Region Alerts");
 
   // Mining stopped tab with special timeout setting
   QWidget *miningStopTab = new QWidget();
@@ -3522,8 +3525,6 @@ void ConfigDialog::createDataSourcesPage() {
 
   combatSectionLayout->addWidget(combatTabs);
 
-  combatSectionLayout->addWidget(combatTabs);
-
   // Connect event checkboxes
   auto connectEventCheckbox = [this](const QString &eventType,
                                      QCheckBox *checkbox) {
@@ -3603,6 +3604,7 @@ void ConfigDialog::createDataSourcesPage() {
   connectEventCheckbox("decloak", m_combatEventDecloakCheck);
   connectEventCheckbox("crystal_broke", m_combatEventCrystalBrokeCheck);
   connectEventCheckbox("mining_stopped", m_combatEventMiningStopCheck);
+  connectEventCheckbox("region_change", m_combatEventRegionChangeCheck);
 
   connect(m_combatEventMiningStopCheck, &QCheckBox::toggled, this,
           [this](bool checked) {
@@ -3632,6 +3634,7 @@ void ConfigDialog::createDataSourcesPage() {
         m_combatEventCrystalBrokeCheck->setEnabled(checked);
         m_combatEventConvoRequestCheck->setEnabled(checked);
         m_combatEventMiningStopCheck->setEnabled(checked);
+        m_combatEventRegionChangeCheck->setEnabled(checked);
 
         bool miningStopChecked = m_combatEventMiningStopCheck->isChecked();
         m_miningTimeoutSpin->setEnabled(checked && miningStopChecked);
@@ -3645,7 +3648,8 @@ void ConfigDialog::createDataSourcesPage() {
             {"decloak", m_combatEventDecloakCheck},
             {"crystal_broke", m_combatEventCrystalBrokeCheck},
             {"convo_request", m_combatEventConvoRequestCheck},
-            {"mining_stopped", m_combatEventMiningStopCheck}};
+            {"mining_stopped", m_combatEventMiningStopCheck},
+            {"region_change", m_combatEventRegionChangeCheck}};
 
         for (auto it = eventCheckboxes.constBegin();
              it != eventCheckboxes.constEnd(); ++it) {
@@ -3718,6 +3722,128 @@ void ConfigDialog::createDataSourcesPage() {
       });
 
   layout->addWidget(combatSection);
+
+  QWidget *regionAlertsSection = new QWidget();
+  regionAlertsSection->setStyleSheet(StyleSheet::getSectionStyleSheet());
+  QVBoxLayout *regionAlertsSectionLayout = new QVBoxLayout(regionAlertsSection);
+  regionAlertsSectionLayout->setContentsMargins(16, 12, 16, 12);
+  regionAlertsSectionLayout->setSpacing(10);
+
+  tagWidget(regionAlertsSection,
+            {"visual", "region", "alert", "overview", "local", "change",
+             "thumbnail", "crop", "detection"});
+
+  QLabel *regionAlertsHeader = new QLabel("Visual Region Alerts");
+  regionAlertsHeader->setStyleSheet(StyleSheet::getSectionHeaderStyleSheet());
+  regionAlertsSectionLayout->addWidget(regionAlertsHeader);
+
+  QLabel *regionAlertsInfoLabel = new QLabel(
+      "Create rules that monitor selected client regions and trigger an alert "
+      "when those areas change visually.");
+  regionAlertsInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
+  regionAlertsInfoLabel->setWordWrap(true);
+  regionAlertsSectionLayout->addWidget(regionAlertsInfoLabel);
+
+  m_regionAlertsEnabledCheck = new QCheckBox("Enable visual region alerts");
+  m_regionAlertsEnabledCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
+  regionAlertsSectionLayout->addWidget(m_regionAlertsEnabledCheck);
+
+  QHBoxLayout *regionPollLayout = new QHBoxLayout();
+  regionPollLayout->setContentsMargins(24, 0, 0, 0);
+  m_regionAlertsPollIntervalLabel = new QLabel("Poll interval:");
+  m_regionAlertsPollIntervalLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_regionAlertsPollIntervalLabel->setFixedWidth(150);
+  m_regionAlertsPollIntervalSpin = new QSpinBox();
+  m_regionAlertsPollIntervalSpin->setStyleSheet(StyleSheet::getSpinBoxStyleSheet());
+  m_regionAlertsPollIntervalSpin->setRange(100, 10000);
+  m_regionAlertsPollIntervalSpin->setSingleStep(50);
+  m_regionAlertsPollIntervalSpin->setSuffix(" ms");
+  m_regionAlertsPollIntervalSpin->setFixedWidth(150);
+  regionPollLayout->addWidget(m_regionAlertsPollIntervalLabel);
+  regionPollLayout->addWidget(m_regionAlertsPollIntervalSpin);
+  regionPollLayout->addStretch();
+  regionAlertsSectionLayout->addLayout(regionPollLayout);
+
+  QHBoxLayout *regionCooldownLayout = new QHBoxLayout();
+  regionCooldownLayout->setContentsMargins(24, 0, 0, 0);
+  m_regionAlertsCooldownLabel = new QLabel("Cooldown:");
+  m_regionAlertsCooldownLabel->setStyleSheet(StyleSheet::getLabelStyleSheet());
+  m_regionAlertsCooldownLabel->setFixedWidth(150);
+  m_regionAlertsCooldownSpin = new QSpinBox();
+  m_regionAlertsCooldownSpin->setStyleSheet(StyleSheet::getSpinBoxStyleSheet());
+  m_regionAlertsCooldownSpin->setRange(0, 60000);
+  m_regionAlertsCooldownSpin->setSingleStep(100);
+  m_regionAlertsCooldownSpin->setSuffix(" ms");
+  m_regionAlertsCooldownSpin->setFixedWidth(150);
+  regionCooldownLayout->addWidget(m_regionAlertsCooldownLabel);
+  regionCooldownLayout->addWidget(m_regionAlertsCooldownSpin);
+  regionCooldownLayout->addStretch();
+  regionAlertsSectionLayout->addLayout(regionCooldownLayout);
+
+  m_regionAlertsRulesScrollArea = new QScrollArea();
+  m_regionAlertsRulesScrollArea->setWidgetResizable(true);
+  m_regionAlertsRulesScrollArea->setFrameShape(QFrame::NoFrame);
+  m_regionAlertsRulesScrollArea->setHorizontalScrollBarPolicy(
+      Qt::ScrollBarAlwaysOff);
+  m_regionAlertsRulesScrollArea->setVerticalScrollBarPolicy(
+      Qt::ScrollBarAsNeeded);
+  m_regionAlertsRulesScrollArea->setSizePolicy(QSizePolicy::Preferred,
+                                               QSizePolicy::Preferred);
+  m_regionAlertsRulesScrollArea->setMinimumHeight(10);
+  m_regionAlertsRulesScrollArea->setMaximumHeight(320);
+  m_regionAlertsRulesScrollArea->setFixedHeight(10);
+  m_regionAlertsRulesScrollArea->setStyleSheet(
+      "QScrollArea { background-color: transparent; border: none; }");
+
+  m_regionAlertsRulesContainer = new QWidget();
+  m_regionAlertsRulesContainer->setStyleSheet(
+      "QWidget { background-color: transparent; }");
+  m_regionAlertsRulesLayout = new QVBoxLayout(m_regionAlertsRulesContainer);
+  m_regionAlertsRulesLayout->setContentsMargins(0, 0, 0, 0);
+  m_regionAlertsRulesLayout->setSpacing(8);
+  m_regionAlertsRulesLayout->addStretch();
+  m_regionAlertsRulesScrollArea->setWidget(m_regionAlertsRulesContainer);
+  regionAlertsSectionLayout->addWidget(m_regionAlertsRulesScrollArea);
+
+  regionAlertsSectionLayout->addSpacing(-8);
+
+  QHBoxLayout *regionRuleButtonsLayout = new QHBoxLayout();
+  m_addRegionAlertRuleButton = new QPushButton("Add Alert");
+  m_populateRegionAlertRulesButton =
+      new QPushButton("Populate from Open Clients");
+  m_resetRegionAlertRulesButton = new QPushButton("Reset All");
+
+  QString regionRuleButtonStyle = StyleSheet::getSecondaryButtonStyleSheet();
+  m_addRegionAlertRuleButton->setStyleSheet(regionRuleButtonStyle);
+  m_populateRegionAlertRulesButton->setStyleSheet(regionRuleButtonStyle);
+  m_resetRegionAlertRulesButton->setStyleSheet(regionRuleButtonStyle);
+
+  connect(m_addRegionAlertRuleButton, &QPushButton::clicked, this,
+          &ConfigDialog::onAddRegionAlertRule);
+  connect(m_populateRegionAlertRulesButton, &QPushButton::clicked, this,
+          &ConfigDialog::onPopulateRegionAlertRules);
+  connect(m_resetRegionAlertRulesButton, &QPushButton::clicked, this,
+          &ConfigDialog::onResetRegionAlertRules);
+
+  regionRuleButtonsLayout->addWidget(m_addRegionAlertRuleButton);
+  regionRuleButtonsLayout->addWidget(m_populateRegionAlertRulesButton);
+  regionRuleButtonsLayout->addWidget(m_resetRegionAlertRulesButton);
+  regionRuleButtonsLayout->addStretch();
+  regionAlertsSectionLayout->addLayout(regionRuleButtonsLayout);
+
+  connect(m_regionAlertsEnabledCheck, &QCheckBox::toggled, this,
+          [this](bool enabled) {
+            m_regionAlertsPollIntervalLabel->setEnabled(enabled);
+            m_regionAlertsPollIntervalSpin->setEnabled(enabled);
+            m_regionAlertsCooldownLabel->setEnabled(enabled);
+            m_regionAlertsCooldownSpin->setEnabled(enabled);
+            m_regionAlertsRulesScrollArea->setEnabled(enabled);
+            m_addRegionAlertRuleButton->setEnabled(enabled);
+            m_populateRegionAlertRulesButton->setEnabled(enabled);
+            m_resetRegionAlertRulesButton->setEnabled(enabled);
+          });
+
+  layout->addWidget(regionAlertsSection);
 
   QHBoxLayout *resetLayout = new QHBoxLayout();
   resetLayout->addStretch();
@@ -4279,6 +4405,24 @@ void ConfigDialog::setupBindings() {
       false));
 
   m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
+      m_regionAlertsEnabledCheck,
+      [&config]() { return config.regionAlertsEnabled(); },
+      [&config](bool value) { config.setRegionAlertsEnabled(value); },
+      Config::DEFAULT_REGION_ALERTS_ENABLED));
+
+  m_bindingManager.addBinding(BindingHelpers::bindSpinBox(
+      m_regionAlertsPollIntervalSpin,
+      [&config]() { return config.regionAlertsPollIntervalMs(); },
+      [&config](int value) { config.setRegionAlertsPollIntervalMs(value); },
+      Config::DEFAULT_REGION_ALERTS_POLL_INTERVAL_MS));
+
+  m_bindingManager.addBinding(BindingHelpers::bindSpinBox(
+      m_regionAlertsCooldownSpin,
+      [&config]() { return config.regionAlertsCooldownMs(); },
+      [&config](int value) { config.setRegionAlertsCooldownMs(value); },
+      Config::DEFAULT_REGION_ALERTS_COOLDOWN_MS));
+
+  m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
       m_showCombatMessagesCheck,
       [&config]() { return config.showCombatMessages(); },
       [&config](bool value) { config.setShowCombatMessages(value); }, true));
@@ -4398,6 +4542,21 @@ void ConfigDialog::setupBindings() {
           config.setEnabledCombatEventTypes(types);
         } else if (!value) {
           types.removeAll("convo_request");
+          config.setEnabledCombatEventTypes(types);
+        }
+      },
+      true));
+
+  m_bindingManager.addBinding(BindingHelpers::bindCheckBox(
+      m_combatEventRegionChangeCheck,
+      [&config]() { return config.isCombatEventTypeEnabled("region_change"); },
+      [&config](bool value) {
+        QStringList types = config.enabledCombatEventTypes();
+        if (value && !types.contains("region_change")) {
+          types << "region_change";
+          config.setEnabledCombatEventTypes(types);
+        } else if (!value) {
+          types.removeAll("region_change");
           config.setEnabledCombatEventTypes(types);
         }
       },
@@ -4747,6 +4906,16 @@ void ConfigDialog::loadSettings() {
   m_gameLogDirectoryEdit->setEnabled(gameLogEnabled);
   m_gameLogBrowseButton->setEnabled(gameLogEnabled);
 
+  bool regionAlertsEnabled = config.regionAlertsEnabled();
+  m_regionAlertsPollIntervalLabel->setEnabled(regionAlertsEnabled);
+  m_regionAlertsPollIntervalSpin->setEnabled(regionAlertsEnabled);
+  m_regionAlertsCooldownLabel->setEnabled(regionAlertsEnabled);
+  m_regionAlertsCooldownSpin->setEnabled(regionAlertsEnabled);
+  m_regionAlertsRulesScrollArea->setEnabled(regionAlertsEnabled);
+  m_addRegionAlertRuleButton->setEnabled(regionAlertsEnabled);
+  m_populateRegionAlertRulesButton->setEnabled(regionAlertsEnabled);
+  m_resetRegionAlertRulesButton->setEnabled(regionAlertsEnabled);
+
   bool combatMessagesEnabled = config.showCombatMessages();
   m_combatMessagePositionCombo->setEnabled(combatMessagesEnabled);
   m_combatMessagePositionLabel->setEnabled(combatMessagesEnabled);
@@ -4756,8 +4925,11 @@ void ConfigDialog::loadSettings() {
   m_combatEventFollowWarpCheck->setEnabled(combatMessagesEnabled);
   m_combatEventRegroupCheck->setEnabled(combatMessagesEnabled);
   m_combatEventCompressionCheck->setEnabled(combatMessagesEnabled);
+  m_combatEventDecloakCheck->setEnabled(combatMessagesEnabled);
+  m_combatEventCrystalBrokeCheck->setEnabled(combatMessagesEnabled);
   m_combatEventConvoRequestCheck->setEnabled(combatMessagesEnabled);
   m_combatEventMiningStopCheck->setEnabled(combatMessagesEnabled);
+  m_combatEventRegionChangeCheck->setEnabled(combatMessagesEnabled);
 
   bool miningStopChecked = m_combatEventMiningStopCheck->isChecked();
   m_miningTimeoutSpin->setEnabled(combatMessagesEnabled && miningStopChecked);
@@ -4768,8 +4940,11 @@ void ConfigDialog::loadSettings() {
       {"follow_warp", m_combatEventFollowWarpCheck},
       {"regroup", m_combatEventRegroupCheck},
       {"compression", m_combatEventCompressionCheck},
+      {"decloak", m_combatEventDecloakCheck},
+      {"crystal_broke", m_combatEventCrystalBrokeCheck},
       {"convo_request", m_combatEventConvoRequestCheck},
-      {"mining_stopped", m_combatEventMiningStopCheck}};
+      {"mining_stopped", m_combatEventMiningStopCheck},
+      {"region_change", m_combatEventRegionChangeCheck}};
 
   for (auto it = eventCheckboxes.constBegin(); it != eventCheckboxes.constEnd();
        ++it) {
@@ -4840,6 +5015,31 @@ void ConfigDialog::loadSettings() {
   }
 
   updateThumbnailCropsScrollHeight();
+
+  while (m_regionAlertsRulesLayout->count() > 1) {
+    QLayoutItem *item = m_regionAlertsRulesLayout->takeAt(0);
+    if (item->widget()) {
+      QWidget *widget = item->widget();
+      widget->setParent(nullptr);
+      delete widget;
+    }
+    delete item;
+  }
+
+  QVector<RegionAlertRule> regionAlertRules = config.regionAlertRules();
+  for (const RegionAlertRule &rule : regionAlertRules) {
+    QWidget *formRow = createRegionAlertRuleFormRow(rule);
+    int count = m_regionAlertsRulesLayout->count();
+    m_regionAlertsRulesLayout->insertWidget(count - 1, formRow);
+  }
+
+  if (regionAlertRules.isEmpty()) {
+    QWidget *formRow = createRegionAlertRuleFormRow();
+    int count = m_regionAlertsRulesLayout->count();
+    m_regionAlertsRulesLayout->insertWidget(count - 1, formRow);
+  }
+
+  updateRegionAlertRulesScrollHeight();
 
   while (m_processThumbnailSizesLayout->count() > 1) {
     QLayoutItem *item = m_processThumbnailSizesLayout->takeAt(0);
@@ -5359,6 +5559,47 @@ void ConfigDialog::saveSettings() {
 
     cfg.setCharacterThumbnailCrop(charName, crop);
   }
+
+  QVector<RegionAlertRule> regionAlertRules;
+  for (int i = 0; i < m_regionAlertsRulesLayout->count() - 1; ++i) {
+    QWidget *rowWidget = qobject_cast<QWidget *>(
+        m_regionAlertsRulesLayout->itemAt(i)->widget());
+    if (!rowWidget) {
+      continue;
+    }
+
+    QLineEdit *characterEdit =
+        rowWidget->findChild<QLineEdit *>("regionRuleCharacterEdit");
+    QLineEdit *labelEdit =
+        rowWidget->findChild<QLineEdit *>("regionRuleLabelEdit");
+    QSpinBox *thresholdSpin =
+        rowWidget->findChild<QSpinBox *>("regionRuleThresholdSpin");
+    QCheckBox *enabledCheck =
+        rowWidget->findChild<QCheckBox *>("regionRuleEnabledCheck");
+
+    if (!characterEdit || !labelEdit || !thresholdSpin || !enabledCheck) {
+      continue;
+    }
+
+    RegionAlertRule rule;
+    rule.id = rowWidget->property("ruleId").toString().trimmed();
+    rule.characterName = characterEdit->text().trimmed();
+    rule.label = labelEdit->text().trimmed();
+    rule.regionNormalized = rowWidget->property("regionRect").toRectF();
+    rule.thresholdPercent = thresholdSpin->value();
+    rule.enabled = enabledCheck->isChecked();
+
+    if (rule.characterName.isEmpty()) {
+      continue;
+    }
+    if (!rule.regionNormalized.isValid() || rule.regionNormalized.width() <= 0.0 ||
+        rule.regionNormalized.height() <= 0.0) {
+      continue;
+    }
+
+    regionAlertRules.append(rule);
+  }
+  cfg.setRegionAlertRules(regionAlertRules);
 
   QHash<QString, QSize> existingProcessSizes =
       cfg.getAllCustomProcessThumbnailSizes();
@@ -6359,6 +6600,216 @@ void ConfigDialog::openCropPickerForRow(QWidget *rowWidget) {
         }
       }
     }
+  }
+}
+
+QWidget *ConfigDialog::createRegionAlertRuleFormRow(const RegionAlertRule &rule) {
+  QWidget *rowWidget = new QWidget();
+  rowWidget->setStyleSheet(
+      "QWidget { background-color: #2a2a2a; border: 1px solid #3a3a3a; "
+      "border-radius: 4px; padding: 4px; }");
+
+  QRectF initialRegion = rule.regionNormalized;
+  if (!initialRegion.isValid() || initialRegion.width() <= 0.0 ||
+      initialRegion.height() <= 0.0) {
+    initialRegion = QRectF(0.0, 0.0, 1.0, 1.0);
+  }
+
+  rowWidget->setProperty("ruleId", rule.id.trimmed());
+  rowWidget->setProperty("regionRect", initialRegion);
+
+  QHBoxLayout *rowLayout = new QHBoxLayout(rowWidget);
+  rowLayout->setContentsMargins(8, 4, 8, 4);
+  rowLayout->setSpacing(8);
+
+  QCheckBox *enabledCheck = new QCheckBox();
+  enabledCheck->setObjectName("regionRuleEnabledCheck");
+  enabledCheck->setStyleSheet(StyleSheet::getCheckBoxStyleSheet());
+  enabledCheck->setChecked(rule.enabled);
+  enabledCheck->setToolTip("Enable this region alert rule");
+  rowLayout->addWidget(enabledCheck);
+
+  QLineEdit *characterEdit = new QLineEdit();
+  characterEdit->setObjectName("regionRuleCharacterEdit");
+  characterEdit->setText(rule.characterName);
+  characterEdit->setPlaceholderText("Character Name");
+  characterEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  characterEdit->setMinimumWidth(140);
+  rowLayout->addWidget(characterEdit, 1);
+
+  QLineEdit *labelEdit = new QLineEdit();
+  labelEdit->setObjectName("regionRuleLabelEdit");
+  labelEdit->setText(rule.label);
+  labelEdit->setPlaceholderText("Alert Label (e.g. Overview)");
+  labelEdit->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  labelEdit->setMinimumWidth(170);
+  rowLayout->addWidget(labelEdit, 1);
+
+  QLabel *summaryLabel = new QLabel();
+  summaryLabel->setObjectName("regionRuleSummaryLabel");
+  summaryLabel->setStyleSheet("QLabel { color: #cccccc; background-color: "
+                              "transparent; border: none; }");
+  summaryLabel->setMinimumWidth(240);
+  rowLayout->addWidget(summaryLabel);
+
+  QPushButton *pickButton = new QPushButton("Pick Area...");
+  pickButton->setStyleSheet(StyleSheet::getSecondaryButtonStyleSheet());
+  connect(pickButton, &QPushButton::clicked, this,
+          [this, rowWidget]() { openRegionAlertPickerForRow(rowWidget); });
+  rowLayout->addWidget(pickButton);
+
+  QLabel *thresholdLabel = new QLabel("Threshold:");
+  thresholdLabel->setStyleSheet("QLabel { color: #ffffff; background-color: "
+                                "transparent; border: none; }");
+  rowLayout->addWidget(thresholdLabel);
+
+  QSpinBox *thresholdSpin = new QSpinBox();
+  thresholdSpin->setObjectName("regionRuleThresholdSpin");
+  thresholdSpin->setStyleSheet(StyleSheet::getTableCellEditorStyleSheet());
+  thresholdSpin->setRange(1, 100);
+  thresholdSpin->setSuffix(" %");
+  thresholdSpin->setFixedWidth(85);
+  thresholdSpin->setValue(qBound(1, rule.thresholdPercent, 100));
+  if (thresholdSpin->value() == 1 && rule.thresholdPercent == 0) {
+    thresholdSpin->setValue(Config::DEFAULT_REGION_ALERT_THRESHOLD_PERCENT);
+  }
+  rowLayout->addWidget(thresholdSpin);
+
+  QPushButton *resetButton = new QPushButton("Reset Area");
+  resetButton->setStyleSheet(StyleSheet::getSecondaryButtonStyleSheet());
+  connect(resetButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    rowWidget->setProperty("regionRect", QRectF(0.0, 0.0, 1.0, 1.0));
+    updateRegionAlertRuleSummary(rowWidget);
+  });
+  rowLayout->addWidget(resetButton);
+
+  QPushButton *deleteButton = new QPushButton("×");
+  deleteButton->setFixedSize(32, 32);
+  deleteButton->setStyleSheet("QPushButton {"
+                              "    background-color: #3a3a3a;"
+                              "    color: #ffffff;"
+                              "    border: 1px solid #555555;"
+                              "    border-radius: 4px;"
+                              "    font-size: 18px;"
+                              "    font-weight: bold;"
+                              "    padding: 0px;"
+                              "}"
+                              "QPushButton:hover {"
+                              "    background-color: #e74c3c;"
+                              "    border: 1px solid #c0392b;"
+                              "}"
+                              "QPushButton:pressed {"
+                              "    background-color: #c0392b;"
+                              "}");
+  deleteButton->setToolTip("Remove this alert rule");
+  deleteButton->setCursor(Qt::PointingHandCursor);
+  connect(deleteButton, &QPushButton::clicked, this, [this, rowWidget]() {
+    m_regionAlertsRulesLayout->removeWidget(rowWidget);
+    rowWidget->deleteLater();
+    QTimer::singleShot(0, this,
+                       &ConfigDialog::updateRegionAlertRulesScrollHeight);
+  });
+  rowLayout->addWidget(deleteButton);
+
+  updateRegionAlertRuleSummary(rowWidget);
+  return rowWidget;
+}
+
+void ConfigDialog::updateRegionAlertRulesScrollHeight() {
+  int rowCount = m_regionAlertsRulesLayout->count() - 1;
+  if (rowCount <= 0) {
+    m_regionAlertsRulesScrollArea->setFixedHeight(10);
+  } else {
+    int calculatedHeight = (rowCount * 52) + 10;
+    int finalHeight = qMin(320, qMax(58, calculatedHeight));
+    m_regionAlertsRulesScrollArea->setFixedHeight(finalHeight);
+  }
+}
+
+void ConfigDialog::updateRegionAlertRuleSummary(QWidget *rowWidget) {
+  if (!rowWidget) {
+    return;
+  }
+
+  QLabel *summaryLabel =
+      rowWidget->findChild<QLabel *>("regionRuleSummaryLabel");
+  if (!summaryLabel) {
+    return;
+  }
+
+  QRectF region = rowWidget->property("regionRect").toRectF();
+  if (!region.isValid() || region.width() <= 0.0 || region.height() <= 0.0) {
+    region = QRectF(0.0, 0.0, 1.0, 1.0);
+  }
+
+  auto approxEqual = [](qreal a, qreal b) { return qAbs(a - b) < 0.0001; };
+  bool isFull = approxEqual(region.x(), 0.0) && approxEqual(region.y(), 0.0) &&
+                approxEqual(region.width(), 1.0) &&
+                approxEqual(region.height(), 1.0);
+
+  if (isFull) {
+    summaryLabel->setText("Area: Full frame");
+    return;
+  }
+
+  summaryLabel->setText(
+      QString("Area: x=%1%, y=%2%, w=%3%, h=%4%")
+          .arg(QString::number(region.x() * 100.0, 'f', 1),
+               QString::number(region.y() * 100.0, 'f', 1),
+               QString::number(region.width() * 100.0, 'f', 1),
+               QString::number(region.height() * 100.0, 'f', 1)));
+}
+
+void ConfigDialog::openRegionAlertPickerForRow(QWidget *rowWidget) {
+  if (!rowWidget) {
+    return;
+  }
+
+  QLineEdit *characterEdit =
+      rowWidget->findChild<QLineEdit *>("regionRuleCharacterEdit");
+  if (!characterEdit) {
+    return;
+  }
+
+  const QString characterName = characterEdit->text().trimmed();
+  if (characterName.isEmpty()) {
+    QMessageBox::information(
+        this, "Character Required",
+        "Enter a character name before picking an alert area.");
+    return;
+  }
+
+  WindowCapture capture;
+  QVector<WindowInfo> windows = capture.getEVEWindows();
+  HWND targetWindow = nullptr;
+  for (const WindowInfo &window : windows) {
+    QString extractedName = OverlayInfo::extractCharacterName(window.title);
+    if (!extractedName.isEmpty() &&
+        extractedName.compare(characterName, Qt::CaseInsensitive) == 0) {
+      targetWindow = window.handle;
+      break;
+    }
+  }
+
+  if (!targetWindow) {
+    QMessageBox::information(
+        this, "Character Not Open",
+        QString("No open EVE window found for '%1'. The character must be "
+                "logged in to pick an alert area interactively.")
+            .arg(characterName));
+    return;
+  }
+
+  QRectF initialRegion = rowWidget->property("regionRect").toRectF();
+  if (!initialRegion.isValid() || initialRegion.width() <= 0.0 ||
+      initialRegion.height() <= 0.0) {
+    initialRegion = QRectF(0.0, 0.0, 1.0, 1.0);
+  }
+
+  CropPickerDialog dialog(targetWindow, initialRegion, this);
+  if (dialog.exec() == QDialog::Accepted) {
+    rowWidget->setProperty("regionRect", dialog.selectedCropNormalized());
+    updateRegionAlertRuleSummary(rowWidget);
   }
 }
 
@@ -8448,6 +8899,161 @@ void ConfigDialog::onResetThumbnailCropsToDefault() {
   }
 }
 
+void ConfigDialog::onAddRegionAlertRule() {
+  QWidget *formRow = createRegionAlertRuleFormRow();
+
+  int count = m_regionAlertsRulesLayout->count();
+  m_regionAlertsRulesLayout->insertWidget(count - 1, formRow);
+
+  m_regionAlertsRulesContainer->updateGeometry();
+  m_regionAlertsRulesLayout->activate();
+
+  QLineEdit *characterEdit =
+      formRow->findChild<QLineEdit *>("regionRuleCharacterEdit");
+  if (characterEdit) {
+    characterEdit->setFocus();
+    characterEdit->selectAll();
+  }
+
+  updateRegionAlertRulesScrollHeight();
+
+  QTimer::singleShot(10, this, [this, formRow]() {
+    m_regionAlertsRulesScrollArea->ensureWidgetVisible(formRow, 10, 10);
+    QScrollBar *scrollBar = m_regionAlertsRulesScrollArea->verticalScrollBar();
+    if (scrollBar) {
+      scrollBar->setValue(scrollBar->maximum());
+    }
+  });
+}
+
+void ConfigDialog::onPopulateRegionAlertRules() {
+  WindowCapture capture;
+  QVector<WindowInfo> windows = capture.getEVEWindows();
+
+  if (windows.isEmpty()) {
+    QMessageBox::information(this, "No Windows Found",
+                             "No EVE Online windows are currently open.");
+    return;
+  }
+
+  QStringList characterNames;
+  for (const WindowInfo &window : windows) {
+    QString characterName = OverlayInfo::extractCharacterName(window.title);
+    if (!characterName.isEmpty() && !characterNames.contains(characterName)) {
+      characterNames.append(characterName);
+    }
+  }
+
+  if (characterNames.isEmpty()) {
+    QMessageBox::information(this, "No Characters Found",
+                             "No logged-in EVE characters detected.");
+    return;
+  }
+
+  QMessageBox msgBox(this);
+  msgBox.setWindowTitle("Populate Region Alerts");
+  msgBox.setText(QString("Found %1 logged-in character%2.")
+                     .arg(characterNames.count())
+                     .arg(characterNames.count() == 1 ? "" : "s"));
+  msgBox.setInformativeText(
+      "Do you want to clear existing entries or add to them?");
+
+  QPushButton *clearButton =
+      msgBox.addButton("Clear & Replace", QMessageBox::ActionRole);
+  QPushButton *addButton =
+      msgBox.addButton("Add to Existing", QMessageBox::ActionRole);
+  QPushButton *cancelButton =
+      msgBox.addButton("Cancel", QMessageBox::RejectRole);
+
+  Q_UNUSED(addButton);
+
+  msgBox.setStyleSheet(StyleSheet::getMessageBoxStyleSheet());
+  msgBox.exec();
+
+  if (msgBox.clickedButton() == cancelButton) {
+    return;
+  }
+
+  bool clearExisting = (msgBox.clickedButton() == clearButton);
+  QSet<QString> existingCharacters;
+  if (!clearExisting) {
+    for (int i = 0; i < m_regionAlertsRulesLayout->count() - 1; ++i) {
+      QWidget *rowWidget = qobject_cast<QWidget *>(
+          m_regionAlertsRulesLayout->itemAt(i)->widget());
+      if (!rowWidget) {
+        continue;
+      }
+      QLineEdit *characterEdit =
+          rowWidget->findChild<QLineEdit *>("regionRuleCharacterEdit");
+      if (characterEdit) {
+        existingCharacters.insert(characterEdit->text().trimmed());
+      }
+    }
+  } else {
+    while (m_regionAlertsRulesLayout->count() > 1) {
+      QLayoutItem *item = m_regionAlertsRulesLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+  }
+
+  int addedCount = 0;
+  for (const QString &characterName : characterNames) {
+    if (!clearExisting && existingCharacters.contains(characterName)) {
+      continue;
+    }
+
+    RegionAlertRule rule;
+    rule.characterName = characterName;
+    rule.label = "Region Alert";
+    rule.regionNormalized = QRectF(0.0, 0.0, 1.0, 1.0);
+    rule.thresholdPercent = Config::DEFAULT_REGION_ALERT_THRESHOLD_PERCENT;
+    rule.enabled = true;
+
+    QWidget *formRow = createRegionAlertRuleFormRow(rule);
+    int count = m_regionAlertsRulesLayout->count();
+    m_regionAlertsRulesLayout->insertWidget(count - 1, formRow);
+    addedCount++;
+  }
+
+  updateRegionAlertRulesScrollHeight();
+
+  QString resultMsg = clearExisting ? QString("Replaced with %1 character%2.")
+                                          .arg(addedCount)
+                                          .arg(addedCount == 1 ? "" : "s")
+                                    : QString("Added %1 new character%2.")
+                                          .arg(addedCount)
+                                          .arg(addedCount == 1 ? "" : "s");
+
+  QMessageBox::information(this, "Populate Complete", resultMsg);
+}
+
+void ConfigDialog::onResetRegionAlertRules() {
+  int rowCount = m_regionAlertsRulesLayout->count() - 1;
+  if (rowCount == 0) {
+    return;
+  }
+
+  QMessageBox::StandardButton reply = QMessageBox::question(
+      this, "Reset All Alerts",
+      "Are you sure you want to remove all visual region alert rules?",
+      QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+
+  if (reply == QMessageBox::Yes) {
+    while (m_regionAlertsRulesLayout->count() > 1) {
+      QLayoutItem *item = m_regionAlertsRulesLayout->takeAt(0);
+      if (item->widget()) {
+        item->widget()->deleteLater();
+      }
+      delete item;
+    }
+
+    updateRegionAlertRulesScrollHeight();
+  }
+}
+
 void ConfigDialog::onAddProcessThumbnailSize() {
   QWidget *formRow = createProcessThumbnailSizeFormRow();
 
@@ -9276,10 +9882,16 @@ void ConfigDialog::onResetCombatMessagesDefaults() {
         checkbox = m_combatEventRegroupCheck;
       else if (eventType == "compression")
         checkbox = m_combatEventCompressionCheck;
+      else if (eventType == "decloak")
+        checkbox = m_combatEventDecloakCheck;
+      else if (eventType == "crystal_broke")
+        checkbox = m_combatEventCrystalBrokeCheck;
       else if (eventType == "convo_request")
         checkbox = m_combatEventConvoRequestCheck;
       else if (eventType == "mining_stopped")
         checkbox = m_combatEventMiningStopCheck;
+      else if (eventType == "region_change")
+        checkbox = m_combatEventRegionChangeCheck;
 
       if (checkbox) {
         checkbox->setChecked(defaultEvents.contains(eventType));

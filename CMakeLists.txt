@@ -33,6 +33,7 @@ set(SOURCES
     src/hookthread.cpp
     src/configdialog.cpp
     src/croppickerdialog.cpp
+    src/regionalertmonitor.cpp
     src/hotkeycapture.cpp
     src/settingbinding.cpp
     src/stylesheet.cpp
@@ -55,6 +56,7 @@ set(HEADERS
     include/hookthread.h
     include/configdialog.h
     include/croppickerdialog.h
+    include/regionalertmonitor.h
     include/hotkeycapture.h
     include/settingbinding.h
     include/stylesheet.h

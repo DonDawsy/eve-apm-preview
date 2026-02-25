@@ -18,6 +18,15 @@
 
 struct HotkeyBinding;
 
+struct RegionAlertRule {
+  QString id;
+  QString characterName;
+  QString label;
+  QRectF regionNormalized;
+  int thresholdPercent = 6;
+  bool enabled = true;
+};
+
 class Config {
 public:
   static Config &instance();
@@ -309,6 +318,18 @@ public:
   int combatEventSoundVolume(const QString &eventType) const;
   void setCombatEventSoundVolume(const QString &eventType, int volume);
 
+  bool regionAlertsEnabled() const;
+  void setRegionAlertsEnabled(bool enabled);
+
+  int regionAlertsPollIntervalMs() const;
+  void setRegionAlertsPollIntervalMs(int intervalMs);
+
+  int regionAlertsCooldownMs() const;
+  void setRegionAlertsCooldownMs(int cooldownMs);
+
+  QVector<RegionAlertRule> regionAlertRules() const;
+  void setRegionAlertRules(const QVector<RegionAlertRule> &rules);
+
   BorderStyle combatBorderStyle(const QString &eventType) const;
   void setCombatBorderStyle(const QString &eventType, BorderStyle style);
 
@@ -427,10 +448,14 @@ public:
       static_cast<int>(BorderStyle::Dashed);
   static constexpr bool DEFAULT_COMBAT_SOUND_ENABLED = false;
   static constexpr int DEFAULT_COMBAT_SOUND_VOLUME = 70;
+  static constexpr bool DEFAULT_REGION_ALERTS_ENABLED = false;
+  static constexpr int DEFAULT_REGION_ALERTS_POLL_INTERVAL_MS = 750;
+  static constexpr int DEFAULT_REGION_ALERTS_COOLDOWN_MS = 3000;
+  static constexpr int DEFAULT_REGION_ALERT_THRESHOLD_PERCENT = 6;
   static inline QStringList DEFAULT_COMBAT_MESSAGE_EVENT_TYPES() {
     return QStringList{"fleet_invite",   "follow_warp",  "regroup",
                        "compression",    "decloak",      "crystal_broke",
-                       "mining_stopped", "convo_request"};
+                       "mining_stopped", "convo_request", "region_change"};
   }
 
 private:
@@ -523,6 +548,10 @@ private:
   mutable QMap<QString, bool> m_cachedCombatEventSoundsEnabled;
   mutable QMap<QString, QString> m_cachedCombatEventSoundFiles;
   mutable QMap<QString, int> m_cachedCombatEventSoundVolumes;
+  mutable bool m_cachedRegionAlertsEnabled;
+  mutable int m_cachedRegionAlertsPollIntervalMs;
+  mutable int m_cachedRegionAlertsCooldownMs;
+  mutable QVector<RegionAlertRule> m_cachedRegionAlertRules;
 
   mutable QHash<QString, QColor> m_cachedCharacterBorderColors;
   mutable QHash<QString, QColor> m_cachedCharacterInactiveBorderColors;
@@ -681,6 +710,14 @@ private:
       "combatMessages/suppressWhenFocused";
   static constexpr const char *KEY_COMBAT_ENABLED_EVENT_TYPES =
       "combatMessages/enabledEventTypes";
+  static constexpr const char *KEY_REGION_ALERTS_ENABLED =
+      "regionAlerts/enabled";
+  static constexpr const char *KEY_REGION_ALERTS_POLL_INTERVAL_MS =
+      "regionAlerts/pollIntervalMs";
+  static constexpr const char *KEY_REGION_ALERTS_COOLDOWN_MS =
+      "regionAlerts/cooldownMs";
+  static constexpr const char *KEY_REGION_ALERT_RULES_ARRAY =
+      "regionAlerts/rules";
 
   static inline QString combatEventColorKey(const QString &eventType) {
     return QString("combatMessages/eventColors/%1").arg(eventType);
@@ -714,7 +751,8 @@ private:
         {"fleet_invite", "#4A9EFF"},   {"follow_warp", "#FFD700"},
         {"regroup", "#FF8C42"},        {"compression", "#7FFF00"},
         {"decloak", "#FFFFFF"},        {"crystal_broke", "#008080"},
-        {"mining_stopped", "#FF6B6B"}, {"convo_request", "#FFAAFF"}};
+        {"mining_stopped", "#FF6B6B"}, {"convo_request", "#FFAAFF"},
+        {"region_change", "#00D8A8"}};
   }
 
   static constexpr const char *KEY_MINING_TIMEOUT_SECONDS =

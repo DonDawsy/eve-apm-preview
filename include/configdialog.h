@@ -1,6 +1,7 @@
 #ifndef CONFIGDIALOG_H
 #define CONFIGDIALOG_H
 
+#include "config.h"
 #include "settingbinding.h"
 #include <QCheckBox>
 #include <QComboBox>
@@ -78,6 +79,9 @@ private slots:
   void onAddThumbnailCrop();
   void onPopulateThumbnailCrops();
   void onResetThumbnailCropsToDefault();
+  void onAddRegionAlertRule();
+  void onPopulateRegionAlertRules();
+  void onResetRegionAlertRules();
   void onAddCustomName();
   void onPopulateCustomNames();
   void onBrowseLegacySettings();
@@ -133,6 +137,11 @@ private:
   void updateThumbnailCropsScrollHeight();
   void updateThumbnailCropSummary(QWidget *rowWidget);
   void openCropPickerForRow(QWidget *rowWidget);
+  QWidget *createRegionAlertRuleFormRow(
+      const RegionAlertRule &rule = RegionAlertRule());
+  void updateRegionAlertRulesScrollHeight();
+  void updateRegionAlertRuleSummary(QWidget *rowWidget);
+  void openRegionAlertPickerForRow(QWidget *rowWidget);
   QWidget *createProcessThumbnailSizeFormRow(const QString &processName = "",
                                              int width = 0, int height = 0);
   void updateProcessThumbnailSizesScrollHeight();
@@ -325,6 +334,17 @@ private:
   QPushButton *m_addThumbnailCropButton;
   QPushButton *m_populateThumbnailCropsButton;
   QPushButton *m_resetThumbnailCropsButton;
+  QCheckBox *m_regionAlertsEnabledCheck;
+  QLabel *m_regionAlertsPollIntervalLabel;
+  QSpinBox *m_regionAlertsPollIntervalSpin;
+  QLabel *m_regionAlertsCooldownLabel;
+  QSpinBox *m_regionAlertsCooldownSpin;
+  QScrollArea *m_regionAlertsRulesScrollArea;
+  QWidget *m_regionAlertsRulesContainer;
+  QVBoxLayout *m_regionAlertsRulesLayout;
+  QPushButton *m_addRegionAlertRuleButton;
+  QPushButton *m_populateRegionAlertRulesButton;
+  QPushButton *m_resetRegionAlertRulesButton;
 
   QCheckBox *m_showCharacterNameCheck;
   QPushButton *m_characterNameColorButton;
@@ -401,6 +421,7 @@ private:
   QCheckBox *m_combatEventDecloakCheck;
   QCheckBox *m_combatEventCrystalBrokeCheck;
   QCheckBox *m_combatEventConvoRequestCheck;
+  QCheckBox *m_combatEventRegionChangeCheck;
 
   QCheckBox *m_combatEventMiningStopCheck;
   QSpinBox *m_miningTimeoutSpin;
