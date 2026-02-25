@@ -57,15 +57,13 @@ private:
                                                  const QRectF &thumbnailCrop,
                                                  const QSize &sourceClientSize,
                                                  const QSize &thumbnailSize);
-  static QRectF mapSourceRegionToThumbnailRegionLegacy(
-      const QRectF &sourceRegion, const QRectF &thumbnailCrop,
-      const QSize &thumbnailSize);
   static bool captureClientArea(HWND hwnd, QImage *outImage,
                                 QString *outCaptureMethod = nullptr,
                                 bool allowSolidBlack = false,
                                 bool preferScreenCapture = false,
                                 bool allowPrintWindow = true,
-                                bool rejectLowContrast = true);
+                                bool rejectLowContrast = true,
+                                bool allowClientDc = true);
   static QImage preprocessForDiff(const QImage &input);
   static double changedPercent(const QImage &previous, const QImage &current);
 

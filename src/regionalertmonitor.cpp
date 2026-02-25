@@ -282,7 +282,7 @@ void RegionAlertMonitor::pollRules() {
 
       if (thumbnailHwnd && IsWindow(thumbnailHwnd) &&
           captureClientArea(thumbnailHwnd, &thumbnailImage,
-                            &thumbnailCaptureMethod, false, false, false,
+                            &thumbnailCaptureMethod, false, true, false, false,
                             false)) {
         const QRectF thumbnailCrop = thumbnail->cropRegionNormalized();
         QSize mappingSourceSize = sourceClientSize;
@@ -297,8 +297,6 @@ void RegionAlertMonitor::pollRules() {
         const QRectF mappedRegion =
             mapSourceRegionToThumbnailRegion(rule.regionNormalized, thumbnailCrop,
                                              mappingSourceSize, thumbnailImage.size());
-        const QRectF legacyMappedRegion = mapSourceRegionToThumbnailRegionLegacy(
-            rule.regionNormalized, thumbnailCrop, thumbnailImage.size());
         if (!mappedRegion.isValid() || mappedRegion.width() <= 0.0 ||
             mappedRegion.height() <= 0.0) {
           writeDebugLog(
@@ -319,34 +317,7 @@ void RegionAlertMonitor::pollRules() {
                   .arg(thumbnailCrop.height(), 0, 'f', 4));
         }
 
-        const QRect preciseMappedPixelRegion =
-            regionToPixels(mappedRegion, thumbnailImage.size());
-        const QRect legacyMappedPixelRegion =
-            regionToPixels(legacyMappedRegion, thumbnailImage.size());
-
-        const int preciseArea = preciseMappedPixelRegion.width() *
-                                preciseMappedPixelRegion.height();
-        const int legacyArea = legacyMappedPixelRegion.width() *
-                               legacyMappedPixelRegion.height();
-        const bool preciseValidForUse =
-            preciseMappedPixelRegion.width() >= kMinRegionPixelSize &&
-            preciseMappedPixelRegion.height() >= kMinRegionPixelSize;
-        const bool legacyValidForUse =
-            legacyMappedPixelRegion.width() >= kMinRegionPixelSize &&
-            legacyMappedPixelRegion.height() >= kMinRegionPixelSize;
-        const bool preferLegacyBecauseTinyPrecise =
-            preciseValidForUse && legacyValidForUse &&
-            (preciseArea * 4 < legacyArea * 3);
-
-        const bool useLegacyMapping =
-            (!preciseValidForUse && legacyValidForUse) ||
-            preferLegacyBecauseTinyPrecise;
-        const QRect mappedPixelRegion =
-            useLegacyMapping ? legacyMappedPixelRegion : preciseMappedPixelRegion;
-        const QRectF selectedMappedRegion =
-            useLegacyMapping ? legacyMappedRegion : mappedRegion;
-        const QString mappingMode =
-            useLegacyMapping ? QStringLiteral("legacy") : QStringLiteral("precise");
+        const QRect mappedPixelRegion = regionToPixels(mappedRegion, thumbnailImage.size());
 
         if (mappedPixelRegion.width() >= kMinRegionPixelSize &&
             mappedPixelRegion.height() >= kMinRegionPixelSize) {
@@ -356,44 +327,29 @@ void RegionAlertMonitor::pollRules() {
           capturedFromThumbnail = true;
           writeDebugLog(
               QStringLiteral(
-                  "Rule %1 thumbnail mapped region: mode=%2 sourceClient=%3x%4 thumb=%5x%6 nx=%7 ny=%8 nw=%9 nh=%10 px=%11 py=%12 pw=%13 ph=%14 precise=%15x%16 legacy=%17x%18")
+                  "Rule %1 thumbnail mapped region: mode=precise sourceClient=%2x%3 thumb=%4x%5 nx=%6 ny=%7 nw=%8 nh=%9 px=%10 py=%11 pw=%12 ph=%13")
                   .arg(ruleKey)
-                  .arg(mappingMode)
                   .arg(mappingSourceSize.width())
                   .arg(mappingSourceSize.height())
                   .arg(thumbnailImage.width())
                   .arg(thumbnailImage.height())
-                  .arg(selectedMappedRegion.x(), 0, 'f', 4)
-                  .arg(selectedMappedRegion.y(), 0, 'f', 4)
-                  .arg(selectedMappedRegion.width(), 0, 'f', 4)
-                  .arg(selectedMappedRegion.height(), 0, 'f', 4)
+                  .arg(mappedRegion.x(), 0, 'f', 4)
+                  .arg(mappedRegion.y(), 0, 'f', 4)
+                  .arg(mappedRegion.width(), 0, 'f', 4)
+                  .arg(mappedRegion.height(), 0, 'f', 4)
                   .arg(mappedPixelRegion.x())
                   .arg(mappedPixelRegion.y())
                   .arg(mappedPixelRegion.width())
-                  .arg(mappedPixelRegion.height())
-                  .arg(preciseMappedPixelRegion.width())
-                  .arg(preciseMappedPixelRegion.height())
-                  .arg(legacyMappedPixelRegion.width())
-                  .arg(legacyMappedPixelRegion.height()));
-          if (preferLegacyBecauseTinyPrecise) {
-            writeDebugLog(
-                QStringLiteral("Rule %1 mapping fallback: precise area (%2) much smaller than legacy area (%3), using legacy")
-                    .arg(ruleKey)
-                    .arg(preciseArea)
-                    .arg(legacyArea));
-          }
+                  .arg(mappedPixelRegion.height()));
         } else {
           writeDebugLog(
               QStringLiteral(
-                  "Rule %1 thumbnail region too small after mapping: precise=%2x%3 legacy=%4x%5 selected=%6x%7 mode=%8")
+                  "Rule %1 thumbnail region too small after mapping: x=%2 y=%3 w=%4 h=%5")
                   .arg(ruleKey)
-                  .arg(preciseMappedPixelRegion.width())
-                  .arg(preciseMappedPixelRegion.height())
-                  .arg(legacyMappedPixelRegion.width())
-                  .arg(legacyMappedPixelRegion.height())
+                  .arg(mappedPixelRegion.x())
+                  .arg(mappedPixelRegion.y())
                   .arg(mappedPixelRegion.width())
-                  .arg(mappedPixelRegion.height())
-                  .arg(mappingMode));
+                  .arg(mappedPixelRegion.height()));
         }
       } else {
         writeDebugLog(
@@ -708,72 +664,6 @@ QRect RegionAlertMonitor::regionToPixels(const QRectF &normalizedRegion,
   return QRect(leftPx, topPx, rightPx - leftPx, bottomPx - topPx);
 }
 
-QRectF RegionAlertMonitor::mapSourceRegionToThumbnailRegionLegacy(
-    const QRectF &sourceRegion, const QRectF &thumbnailCrop,
-    const QSize &thumbnailSize) {
-  QRectF source = sourceRegion.normalized();
-  QRectF crop = thumbnailCrop.normalized();
-
-  const qreal cropLeft = qBound(0.0, crop.left(), 1.0);
-  const qreal cropTop = qBound(0.0, crop.top(), 1.0);
-  const qreal cropRight = qBound(0.0, crop.right(), 1.0);
-  const qreal cropBottom = qBound(0.0, crop.bottom(), 1.0);
-
-  const qreal cropWidth = cropRight - cropLeft;
-  const qreal cropHeight = cropBottom - cropTop;
-  if (cropWidth <= 0.0001 || cropHeight <= 0.0001) {
-    return QRectF();
-  }
-
-  qreal effectiveLeft = cropLeft;
-  qreal effectiveTop = cropTop;
-  qreal effectiveWidth = cropWidth;
-  qreal effectiveHeight = cropHeight;
-
-  if (thumbnailSize.width() > 0 && thumbnailSize.height() > 0) {
-    const qreal destinationAspect = static_cast<qreal>(thumbnailSize.width()) /
-                                    static_cast<qreal>(thumbnailSize.height());
-    const qreal sourceAspect = cropWidth / cropHeight;
-
-    if (sourceAspect > destinationAspect) {
-      const qreal targetWidth = cropHeight * destinationAspect;
-      const qreal trimX = (cropWidth - targetWidth) * 0.5;
-      effectiveLeft += trimX;
-      effectiveWidth = targetWidth;
-    } else if (sourceAspect < destinationAspect) {
-      const qreal targetHeight = cropWidth / destinationAspect;
-      const qreal trimY = (cropHeight - targetHeight) * 0.5;
-      effectiveTop += trimY;
-      effectiveHeight = targetHeight;
-    }
-  }
-
-  if (effectiveWidth <= 0.0001 || effectiveHeight <= 0.0001) {
-    return QRectF();
-  }
-
-  const qreal srcLeft = qBound(0.0, source.left(), 1.0);
-  const qreal srcTop = qBound(0.0, source.top(), 1.0);
-  const qreal srcRight = qBound(0.0, source.right(), 1.0);
-  const qreal srcBottom = qBound(0.0, source.bottom(), 1.0);
-
-  const qreal mappedLeft =
-      qBound(0.0, (srcLeft - effectiveLeft) / effectiveWidth, 1.0);
-  const qreal mappedTop =
-      qBound(0.0, (srcTop - effectiveTop) / effectiveHeight, 1.0);
-  const qreal mappedRight =
-      qBound(0.0, (srcRight - effectiveLeft) / effectiveWidth, 1.0);
-  const qreal mappedBottom =
-      qBound(0.0, (srcBottom - effectiveTop) / effectiveHeight, 1.0);
-
-  QRectF mapped(QPointF(mappedLeft, mappedTop), QPointF(mappedRight, mappedBottom));
-  mapped = mapped.normalized();
-  if (!mapped.isValid() || mapped.width() <= 0.0 || mapped.height() <= 0.0) {
-    return QRectF();
-  }
-  return mapped;
-}
-
 QRectF RegionAlertMonitor::mapSourceRegionToThumbnailRegion(
     const QRectF &sourceRegion, const QRectF &thumbnailCrop,
     const QSize &sourceClientSize, const QSize &thumbnailSize) {
@@ -871,7 +761,8 @@ bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage,
                                            bool allowSolidBlack,
                                            bool preferScreenCapture,
                                            bool allowPrintWindow,
-                                           bool rejectLowContrast) {
+                                           bool rejectLowContrast,
+                                           bool allowClientDc) {
   if (!outImage || !hwnd || !IsWindow(hwnd) || IsIconic(hwnd)) {
     return false;
   }
@@ -998,12 +889,20 @@ bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage,
 
   bool succeeded = false;
   if (preferScreenCapture) {
-    succeeded = tryScreenCapture() || tryClientDcCapture();
+    succeeded = tryScreenCapture();
+    if (!succeeded && allowClientDc) {
+      succeeded = tryClientDcCapture();
+    }
     if (!succeeded && allowPrintWindow) {
       succeeded = tryPrintWindowCapture();
     }
   } else {
-    succeeded = tryClientDcCapture() || tryScreenCapture();
+    if (allowClientDc) {
+      succeeded = tryClientDcCapture();
+    }
+    if (!succeeded) {
+      succeeded = tryScreenCapture();
+    }
     if (!succeeded && allowPrintWindow) {
       succeeded = tryPrintWindowCapture();
     }
