@@ -228,6 +228,24 @@ void RegionAlertMonitor::pollRules() {
 
     const QString ruleKey = effectiveRuleKey(rule);
     RuleState &state = m_ruleStateById[ruleKey];
+    HWND sourceHwnd = m_characterWindows.value(characterName, nullptr);
+    if (!sourceHwnd) {
+      for (auto it = m_characterWindows.constBegin();
+           it != m_characterWindows.constEnd(); ++it) {
+        if (it.key().compare(characterName, Qt::CaseInsensitive) == 0) {
+          sourceHwnd = it.value();
+          break;
+        }
+      }
+    }
+    QSize sourceClientSize;
+    if (sourceHwnd && IsWindow(sourceHwnd)) {
+      RECT sourceClientRect {};
+      if (GetClientRect(sourceHwnd, &sourceClientRect)) {
+        sourceClientSize = QSize(qMax(0, sourceClientRect.right - sourceClientRect.left),
+                                 qMax(0, sourceClientRect.bottom - sourceClientRect.top));
+      }
+    }
 
     writeDebugLog(
         QStringLiteral("Poll rule: key=%1 char='%2' enabled=%3")
@@ -264,13 +282,42 @@ void RegionAlertMonitor::pollRules() {
 
       if (thumbnailHwnd && IsWindow(thumbnailHwnd) &&
           captureClientArea(thumbnailHwnd, &thumbnailImage,
-                            &thumbnailCaptureMethod, false, true)) {
+                            &thumbnailCaptureMethod, false, false, false,
+                            false)) {
         const QRectF thumbnailCrop = thumbnail->cropRegionNormalized();
+        QSize mappingSourceSize = sourceClientSize;
+        if (mappingSourceSize.width() <= 0 || mappingSourceSize.height() <= 0) {
+          mappingSourceSize = thumbnailImage.size();
+          writeDebugLog(
+              QStringLiteral("Rule %1 source client size unavailable; using thumbnail size for mapping (%2x%3)")
+                  .arg(ruleKey)
+                  .arg(mappingSourceSize.width())
+                  .arg(mappingSourceSize.height()));
+        }
         const QRectF mappedRegion =
             mapSourceRegionToThumbnailRegion(rule.regionNormalized, thumbnailCrop,
-                                             thumbnailImage.size());
-        const QRect mappedPixelRegion =
-            regionToPixels(mappedRegion, thumbnailImage.size());
+                                             mappingSourceSize, thumbnailImage.size());
+        if (!mappedRegion.isValid() || mappedRegion.width() <= 0.0 ||
+            mappedRegion.height() <= 0.0) {
+          writeDebugLog(
+              QStringLiteral(
+                  "Rule %1 thumbnail mapping produced empty region: sourceClient=%2x%3 thumb=%4x%5 srcRegion=[%6,%7,%8,%9] thumbCrop=[%10,%11,%12,%13]")
+                  .arg(ruleKey)
+                  .arg(mappingSourceSize.width())
+                  .arg(mappingSourceSize.height())
+                  .arg(thumbnailImage.width())
+                  .arg(thumbnailImage.height())
+                  .arg(rule.regionNormalized.x(), 0, 'f', 4)
+                  .arg(rule.regionNormalized.y(), 0, 'f', 4)
+                  .arg(rule.regionNormalized.width(), 0, 'f', 4)
+                  .arg(rule.regionNormalized.height(), 0, 'f', 4)
+                  .arg(thumbnailCrop.x(), 0, 'f', 4)
+                  .arg(thumbnailCrop.y(), 0, 'f', 4)
+                  .arg(thumbnailCrop.width(), 0, 'f', 4)
+                  .arg(thumbnailCrop.height(), 0, 'f', 4));
+        }
+
+        const QRect mappedPixelRegion = regionToPixels(mappedRegion, thumbnailImage.size());
 
         if (mappedPixelRegion.width() >= kMinRegionPixelSize &&
             mappedPixelRegion.height() >= kMinRegionPixelSize) {
@@ -280,8 +327,12 @@ void RegionAlertMonitor::pollRules() {
           capturedFromThumbnail = true;
           writeDebugLog(
               QStringLiteral(
-                  "Rule %1 thumbnail mapped region: nx=%2 ny=%3 nw=%4 nh=%5 px=%6 py=%7 pw=%8 ph=%9")
+                  "Rule %1 thumbnail mapped region: sourceClient=%2x%3 thumb=%4x%5 nx=%6 ny=%7 nw=%8 nh=%9 px=%10 py=%11 pw=%12 ph=%13")
                   .arg(ruleKey)
+                  .arg(mappingSourceSize.width())
+                  .arg(mappingSourceSize.height())
+                  .arg(thumbnailImage.width())
+                  .arg(thumbnailImage.height())
                   .arg(mappedRegion.x(), 0, 'f', 4)
                   .arg(mappedRegion.y(), 0, 'f', 4)
                   .arg(mappedRegion.width(), 0, 'f', 4)
@@ -310,17 +361,7 @@ void RegionAlertMonitor::pollRules() {
     }
 
     if (clientImage.isNull()) {
-      HWND hwnd = m_characterWindows.value(characterName, nullptr);
-      if (!hwnd) {
-        for (auto it = m_characterWindows.constBegin();
-             it != m_characterWindows.constEnd(); ++it) {
-          if (it.key().compare(characterName, Qt::CaseInsensitive) == 0) {
-            hwnd = it.value();
-            break;
-          }
-        }
-      }
-      if (!hwnd || !IsWindow(hwnd) || IsIconic(hwnd)) {
+      if (!sourceHwnd || !IsWindow(sourceHwnd) || IsIconic(sourceHwnd)) {
         writeDebugLog(
             QStringLiteral("Rule %1 capture skipped: no thumbnail and hwnd invalid/not found/minimized")
                 .arg(ruleKey));
@@ -328,7 +369,7 @@ void RegionAlertMonitor::pollRules() {
         continue;
       }
 
-      if (!captureClientArea(hwnd, &clientImage, &captureMethod)) {
+      if (!captureClientArea(sourceHwnd, &clientImage, &captureMethod)) {
         writeDebugLog(
             QStringLiteral(
                 "Rule %1 capture failed: captureClientArea returned false (%2)")
@@ -625,71 +666,102 @@ QRect RegionAlertMonitor::regionToPixels(const QRectF &normalizedRegion,
 
 QRectF RegionAlertMonitor::mapSourceRegionToThumbnailRegion(
     const QRectF &sourceRegion, const QRectF &thumbnailCrop,
-    const QSize &thumbnailSize) {
-  QRectF source = sourceRegion.normalized();
-  QRectF crop = thumbnailCrop.normalized();
-
-  const qreal cropLeft = qBound(0.0, crop.left(), 1.0);
-  const qreal cropTop = qBound(0.0, crop.top(), 1.0);
-  const qreal cropRight = qBound(0.0, crop.right(), 1.0);
-  const qreal cropBottom = qBound(0.0, crop.bottom(), 1.0);
-
-  const qreal cropWidth = cropRight - cropLeft;
-  const qreal cropHeight = cropBottom - cropTop;
-  if (cropWidth <= 0.0001 || cropHeight <= 0.0001) {
-    return QRectF(0.0, 0.0, 1.0, 1.0);
+    const QSize &sourceClientSize, const QSize &thumbnailSize) {
+  if (sourceClientSize.width() <= 0 || sourceClientSize.height() <= 0 ||
+      thumbnailSize.width() <= 0 || thumbnailSize.height() <= 0) {
+    return QRectF();
   }
 
-  qreal effectiveLeft = cropLeft;
-  qreal effectiveTop = cropTop;
-  qreal effectiveWidth = cropWidth;
-  qreal effectiveHeight = cropHeight;
-
-  if (thumbnailSize.width() > 0 && thumbnailSize.height() > 0) {
-    const qreal destinationAspect = static_cast<qreal>(thumbnailSize.width()) /
-                                    static_cast<qreal>(thumbnailSize.height());
-    const qreal sourceAspect = cropWidth / cropHeight;
-
-    if (sourceAspect > destinationAspect) {
-      const qreal targetWidth = cropHeight * destinationAspect;
-      const qreal trimX = (cropWidth - targetWidth) * 0.5;
-      effectiveLeft += trimX;
-      effectiveWidth = targetWidth;
-    } else if (sourceAspect < destinationAspect) {
-      const qreal targetHeight = cropWidth / destinationAspect;
-      const qreal trimY = (cropHeight - targetHeight) * 0.5;
-      effectiveTop += trimY;
-      effectiveHeight = targetHeight;
-    }
+  const QRect sourcePixelRegion = regionToPixels(sourceRegion, sourceClientSize);
+  if (sourcePixelRegion.width() <= 0 || sourcePixelRegion.height() <= 0) {
+    return QRectF();
   }
 
-  if (effectiveWidth <= 0.0001 || effectiveHeight <= 0.0001) {
-    return QRectF(0.0, 0.0, 1.0, 1.0);
+  const QRectF normalizedCrop = thumbnailCrop.normalized();
+  const qreal cropLeftNorm = qBound(0.0, normalizedCrop.left(), 1.0);
+  const qreal cropTopNorm = qBound(0.0, normalizedCrop.top(), 1.0);
+  const qreal cropRightNorm = qBound(0.0, normalizedCrop.right(), 1.0);
+  const qreal cropBottomNorm = qBound(0.0, normalizedCrop.bottom(), 1.0);
+
+  const int sourceWidth = sourceClientSize.width();
+  const int sourceHeight = sourceClientSize.height();
+
+  int cropLeft = qBound(0, static_cast<int>(std::floor(cropLeftNorm * sourceWidth)),
+                        sourceWidth - 1);
+  int cropTop = qBound(0, static_cast<int>(std::floor(cropTopNorm * sourceHeight)),
+                       sourceHeight - 1);
+  int cropRight = qBound(cropLeft + 1,
+                         static_cast<int>(std::ceil(cropRightNorm * sourceWidth)),
+                         sourceWidth);
+  int cropBottom = qBound(cropTop + 1,
+                          static_cast<int>(std::ceil(cropBottomNorm * sourceHeight)),
+                          sourceHeight);
+
+  int cropWidth = qMax(1, cropRight - cropLeft);
+  int cropHeight = qMax(1, cropBottom - cropTop);
+
+  const qreal sourceAspect =
+      static_cast<qreal>(cropWidth) / static_cast<qreal>(cropHeight);
+  const qreal destinationAspect =
+      static_cast<qreal>(thumbnailSize.width()) /
+      static_cast<qreal>(thumbnailSize.height());
+
+  if (sourceAspect > destinationAspect) {
+    int targetWidth =
+        qMax(1, static_cast<int>(std::lround(cropHeight * destinationAspect)));
+    targetWidth = qMin(targetWidth, cropWidth);
+    int trimX = (cropWidth - targetWidth) / 2;
+    cropLeft += trimX;
+    cropRight = cropLeft + targetWidth;
+  } else if (sourceAspect < destinationAspect) {
+    int targetHeight =
+        qMax(1, static_cast<int>(std::lround(cropWidth / destinationAspect)));
+    targetHeight = qMin(targetHeight, cropHeight);
+    int trimY = (cropHeight - targetHeight) / 2;
+    cropTop += trimY;
+    cropBottom = cropTop + targetHeight;
   }
 
-  const qreal srcLeft = qBound(0.0, source.left(), 1.0);
-  const qreal srcTop = qBound(0.0, source.top(), 1.0);
-  const qreal srcRight = qBound(0.0, source.right(), 1.0);
-  const qreal srcBottom = qBound(0.0, source.bottom(), 1.0);
+  const int effectiveWidth = qMax(1, cropRight - cropLeft);
+  const int effectiveHeight = qMax(1, cropBottom - cropTop);
 
-  const qreal mappedLeft =
-      qBound(0.0, (srcLeft - effectiveLeft) / effectiveWidth, 1.0);
-  const qreal mappedTop =
-      qBound(0.0, (srcTop - effectiveTop) / effectiveHeight, 1.0);
-  const qreal mappedRight =
-      qBound(0.0, (srcRight - effectiveLeft) / effectiveWidth, 1.0);
-  const qreal mappedBottom =
-      qBound(0.0, (srcBottom - effectiveTop) / effectiveHeight, 1.0);
+  const int sourceLeft = sourcePixelRegion.x();
+  const int sourceTop = sourcePixelRegion.y();
+  const int sourceRight = sourcePixelRegion.x() + sourcePixelRegion.width();
+  const int sourceBottom = sourcePixelRegion.y() + sourcePixelRegion.height();
 
-  return QRectF(QPointF(mappedLeft, mappedTop),
-                QPointF(mappedRight, mappedBottom))
-      .normalized();
+  const int overlapLeft = qMax(sourceLeft, cropLeft);
+  const int overlapTop = qMax(sourceTop, cropTop);
+  const int overlapRight = qMin(sourceRight, cropRight);
+  const int overlapBottom = qMin(sourceBottom, cropBottom);
+
+  if (overlapRight <= overlapLeft || overlapBottom <= overlapTop) {
+    return QRectF();
+  }
+
+  const qreal mappedLeft = qBound(
+      0.0, static_cast<qreal>(overlapLeft - cropLeft) / effectiveWidth, 1.0);
+  const qreal mappedTop = qBound(
+      0.0, static_cast<qreal>(overlapTop - cropTop) / effectiveHeight, 1.0);
+  const qreal mappedRight = qBound(
+      0.0, static_cast<qreal>(overlapRight - cropLeft) / effectiveWidth, 1.0);
+  const qreal mappedBottom = qBound(
+      0.0, static_cast<qreal>(overlapBottom - cropTop) / effectiveHeight, 1.0);
+
+  QRectF mapped(QPointF(mappedLeft, mappedTop), QPointF(mappedRight, mappedBottom));
+  mapped = mapped.normalized();
+  if (!mapped.isValid() || mapped.width() <= 0.0 || mapped.height() <= 0.0) {
+    return QRectF();
+  }
+  return mapped;
 }
 
 bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage,
                                            QString *outCaptureMethod,
                                            bool allowSolidBlack,
-                                           bool preferScreenCapture) {
+                                           bool preferScreenCapture,
+                                           bool allowPrintWindow,
+                                           bool rejectLowContrast) {
   if (!outImage || !hwnd || !IsWindow(hwnd) || IsIconic(hwnd)) {
     return false;
   }
@@ -755,7 +827,7 @@ bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage,
       lastCaptureStatus = QStringLiteral("%1:black_frame").arg(methodName);
       return false;
     }
-    if (!allowSolidBlack && isFrameLowContrastDark(candidate)) {
+    if (rejectLowContrast && isFrameLowContrastDark(candidate)) {
       lastCaptureStatus = QStringLiteral("%1:low_contrast_dark_frame")
                               .arg(methodName);
       return false;
@@ -816,9 +888,15 @@ bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage,
 
   bool succeeded = false;
   if (preferScreenCapture) {
-    succeeded = tryScreenCapture() || tryClientDcCapture() || tryPrintWindowCapture();
+    succeeded = tryScreenCapture() || tryClientDcCapture();
+    if (!succeeded && allowPrintWindow) {
+      succeeded = tryPrintWindowCapture();
+    }
   } else {
-    succeeded = tryPrintWindowCapture() || tryClientDcCapture() || tryScreenCapture();
+    succeeded = tryClientDcCapture() || tryScreenCapture();
+    if (!succeeded && allowPrintWindow) {
+      succeeded = tryPrintWindowCapture();
+    }
   }
 
   if (succeeded) {
