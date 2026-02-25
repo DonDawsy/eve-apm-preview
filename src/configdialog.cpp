@@ -3739,7 +3739,9 @@ void ConfigDialog::createDataSourcesPage() {
 
   QLabel *regionAlertsInfoLabel = new QLabel(
       "Create rules that monitor selected client regions and trigger an alert "
-      "when those areas change visually.");
+      "when those areas change visually. Detection uses an internal cropped "
+      "monitoring thumbnail for better detail and does not change your visible "
+      "thumbnail crop settings.");
   regionAlertsInfoLabel->setStyleSheet(StyleSheet::getInfoLabelStyleSheet());
   regionAlertsInfoLabel->setWordWrap(true);
   regionAlertsSectionLayout->addWidget(regionAlertsInfoLabel);

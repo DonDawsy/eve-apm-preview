@@ -6,17 +6,20 @@
 #include <QImage>
 #include <QObject>
 #include <QPointer>
+#include <QSet>
 #include <QTimer>
 #include <QVector>
 #include <Windows.h>
 
 class ThumbnailWidget;
+class InternalRegionAlertCaptureSurface;
 
 class RegionAlertMonitor : public QObject {
   Q_OBJECT
 
 public:
   explicit RegionAlertMonitor(QObject *parent = nullptr);
+  ~RegionAlertMonitor() override;
 
   void reloadFromConfig();
   void setCharacterWindows(const QHash<QString, HWND> &characterWindows);
@@ -36,9 +39,30 @@ private:
     int consecutiveFramesAboveThreshold = 0;
     qint64 cooldownUntilMs = 0;
     int consecutiveCaptureFailures = 0;
+    QString capturePipelineKey;
   };
 
   void updateTimerState();
+  static QString normalizeCharacterKey(const QString &characterName);
+  static QSize internalCaptureSizeForRegion(const QSize &regionSize);
+  InternalRegionAlertCaptureSurface *
+  ensureInternalCaptureSurface(const QString &characterKey);
+  void pruneStaleInternalCaptureSurfaces(
+      const QSet<QString> &activeCharacterKeys);
+  void clearInternalCaptureSurfaces();
+  bool captureFromInternalCroppedThumbnail(const QString &ruleKey,
+                                           const QString &characterName,
+                                           HWND sourceHwnd,
+                                           const QRectF &regionNormalized,
+                                           const QSize &sourceClientSize,
+                                           QImage *outImage,
+                                           QString *outCaptureMethod);
+  bool captureFromVisibleThumbnailFallback(const QString &ruleKey,
+                                           const QString &characterName,
+                                           const QRectF &regionNormalized,
+                                           const QSize &sourceClientSize,
+                                           QImage *outImage,
+                                           QString *outCaptureMethod);
   void noteCaptureFailure(const QString &ruleKey);
   void resetRuleState(const QString &ruleKey);
   void writeDebugLog(const QString &message);
@@ -73,6 +97,8 @@ private:
   QVector<RegionAlertRule> m_rules;
   QHash<QString, HWND> m_characterWindows;
   QHash<QString, QPointer<ThumbnailWidget>> m_characterThumbnails;
+  QHash<QString, InternalRegionAlertCaptureSurface *>
+      m_internalCaptureSurfacesByCharacter;
   QHash<QString, RuleState> m_ruleStateById;
   bool m_debugOutputEnabled = false;
   quint64 m_debugComparisonSequence = 0;

@@ -10,7 +10,9 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <QTextStream>
+#include <QWidget>
 #include <cmath>
+#include <dwmapi.h>
 
 namespace {
 constexpr int kConsecutiveFramesRequired = 2;
@@ -18,6 +20,8 @@ constexpr int kCaptureFailureResetThreshold = 3;
 constexpr int kPreprocessSize = 96;
 constexpr int kPixelDeltaThreshold = 20;
 constexpr int kMinRegionPixelSize = 8;
+constexpr int kInternalCaptureLongestEdgePx = 192;
+constexpr int kInternalCaptureMinShortEdgePx = 48;
 constexpr qint64 kDebugLogMaxBytes = 2 * 1024 * 1024;
 
 QString sanitizeForFileName(QString input) {
@@ -119,12 +123,174 @@ bool isFrameLowContrastDark(const QImage &image) {
   const int dynamicRange = maxValue - minValue;
   return mean <= 40.0 && dynamicRange <= 18;
 }
+
 } // namespace
+
+class InternalRegionAlertCaptureSurface {
+public:
+  InternalRegionAlertCaptureSurface() = default;
+
+  ~InternalRegionAlertCaptureSurface() { cleanup(); }
+
+  HWND hostHwnd() const {
+    return m_hostWidget ? reinterpret_cast<HWND>(m_hostWidget->winId()) : nullptr;
+  }
+
+  void cleanup() {
+    releaseThumbnail();
+    if (m_hostWidget) {
+      m_hostWidget->hide();
+      delete m_hostWidget;
+      m_hostWidget = nullptr;
+    }
+  }
+
+  bool ensureReady(HWND sourceHwnd, const QRect &sourcePixelRegion,
+                   const QSize &captureSize, QString *outStatus) {
+    if (!sourceHwnd || !IsWindow(sourceHwnd)) {
+      if (outStatus) {
+        *outStatus = QStringLiteral("source_window_invalid");
+      }
+      return false;
+    }
+    if (sourcePixelRegion.width() <= 0 || sourcePixelRegion.height() <= 0) {
+      if (outStatus) {
+        *outStatus = QStringLiteral("source_region_invalid");
+      }
+      return false;
+    }
+    if (captureSize.width() <= 0 || captureSize.height() <= 0) {
+      if (outStatus) {
+        *outStatus = QStringLiteral("capture_size_invalid");
+      }
+      return false;
+    }
+
+    if (!ensureHost(outStatus)) {
+      return false;
+    }
+
+    if (m_hostWidget->size() != captureSize) {
+      m_hostWidget->resize(captureSize);
+      m_hostWidget->move(-32000, -32000);
+      m_hostWidget->show();
+    }
+
+    if (!ensureThumbnail(sourceHwnd, outStatus)) {
+      return false;
+    }
+
+    DWM_THUMBNAIL_PROPERTIES props {};
+    props.dwFlags = DWM_TNP_RECTSOURCE | DWM_TNP_RECTDESTINATION |
+                    DWM_TNP_VISIBLE | DWM_TNP_OPACITY |
+                    DWM_TNP_SOURCECLIENTAREAONLY;
+    props.fVisible = TRUE;
+    props.opacity = 255;
+    props.fSourceClientAreaOnly = TRUE;
+
+    props.rcSource.left = sourcePixelRegion.left();
+    props.rcSource.top = sourcePixelRegion.top();
+    props.rcSource.right = sourcePixelRegion.left() + sourcePixelRegion.width();
+    props.rcSource.bottom = sourcePixelRegion.top() + sourcePixelRegion.height();
+
+    props.rcDestination.left = 0;
+    props.rcDestination.top = 0;
+    props.rcDestination.right = captureSize.width();
+    props.rcDestination.bottom = captureSize.height();
+
+    const HRESULT updateHr = DwmUpdateThumbnailProperties(m_thumbnail, &props);
+    if (FAILED(updateHr)) {
+      if (outStatus) {
+        *outStatus = QStringLiteral("DwmUpdateThumbnailProperties:%1")
+                         .arg(static_cast<qint64>(updateHr));
+      }
+      return false;
+    }
+
+    DwmFlush();
+
+    if (outStatus) {
+      *outStatus = QStringLiteral("ok");
+    }
+    return true;
+  }
+
+private:
+  bool ensureHost(QString *outStatus) {
+    if (m_hostWidget) {
+      return true;
+    }
+
+    m_hostWidget = new QWidget();
+    m_hostWidget->setWindowFlags(Qt::Tool | Qt::FramelessWindowHint);
+    m_hostWidget->setAttribute(Qt::WA_NativeWindow, true);
+    m_hostWidget->setAttribute(Qt::WA_DontShowOnScreen, true);
+    m_hostWidget->setAttribute(Qt::WA_ShowWithoutActivating, true);
+    m_hostWidget->setAttribute(Qt::WA_NoSystemBackground, true);
+    m_hostWidget->setGeometry(-32000, -32000, 64, 64);
+    m_hostWidget->show();
+
+    const HWND hwnd = reinterpret_cast<HWND>(m_hostWidget->winId());
+    if (!hwnd || !IsWindow(hwnd)) {
+      cleanup();
+      if (outStatus) {
+        *outStatus = QStringLiteral("host_window_create_failed");
+      }
+      return false;
+    }
+    return true;
+  }
+
+  bool ensureThumbnail(HWND sourceHwnd, QString *outStatus) {
+    if (m_thumbnail && m_registeredSource == sourceHwnd) {
+      return true;
+    }
+
+    releaseThumbnail();
+
+    const HWND destinationHwnd = hostHwnd();
+    if (!destinationHwnd || !IsWindow(destinationHwnd)) {
+      if (outStatus) {
+        *outStatus = QStringLiteral("destination_window_invalid");
+      }
+      return false;
+    }
+
+    const HRESULT registerHr =
+        DwmRegisterThumbnail(destinationHwnd, sourceHwnd, &m_thumbnail);
+    if (FAILED(registerHr) || !m_thumbnail) {
+      m_thumbnail = nullptr;
+      m_registeredSource = nullptr;
+      if (outStatus) {
+        *outStatus = QStringLiteral("DwmRegisterThumbnail:%1")
+                         .arg(static_cast<qint64>(registerHr));
+      }
+      return false;
+    }
+
+    m_registeredSource = sourceHwnd;
+    return true;
+  }
+
+  void releaseThumbnail() {
+    if (m_thumbnail) {
+      DwmUnregisterThumbnail(m_thumbnail);
+      m_thumbnail = nullptr;
+    }
+    m_registeredSource = nullptr;
+  }
+
+  QWidget *m_hostWidget = nullptr;
+  HTHUMBNAIL m_thumbnail = nullptr;
+  HWND m_registeredSource = nullptr;
+};
 
 RegionAlertMonitor::RegionAlertMonitor(QObject *parent) : QObject(parent) {
   m_pollTimer.setSingleShot(false);
   connect(&m_pollTimer, &QTimer::timeout, this, &RegionAlertMonitor::pollRules);
 }
+
+RegionAlertMonitor::~RegionAlertMonitor() { clearInternalCaptureSurfaces(); }
 
 void RegionAlertMonitor::reloadFromConfig() {
   const Config &cfg = Config::instance();
@@ -190,6 +356,18 @@ void RegionAlertMonitor::reloadFromConfig() {
     }
   }
 
+  QSet<QString> activeCharacterKeys;
+  for (const RegionAlertRule &rule : m_rules) {
+    if (!rule.enabled) {
+      continue;
+    }
+    const QString normalizedCharacter = normalizeCharacterKey(rule.characterName);
+    if (!normalizedCharacter.isEmpty()) {
+      activeCharacterKeys.insert(normalizedCharacter);
+    }
+  }
+  pruneStaleInternalCaptureSurfaces(activeCharacterKeys);
+
   updateTimerState();
 }
 
@@ -211,6 +389,318 @@ void RegionAlertMonitor::setCharacterThumbnails(
                     .arg(m_characterThumbnails.size()));
 }
 
+QString RegionAlertMonitor::normalizeCharacterKey(const QString &characterName) {
+  return characterName.trimmed().toLower();
+}
+
+QSize RegionAlertMonitor::internalCaptureSizeForRegion(const QSize &regionSize) {
+  const int sourceWidth = qMax(1, regionSize.width());
+  const int sourceHeight = qMax(1, regionSize.height());
+
+  if (sourceWidth >= sourceHeight) {
+    int targetHeight = static_cast<int>(std::lround(
+        static_cast<double>(kInternalCaptureLongestEdgePx) *
+        static_cast<double>(sourceHeight) / static_cast<double>(sourceWidth)));
+    targetHeight = qMax(1, targetHeight);
+    targetHeight = qMax(kInternalCaptureMinShortEdgePx, targetHeight);
+    return QSize(kInternalCaptureLongestEdgePx, targetHeight);
+  }
+
+  int targetWidth = static_cast<int>(std::lround(
+      static_cast<double>(kInternalCaptureLongestEdgePx) *
+      static_cast<double>(sourceWidth) / static_cast<double>(sourceHeight)));
+  targetWidth = qMax(1, targetWidth);
+  targetWidth = qMax(kInternalCaptureMinShortEdgePx, targetWidth);
+  return QSize(targetWidth, kInternalCaptureLongestEdgePx);
+}
+
+InternalRegionAlertCaptureSurface *
+RegionAlertMonitor::ensureInternalCaptureSurface(const QString &characterKey) {
+  const QString normalizedKey = normalizeCharacterKey(characterKey);
+  if (normalizedKey.isEmpty()) {
+    return nullptr;
+  }
+
+  auto it = m_internalCaptureSurfacesByCharacter.find(normalizedKey);
+  if (it != m_internalCaptureSurfacesByCharacter.end() && it.value()) {
+    return it.value();
+  }
+
+  InternalRegionAlertCaptureSurface *surface =
+      new InternalRegionAlertCaptureSurface();
+  m_internalCaptureSurfacesByCharacter.insert(normalizedKey, surface);
+  return surface;
+}
+
+void RegionAlertMonitor::pruneStaleInternalCaptureSurfaces(
+    const QSet<QString> &activeCharacterKeys) {
+  auto it = m_internalCaptureSurfacesByCharacter.begin();
+  while (it != m_internalCaptureSurfacesByCharacter.end()) {
+    if (!activeCharacterKeys.contains(it.key())) {
+      delete it.value();
+      it = m_internalCaptureSurfacesByCharacter.erase(it);
+    } else {
+      ++it;
+    }
+  }
+}
+
+void RegionAlertMonitor::clearInternalCaptureSurfaces() {
+  for (auto it = m_internalCaptureSurfacesByCharacter.begin();
+       it != m_internalCaptureSurfacesByCharacter.end(); ++it) {
+    delete it.value();
+  }
+  m_internalCaptureSurfacesByCharacter.clear();
+}
+
+bool RegionAlertMonitor::captureFromInternalCroppedThumbnail(
+    const QString &ruleKey, const QString &characterName, HWND sourceHwnd,
+    const QRectF &regionNormalized, const QSize &sourceClientSize,
+    QImage *outImage, QString *outCaptureMethod) {
+  if (!outImage) {
+    if (outCaptureMethod) {
+      *outCaptureMethod = QStringLiteral("output_image_missing");
+    }
+    return false;
+  }
+
+  *outImage = QImage();
+  if (outCaptureMethod) {
+    *outCaptureMethod = QStringLiteral("internal_capture_unset");
+  }
+
+  if (!sourceHwnd || !IsWindow(sourceHwnd) || IsIconic(sourceHwnd)) {
+    if (outCaptureMethod) {
+      *outCaptureMethod = QStringLiteral("source_window_unavailable");
+    }
+    return false;
+  }
+
+  QSize effectiveSourceSize = sourceClientSize;
+  if (effectiveSourceSize.width() <= 0 || effectiveSourceSize.height() <= 0) {
+    RECT sourceClientRect {};
+    if (GetClientRect(sourceHwnd, &sourceClientRect)) {
+      effectiveSourceSize = QSize(
+          qMax(0, sourceClientRect.right - sourceClientRect.left),
+          qMax(0, sourceClientRect.bottom - sourceClientRect.top));
+    }
+  }
+  if (effectiveSourceSize.width() <= 0 || effectiveSourceSize.height() <= 0) {
+    if (outCaptureMethod) {
+      *outCaptureMethod = QStringLiteral("source_client_size_unavailable");
+    }
+    return false;
+  }
+
+  const QRect sourcePixelRegion =
+      regionToPixels(regionNormalized, effectiveSourceSize);
+  if (sourcePixelRegion.width() < kMinRegionPixelSize ||
+      sourcePixelRegion.height() < kMinRegionPixelSize) {
+    if (outCaptureMethod) {
+      *outCaptureMethod = QStringLiteral("source_region_too_small");
+    }
+    return false;
+  }
+
+  const QSize captureSize =
+      internalCaptureSizeForRegion(sourcePixelRegion.size());
+  InternalRegionAlertCaptureSurface *surface =
+      ensureInternalCaptureSurface(characterName);
+  if (!surface) {
+    if (outCaptureMethod) {
+      *outCaptureMethod = QStringLiteral("surface_init_failed");
+    }
+    return false;
+  }
+
+  QString surfaceStatus;
+  if (!surface->ensureReady(sourceHwnd, sourcePixelRegion, captureSize,
+                            &surfaceStatus)) {
+    if (outCaptureMethod) {
+      *outCaptureMethod =
+          QStringLiteral("surface_prepare_failed:%1").arg(surfaceStatus);
+    }
+    return false;
+  }
+
+  QImage capturedImage;
+  QString captureStatus;
+  const HWND captureHwnd = surface->hostHwnd();
+  if (!captureHwnd || !IsWindow(captureHwnd) ||
+      !captureClientArea(captureHwnd, &capturedImage, &captureStatus, false,
+                        false, false, false, true)) {
+    if (outCaptureMethod) {
+      *outCaptureMethod =
+          QStringLiteral("surface_capture_failed:%1").arg(captureStatus);
+    }
+    return false;
+  }
+
+  if (capturedImage.width() < kMinRegionPixelSize ||
+      capturedImage.height() < kMinRegionPixelSize) {
+    if (outCaptureMethod) {
+      *outCaptureMethod = QStringLiteral("captured_frame_too_small");
+    }
+    return false;
+  }
+
+  *outImage = capturedImage;
+  if (outCaptureMethod) {
+    *outCaptureMethod = QStringLiteral("internal_cropped_thumbnail:%1:%2x%3")
+                            .arg(captureStatus)
+                            .arg(capturedImage.width())
+                            .arg(capturedImage.height());
+  }
+
+  writeDebugLog(QStringLiteral("Rule %1 internal capture prepared: src=%2x%3 "
+                               "region=[%4,%5,%6,%7] target=%8x%9")
+                    .arg(ruleKey)
+                    .arg(effectiveSourceSize.width())
+                    .arg(effectiveSourceSize.height())
+                    .arg(sourcePixelRegion.x())
+                    .arg(sourcePixelRegion.y())
+                    .arg(sourcePixelRegion.width())
+                    .arg(sourcePixelRegion.height())
+                    .arg(captureSize.width())
+                    .arg(captureSize.height()));
+  return true;
+}
+
+bool RegionAlertMonitor::captureFromVisibleThumbnailFallback(
+    const QString &ruleKey, const QString &characterName,
+    const QRectF &regionNormalized, const QSize &sourceClientSize,
+    QImage *outImage, QString *outCaptureMethod) {
+  if (!outImage) {
+    if (outCaptureMethod) {
+      *outCaptureMethod = QStringLiteral("output_image_missing");
+    }
+    return false;
+  }
+
+  *outImage = QImage();
+  if (outCaptureMethod) {
+    *outCaptureMethod = QStringLiteral("thumbnail_capture_unset");
+  }
+
+  ThumbnailWidget *thumbnail = m_characterThumbnails.value(characterName, nullptr);
+  if (!thumbnail) {
+    for (auto it = m_characterThumbnails.constBegin();
+         it != m_characterThumbnails.constEnd(); ++it) {
+      if (it.key().compare(characterName, Qt::CaseInsensitive) == 0) {
+        thumbnail = it.value();
+        break;
+      }
+    }
+  }
+
+  if (!thumbnail) {
+    if (outCaptureMethod) {
+      *outCaptureMethod = QStringLiteral("no_thumbnail_widget");
+    }
+    return false;
+  }
+
+  thumbnail->forceUpdate();
+  writeDebugLog(QStringLiteral("Rule %1 fallback thumbnail state: visible=%2 size=%3x%4")
+                    .arg(ruleKey)
+                    .arg(thumbnail->isVisible() ? QStringLiteral("true")
+                                                : QStringLiteral("false"))
+                    .arg(thumbnail->width())
+                    .arg(thumbnail->height()));
+
+  const HWND thumbnailHwnd = reinterpret_cast<HWND>(thumbnail->winId());
+  QImage thumbnailImage;
+  QString thumbnailCaptureMethod;
+  if (!thumbnailHwnd || !IsWindow(thumbnailHwnd) ||
+      !captureClientArea(thumbnailHwnd, &thumbnailImage, &thumbnailCaptureMethod,
+                        false, true, false, false, false)) {
+    if (outCaptureMethod) {
+      *outCaptureMethod =
+          QStringLiteral("thumbnail_capture_failed:%1").arg(thumbnailCaptureMethod);
+    }
+    return false;
+  }
+
+  const QRectF thumbnailCrop = thumbnail->cropRegionNormalized();
+  QSize mappingSourceSize = sourceClientSize;
+  if (mappingSourceSize.width() <= 0 || mappingSourceSize.height() <= 0) {
+    mappingSourceSize = thumbnailImage.size();
+    writeDebugLog(
+        QStringLiteral("Rule %1 fallback source client size unavailable; using "
+                       "thumbnail size for mapping (%2x%3)")
+            .arg(ruleKey)
+            .arg(mappingSourceSize.width())
+            .arg(mappingSourceSize.height()));
+  }
+
+  const QRectF mappedRegion = mapSourceRegionToThumbnailRegion(
+      regionNormalized, thumbnailCrop, mappingSourceSize, thumbnailImage.size());
+  if (!mappedRegion.isValid() || mappedRegion.width() <= 0.0 ||
+      mappedRegion.height() <= 0.0) {
+    if (outCaptureMethod) {
+      *outCaptureMethod = QStringLiteral("thumbnail_mapping_empty");
+    }
+    writeDebugLog(
+        QStringLiteral("Rule %1 fallback mapping produced empty region: "
+                       "sourceClient=%2x%3 thumb=%4x%5 srcRegion=[%6,%7,%8,%9] "
+                       "thumbCrop=[%10,%11,%12,%13]")
+            .arg(ruleKey)
+            .arg(mappingSourceSize.width())
+            .arg(mappingSourceSize.height())
+            .arg(thumbnailImage.width())
+            .arg(thumbnailImage.height())
+            .arg(regionNormalized.x(), 0, 'f', 4)
+            .arg(regionNormalized.y(), 0, 'f', 4)
+            .arg(regionNormalized.width(), 0, 'f', 4)
+            .arg(regionNormalized.height(), 0, 'f', 4)
+            .arg(thumbnailCrop.x(), 0, 'f', 4)
+            .arg(thumbnailCrop.y(), 0, 'f', 4)
+            .arg(thumbnailCrop.width(), 0, 'f', 4)
+            .arg(thumbnailCrop.height(), 0, 'f', 4));
+    return false;
+  }
+
+  const QRect mappedPixelRegion = regionToPixels(mappedRegion, thumbnailImage.size());
+  if (mappedPixelRegion.width() < kMinRegionPixelSize ||
+      mappedPixelRegion.height() < kMinRegionPixelSize) {
+    if (outCaptureMethod) {
+      *outCaptureMethod = QStringLiteral("thumbnail_mapped_region_too_small");
+    }
+    writeDebugLog(
+        QStringLiteral("Rule %1 fallback mapped region too small: x=%2 y=%3 w=%4 h=%5")
+            .arg(ruleKey)
+            .arg(mappedPixelRegion.x())
+            .arg(mappedPixelRegion.y())
+            .arg(mappedPixelRegion.width())
+            .arg(mappedPixelRegion.height()));
+    return false;
+  }
+
+  *outImage = thumbnailImage.copy(mappedPixelRegion);
+  if (outCaptureMethod) {
+    *outCaptureMethod =
+        QStringLiteral("thumbnail_hwnd_capture:%1").arg(thumbnailCaptureMethod);
+  }
+
+  writeDebugLog(QStringLiteral("Rule %1 fallback mapped region: sourceClient=%2x%3 "
+                               "thumb=%4x%5 nx=%6 ny=%7 nw=%8 nh=%9 px=%10 py=%11 "
+                               "pw=%12 ph=%13")
+                    .arg(ruleKey)
+                    .arg(mappingSourceSize.width())
+                    .arg(mappingSourceSize.height())
+                    .arg(thumbnailImage.width())
+                    .arg(thumbnailImage.height())
+                    .arg(mappedRegion.x(), 0, 'f', 4)
+                    .arg(mappedRegion.y(), 0, 'f', 4)
+                    .arg(mappedRegion.width(), 0, 'f', 4)
+                    .arg(mappedRegion.height(), 0, 'f', 4)
+                    .arg(mappedPixelRegion.x())
+                    .arg(mappedPixelRegion.y())
+                    .arg(mappedPixelRegion.width())
+                    .arg(mappedPixelRegion.height()));
+  return true;
+}
+
 void RegionAlertMonitor::pollRules() {
   if (!m_enabled || m_rules.isEmpty()) {
     if (!m_enabled) {
@@ -220,6 +710,19 @@ void RegionAlertMonitor::pollRules() {
     }
     return;
   }
+
+  QSet<QString> activeCharacterKeys;
+  for (const RegionAlertRule &rule : m_rules) {
+    if (!rule.enabled) {
+      continue;
+    }
+
+    const QString characterKey = normalizeCharacterKey(rule.characterName);
+    if (!characterKey.isEmpty()) {
+      activeCharacterKeys.insert(characterKey);
+    }
+  }
+  pruneStaleInternalCaptureSurfaces(activeCharacterKeys);
 
   const qint64 now = QDateTime::currentMSecsSinceEpoch();
 
@@ -262,147 +765,33 @@ void RegionAlertMonitor::pollRules() {
     QImage clientImage;
     QString captureMethod;
     bool capturedFromThumbnail = false;
-
-    ThumbnailWidget *thumbnail = m_characterThumbnails.value(characterName, nullptr);
-    if (!thumbnail) {
-      for (auto it = m_characterThumbnails.constBegin();
-           it != m_characterThumbnails.constEnd(); ++it) {
-        if (it.key().compare(characterName, Qt::CaseInsensitive) == 0) {
-          thumbnail = it.value();
-          break;
-        }
-      }
-    }
-
-    if (thumbnail) {
-      thumbnail->forceUpdate();
-      writeDebugLog(QStringLiteral(
-                        "Rule %1 thumbnail state: visible=%2 size=%3x%4")
-                        .arg(ruleKey)
-                        .arg(thumbnail->isVisible() ? QStringLiteral("true")
-                                                    : QStringLiteral("false"))
-                        .arg(thumbnail->width())
-                        .arg(thumbnail->height()));
-      const HWND thumbnailHwnd = reinterpret_cast<HWND>(thumbnail->winId());
-      QImage thumbnailImage;
-      QString thumbnailCaptureMethod;
-
-      if (thumbnailHwnd && IsWindow(thumbnailHwnd) &&
-          captureClientArea(thumbnailHwnd, &thumbnailImage,
-                            &thumbnailCaptureMethod, false, true, false, false,
-                            false)) {
-        const QRectF thumbnailCrop = thumbnail->cropRegionNormalized();
-        QSize mappingSourceSize = sourceClientSize;
-        if (mappingSourceSize.width() <= 0 || mappingSourceSize.height() <= 0) {
-          mappingSourceSize = thumbnailImage.size();
-          writeDebugLog(
-              QStringLiteral("Rule %1 source client size unavailable; using thumbnail size for mapping (%2x%3)")
-                  .arg(ruleKey)
-                  .arg(mappingSourceSize.width())
-                  .arg(mappingSourceSize.height()));
-        }
-        const QRectF mappedRegion =
-            mapSourceRegionToThumbnailRegion(rule.regionNormalized, thumbnailCrop,
-                                             mappingSourceSize, thumbnailImage.size());
-        if (!mappedRegion.isValid() || mappedRegion.width() <= 0.0 ||
-            mappedRegion.height() <= 0.0) {
-          writeDebugLog(
-              QStringLiteral(
-                  "Rule %1 thumbnail mapping produced empty region: sourceClient=%2x%3 thumb=%4x%5 srcRegion=[%6,%7,%8,%9] thumbCrop=[%10,%11,%12,%13]")
-                  .arg(ruleKey)
-                  .arg(mappingSourceSize.width())
-                  .arg(mappingSourceSize.height())
-                  .arg(thumbnailImage.width())
-                  .arg(thumbnailImage.height())
-                  .arg(rule.regionNormalized.x(), 0, 'f', 4)
-                  .arg(rule.regionNormalized.y(), 0, 'f', 4)
-                  .arg(rule.regionNormalized.width(), 0, 'f', 4)
-                  .arg(rule.regionNormalized.height(), 0, 'f', 4)
-                  .arg(thumbnailCrop.x(), 0, 'f', 4)
-                  .arg(thumbnailCrop.y(), 0, 'f', 4)
-                  .arg(thumbnailCrop.width(), 0, 'f', 4)
-                  .arg(thumbnailCrop.height(), 0, 'f', 4));
-        }
-
-        const QRect mappedPixelRegion = regionToPixels(mappedRegion, thumbnailImage.size());
-
-        if (mappedPixelRegion.width() >= kMinRegionPixelSize &&
-            mappedPixelRegion.height() >= kMinRegionPixelSize) {
-          clientImage = thumbnailImage.copy(mappedPixelRegion);
-          captureMethod =
-              QStringLiteral("thumbnail_hwnd_capture:%1").arg(thumbnailCaptureMethod);
-          capturedFromThumbnail = true;
-          writeDebugLog(
-              QStringLiteral(
-                  "Rule %1 thumbnail mapped region: mode=precise sourceClient=%2x%3 thumb=%4x%5 nx=%6 ny=%7 nw=%8 nh=%9 px=%10 py=%11 pw=%12 ph=%13")
-                  .arg(ruleKey)
-                  .arg(mappingSourceSize.width())
-                  .arg(mappingSourceSize.height())
-                  .arg(thumbnailImage.width())
-                  .arg(thumbnailImage.height())
-                  .arg(mappedRegion.x(), 0, 'f', 4)
-                  .arg(mappedRegion.y(), 0, 'f', 4)
-                  .arg(mappedRegion.width(), 0, 'f', 4)
-                  .arg(mappedRegion.height(), 0, 'f', 4)
-                  .arg(mappedPixelRegion.x())
-                  .arg(mappedPixelRegion.y())
-                  .arg(mappedPixelRegion.width())
-                  .arg(mappedPixelRegion.height()));
-        } else {
-          writeDebugLog(
-              QStringLiteral(
-                  "Rule %1 thumbnail region too small after mapping: x=%2 y=%3 w=%4 h=%5")
-                  .arg(ruleKey)
-                  .arg(mappedPixelRegion.x())
-                  .arg(mappedPixelRegion.y())
-                  .arg(mappedPixelRegion.width())
-                  .arg(mappedPixelRegion.height()));
-        }
-      } else {
-        writeDebugLog(
-            QStringLiteral("Rule %1 thumbnail capture failed (hwnd=%2 method=%3)")
-                .arg(ruleKey)
-                .arg(reinterpret_cast<quintptr>(thumbnailHwnd))
-                .arg(thumbnailCaptureMethod));
-      }
+    QString internalCaptureMethod;
+    if (captureFromInternalCroppedThumbnail(ruleKey, characterName, sourceHwnd,
+                                            rule.regionNormalized,
+                                            sourceClientSize, &clientImage,
+                                            &internalCaptureMethod)) {
+      captureMethod = internalCaptureMethod;
+      capturedFromThumbnail = true;
+    } else {
+      writeDebugLog(QStringLiteral("Rule %1 internal cropped thumbnail capture failed: %2")
+                        .arg(ruleKey, internalCaptureMethod));
     }
 
     if (clientImage.isNull()) {
-      if (!sourceHwnd || !IsWindow(sourceHwnd) || IsIconic(sourceHwnd)) {
+      QString fallbackCaptureMethod;
+      if (captureFromVisibleThumbnailFallback(ruleKey, characterName,
+                                              rule.regionNormalized,
+                                              sourceClientSize, &clientImage,
+                                              &fallbackCaptureMethod)) {
+        captureMethod = fallbackCaptureMethod;
+        capturedFromThumbnail = true;
+      } else {
         writeDebugLog(
-            QStringLiteral("Rule %1 capture skipped: no thumbnail and hwnd invalid/not found/minimized")
-                .arg(ruleKey));
+            QStringLiteral("Rule %1 fallback visible thumbnail capture failed: %2")
+                .arg(ruleKey, fallbackCaptureMethod));
         noteCaptureFailure(ruleKey);
         continue;
       }
-
-      if (!captureClientArea(sourceHwnd, &clientImage, &captureMethod)) {
-        writeDebugLog(
-            QStringLiteral(
-                "Rule %1 capture failed: captureClientArea returned false (%2)")
-                .arg(ruleKey, captureMethod));
-        noteCaptureFailure(ruleKey);
-        continue;
-      }
-
-      const QRect sourcePixelRegion =
-          regionToPixels(rule.regionNormalized, clientImage.size());
-      if (sourcePixelRegion.width() < kMinRegionPixelSize ||
-          sourcePixelRegion.height() < kMinRegionPixelSize) {
-        writeDebugLog(
-            QStringLiteral(
-                "Rule %1 source region too small after conversion: x=%2 y=%3 w=%4 h=%5")
-                .arg(ruleKey)
-                .arg(sourcePixelRegion.x())
-                .arg(sourcePixelRegion.y())
-                .arg(sourcePixelRegion.width())
-                .arg(sourcePixelRegion.height()));
-        resetRuleState(ruleKey);
-        continue;
-      }
-
-      clientImage = clientImage.copy(sourcePixelRegion);
-      captureMethod += QStringLiteral("+source_region");
     }
 
     writeDebugLog(
@@ -412,6 +801,17 @@ void RegionAlertMonitor::pollRules() {
             .arg(clientImage.height())
             .arg(capturedFromThumbnail ? QStringLiteral("true")
                                        : QStringLiteral("false")));
+
+    const QString capturePipelineKey = captureMethod.trimmed();
+    if (state.capturePipelineKey != capturePipelineKey) {
+      writeDebugLog(QStringLiteral("Rule %1 capture pipeline changed: '%2' -> '%3' "
+                                   "(baseline reset)")
+                        .arg(ruleKey, state.capturePipelineKey,
+                             capturePipelineKey));
+      state.capturePipelineKey = capturePipelineKey;
+      state.baselineFrame = QImage();
+      state.consecutiveFramesAboveThreshold = 0;
+    }
 
     state.consecutiveCaptureFailures = 0;
 
@@ -492,6 +892,7 @@ void RegionAlertMonitor::updateTimerState() {
   } else {
     m_pollTimer.stop();
     m_ruleStateById.clear();
+    clearInternalCaptureSurfaces();
   }
 }
 
@@ -515,6 +916,7 @@ void RegionAlertMonitor::resetRuleState(const QString &ruleKey) {
   state.consecutiveFramesAboveThreshold = 0;
   state.cooldownUntilMs = 0;
   state.consecutiveCaptureFailures = 0;
+  state.capturePipelineKey.clear();
 }
 
 void RegionAlertMonitor::writeDebugLog(const QString &message) {
