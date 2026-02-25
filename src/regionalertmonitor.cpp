@@ -117,18 +117,25 @@ void RegionAlertMonitor::pollRules() {
 
     if (isAboveThreshold) {
       state.consecutiveFramesAboveThreshold++;
-    } else {
-      state.consecutiveFramesAboveThreshold = 0;
+
+      if (now >= state.cooldownUntilMs &&
+          state.consecutiveFramesAboveThreshold >= kConsecutiveFramesRequired) {
+        emit regionAlertTriggered(characterName, rule.id, rule.label, score);
+        state.cooldownUntilMs = now + m_cooldownMs;
+        state.consecutiveFramesAboveThreshold = 0;
+
+        // Accept the newly changed image as the next baseline.
+        state.baselineFrame = currentFrame;
+      } else if (now < state.cooldownUntilMs) {
+        // Absorb changes while cooling down so a stale diff does not fire later.
+        state.consecutiveFramesAboveThreshold = 0;
+        state.baselineFrame = currentFrame;
+      }
+
+      continue;
     }
 
-    if (state.consecutiveFramesAboveThreshold >= kConsecutiveFramesRequired &&
-        now >= state.cooldownUntilMs) {
-      emit regionAlertTriggered(characterName, rule.id, rule.label, score);
-      state.cooldownUntilMs = now + m_cooldownMs;
-      state.consecutiveFramesAboveThreshold = 0;
-    }
-
-    // Keep baseline moving so stable post-change frames don't retrigger.
+    state.consecutiveFramesAboveThreshold = 0;
     state.baselineFrame = currentFrame;
   }
 }
