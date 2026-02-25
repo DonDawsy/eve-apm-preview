@@ -57,6 +57,9 @@ private:
                                                  const QRectF &thumbnailCrop,
                                                  const QSize &sourceClientSize,
                                                  const QSize &thumbnailSize);
+  static QRectF mapSourceRegionToThumbnailRegionLegacy(
+      const QRectF &sourceRegion, const QRectF &thumbnailCrop,
+      const QSize &thumbnailSize);
   static bool captureClientArea(HWND hwnd, QImage *outImage,
                                 QString *outCaptureMethod = nullptr,
                                 bool allowSolidBlack = false,
