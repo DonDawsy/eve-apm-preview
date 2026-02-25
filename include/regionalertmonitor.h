@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QImage>
 #include <QObject>
+#include <QStringList>
 #include <QTimer>
 #include <QVector>
 #include <Windows.h>
@@ -36,6 +37,14 @@ private:
   void updateTimerState();
   void noteCaptureFailure(const QString &ruleKey);
   void resetRuleState(const QString &ruleKey);
+  void writeDebugLog(const QString &message);
+  void writeComparisonDebugImage(const QString &ruleKey,
+                                 const QString &characterName,
+                                 const QImage &baselineFrame,
+                                 const QImage &currentFrame, double score,
+                                 int threshold, bool isAboveThreshold,
+                                 bool inCooldown);
+  QString debugOutputDirectoryPath();
   static QString effectiveRuleKey(const RegionAlertRule &rule);
   static QRect regionToPixels(const QRectF &normalizedRegion,
                               const QSize &sourceSize);
@@ -50,6 +59,8 @@ private:
   QVector<RegionAlertRule> m_rules;
   QHash<QString, HWND> m_characterWindows;
   QHash<QString, RuleState> m_ruleStateById;
+  QStringList m_recentDebugImagePaths;
+  quint64 m_debugComparisonSequence = 0;
 };
 
 #endif
