@@ -20,6 +20,7 @@ class HotkeyManager;
 class ConfigDialog;
 class ChatLogReader;
 class ProtocolHandler;
+class RegionAlertMonitor;
 struct CycleGroup;
 
 /// Pre-computed shared state for bulk thumbnail visibility updates
@@ -67,6 +68,9 @@ private slots:
   void onCombatEventDetected(const QString &characterName,
                              const QString &eventType,
                              const QString &eventText);
+  void onRegionAlertTriggered(const QString &characterName,
+                              const QString &ruleId, const QString &label,
+                              double scorePercent);
   void onHotkeysSuspendedChanged(bool suspended);
   void toggleSuspendHotkeys();
   void toggleLockPositions();
@@ -92,6 +96,7 @@ private:
   std::unique_ptr<WindowCapture> windowCapture;
   std::unique_ptr<HotkeyManager> hotkeyManager;
   std::unique_ptr<ChatLogReader> m_chatLogReader;
+  std::unique_ptr<RegionAlertMonitor> m_regionAlertMonitor;
   std::unique_ptr<QSoundEffect> m_soundEffect;
   std::unique_ptr<ProtocolHandler> m_protocolHandler;
   std::unique_ptr<QLocalServer> m_ipcServer;

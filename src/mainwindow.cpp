@@ -5,6 +5,7 @@
 #include "hotkeymanager.h"
 #include "overlayinfo.h"
 #include "protocolhandler.h"
+#include "regionalertmonitor.h"
 #include "thumbnailwidget.h"
 #include "windowcapture.h"
 #include <QAction>
@@ -243,6 +244,11 @@ MainWindow::MainWindow(QObject *parent)
           &MainWindow::onCharacterSystemChanged);
   connect(m_chatLogReader.get(), &ChatLogReader::combatEventDetected, this,
           &MainWindow::onCombatEventDetected);
+
+  m_regionAlertMonitor = std::make_unique<RegionAlertMonitor>(this);
+  connect(m_regionAlertMonitor.get(), &RegionAlertMonitor::regionAlertTriggered,
+          this, &MainWindow::onRegionAlertTriggered);
+  m_regionAlertMonitor->reloadFromConfig();
 
   if (enableChatLog || enableGameLog) {
     m_chatLogReader->start();
@@ -954,6 +960,9 @@ void MainWindow::updateCharacterMappings() {
   hotkeyManager->updateCharacterWindows(m_characterToWindow);
 
   const Config &cfgLog = Config::instance();
+  if (m_regionAlertMonitor) {
+    m_regionAlertMonitor->setCharacterWindows(m_characterToWindow);
+  }
   if (m_chatLogReader &&
       (cfgLog.enableChatLogMonitoring() || cfgLog.enableGameLogMonitoring())) {
     QStringList characterNames = m_characterToWindow.keys();
@@ -2213,6 +2222,9 @@ void MainWindow::applySettings() {
   m_clientLocationRetryCount.clear();
 
   hotkeyManager->loadFromConfig();
+  if (m_regionAlertMonitor) {
+    m_regionAlertMonitor->reloadFromConfig();
+  }
 
   if (!cfg.minimizeInactiveClients()) {
     for (auto it = thumbnails.begin(); it != thumbnails.end(); ++it) {
@@ -2442,6 +2454,11 @@ void MainWindow::reloadThumbnails() {
   m_needsMappingUpdate = false;
   m_lastThumbnailListSize = 0;
 
+  if (m_regionAlertMonitor) {
+    m_regionAlertMonitor->setCharacterWindows(m_characterToWindow);
+    m_regionAlertMonitor->reloadFromConfig();
+  }
+
   if (windowCapture) {
     windowCapture->clearCache();
   }
@@ -2538,6 +2555,21 @@ void MainWindow::onCombatEventDetected(const QString &characterName,
       }
     }
   }
+}
+
+void MainWindow::onRegionAlertTriggered(const QString &characterName,
+                                        const QString &ruleId,
+                                        const QString &label,
+                                        double scorePercent) {
+  Q_UNUSED(ruleId);
+  const QString displayLabel =
+      label.trimmed().isEmpty() ? QStringLiteral("Region") : label.trimmed();
+
+  qDebug() << "MainWindow: Region alert for" << characterName
+           << "- Label:" << displayLabel << "- Score:" << scorePercent;
+
+  onCombatEventDetected(characterName, "region_change",
+                        QString("%1 changed").arg(displayLabel));
 }
 
 void MainWindow::updateProfilesMenu() {
