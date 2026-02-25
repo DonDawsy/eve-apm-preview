@@ -78,6 +78,48 @@ bool isFrameAlmostSolidBlack(const QImage &image) {
   const int dynamicRange = maxValue - minValue;
   return nearBlackRatio >= 0.995 && dynamicRange <= 4;
 }
+
+bool isFrameLowContrastDark(const QImage &image) {
+  if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
+    return true;
+  }
+
+  QImage gray = image.convertToFormat(QImage::Format_Grayscale8);
+  if (gray.isNull()) {
+    return true;
+  }
+
+  constexpr int kTargetSampleCount = 2500;
+  const int approxAxisSamples =
+      qMax(1, static_cast<int>(std::sqrt(kTargetSampleCount)));
+  const int stepX = qMax(1, gray.width() / approxAxisSamples);
+  const int stepY = qMax(1, gray.height() / approxAxisSamples);
+
+  qint64 sampleCount = 0;
+  qint64 sum = 0;
+  int minValue = 255;
+  int maxValue = 0;
+
+  for (int y = 0; y < gray.height(); y += stepY) {
+    const uchar *line = gray.constScanLine(y);
+    for (int x = 0; x < gray.width(); x += stepX) {
+      const int value = static_cast<int>(line[x]);
+      minValue = qMin(minValue, value);
+      maxValue = qMax(maxValue, value);
+      sum += value;
+      sampleCount++;
+    }
+  }
+
+  if (sampleCount <= 0) {
+    return true;
+  }
+
+  const double mean =
+      static_cast<double>(sum) / static_cast<double>(sampleCount);
+  const int dynamicRange = maxValue - minValue;
+  return mean <= 40.0 && dynamicRange <= 18;
+}
 } // namespace
 
 RegionAlertMonitor::RegionAlertMonitor(QObject *parent) : QObject(parent) {
@@ -209,13 +251,20 @@ void RegionAlertMonitor::pollRules() {
 
     if (thumbnail) {
       thumbnail->forceUpdate();
+      writeDebugLog(QStringLiteral(
+                        "Rule %1 thumbnail state: visible=%2 size=%3x%4")
+                        .arg(ruleKey)
+                        .arg(thumbnail->isVisible() ? QStringLiteral("true")
+                                                    : QStringLiteral("false"))
+                        .arg(thumbnail->width())
+                        .arg(thumbnail->height()));
       const HWND thumbnailHwnd = reinterpret_cast<HWND>(thumbnail->winId());
       QImage thumbnailImage;
       QString thumbnailCaptureMethod;
 
       if (thumbnailHwnd && IsWindow(thumbnailHwnd) &&
           captureClientArea(thumbnailHwnd, &thumbnailImage,
-                            &thumbnailCaptureMethod, true)) {
+                            &thumbnailCaptureMethod, false, true)) {
         const QRectF thumbnailCrop = thumbnail->cropRegionNormalized();
         const QRectF mappedRegion =
             mapSourceRegionToThumbnailRegion(rule.regionNormalized, thumbnailCrop,
@@ -639,7 +688,8 @@ QRectF RegionAlertMonitor::mapSourceRegionToThumbnailRegion(
 
 bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage,
                                            QString *outCaptureMethod,
-                                           bool allowSolidBlack) {
+                                           bool allowSolidBlack,
+                                           bool preferScreenCapture) {
   if (!outImage || !hwnd || !IsWindow(hwnd) || IsIconic(hwnd)) {
     return false;
   }
@@ -705,6 +755,11 @@ bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage,
       lastCaptureStatus = QStringLiteral("%1:black_frame").arg(methodName);
       return false;
     }
+    if (!allowSolidBlack && isFrameLowContrastDark(candidate)) {
+      lastCaptureStatus = QStringLiteral("%1:low_contrast_dark_frame")
+                              .arg(methodName);
+      return false;
+    }
     *outImage = candidate;
     lastCaptureStatus = methodName;
     if (outCaptureMethod) {
@@ -713,56 +768,65 @@ bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage,
     return true;
   };
 
-  bool captured = (PrintWindow(hwnd, memoryDc, PW_CLIENTONLY) == TRUE);
-  if (!captured) {
-    lastCaptureStatus = QStringLiteral("PrintWindow(PW_CLIENTONLY):api_fail");
+  auto tryScreenCapture = [&]() -> bool {
+    POINT clientOrigin {0, 0};
+    if (!ClientToScreen(hwnd, &clientOrigin)) {
+      lastCaptureStatus = QStringLiteral("ClientToScreen:api_fail");
+      return false;
+    }
+
+    const bool captured = (BitBlt(memoryDc, 0, 0, width, height, screenDc,
+                                  clientOrigin.x, clientOrigin.y,
+                                  SRCCOPY | CAPTUREBLT) == TRUE);
+    if (!captured) {
+      lastCaptureStatus = QStringLiteral("BitBlt(screenDC_clientRect):api_fail");
+      return false;
+    }
+
+    return tryConsumeBuffer(QStringLiteral("BitBlt(screenDC_clientRect)"));
+  };
+
+  auto tryClientDcCapture = [&]() -> bool {
+    HDC clientDc = GetDC(hwnd);
+    if (!clientDc) {
+      lastCaptureStatus = QStringLiteral("GetDC(hwnd):api_fail");
+      return false;
+    }
+
+    const bool captured = (BitBlt(memoryDc, 0, 0, width, height, clientDc, 0, 0,
+                                  SRCCOPY | CAPTUREBLT) == TRUE);
+    ReleaseDC(hwnd, clientDc);
+    if (!captured) {
+      lastCaptureStatus = QStringLiteral("BitBlt(clientDC):api_fail");
+      return false;
+    }
+
+    return tryConsumeBuffer(QStringLiteral("BitBlt(clientDC)"));
+  };
+
+  auto tryPrintWindowCapture = [&]() -> bool {
+    const bool captured = (PrintWindow(hwnd, memoryDc, PW_CLIENTONLY) == TRUE);
+    if (!captured) {
+      lastCaptureStatus = QStringLiteral("PrintWindow(PW_CLIENTONLY):api_fail");
+      return false;
+    }
+
+    return tryConsumeBuffer(QStringLiteral("PrintWindow(PW_CLIENTONLY)"));
+  };
+
+  bool succeeded = false;
+  if (preferScreenCapture) {
+    succeeded = tryScreenCapture() || tryClientDcCapture() || tryPrintWindowCapture();
+  } else {
+    succeeded = tryPrintWindowCapture() || tryClientDcCapture() || tryScreenCapture();
   }
-  if (captured && tryConsumeBuffer(QStringLiteral("PrintWindow(PW_CLIENTONLY)"))) {
+
+  if (succeeded) {
     SelectObject(memoryDc, oldBitmap);
     DeleteObject(dib);
     DeleteDC(memoryDc);
     ReleaseDC(nullptr, screenDc);
     return true;
-  }
-
-  {
-    HDC clientDc = GetDC(hwnd);
-    if (clientDc) {
-      captured = (BitBlt(memoryDc, 0, 0, width, height, clientDc, 0, 0,
-                         SRCCOPY | CAPTUREBLT) == TRUE);
-      ReleaseDC(hwnd, clientDc);
-      if (!captured) {
-        lastCaptureStatus = QStringLiteral("BitBlt(clientDC):api_fail");
-      }
-
-      if (captured && tryConsumeBuffer(QStringLiteral("BitBlt(clientDC)"))) {
-        SelectObject(memoryDc, oldBitmap);
-        DeleteObject(dib);
-        DeleteDC(memoryDc);
-        ReleaseDC(nullptr, screenDc);
-        return true;
-      }
-    }
-  }
-
-  POINT clientOrigin {0, 0};
-  if (ClientToScreen(hwnd, &clientOrigin)) {
-    captured =
-        (BitBlt(memoryDc, 0, 0, width, height, screenDc, clientOrigin.x,
-                clientOrigin.y, SRCCOPY | CAPTUREBLT) == TRUE);
-    if (!captured) {
-      lastCaptureStatus = QStringLiteral("BitBlt(screenDC_clientRect):api_fail");
-    }
-    if (captured &&
-        tryConsumeBuffer(QStringLiteral("BitBlt(screenDC_clientRect)"))) {
-      SelectObject(memoryDc, oldBitmap);
-      DeleteObject(dib);
-      DeleteDC(memoryDc);
-      ReleaseDC(nullptr, screenDc);
-      return true;
-    }
-  } else {
-    lastCaptureStatus = QStringLiteral("ClientToScreen:api_fail");
   }
 
   SelectObject(memoryDc, oldBitmap);

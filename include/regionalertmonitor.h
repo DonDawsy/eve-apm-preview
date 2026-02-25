@@ -58,7 +58,8 @@ private:
                                                  const QSize &thumbnailSize);
   static bool captureClientArea(HWND hwnd, QImage *outImage,
                                 QString *outCaptureMethod = nullptr,
-                                bool allowSolidBlack = false);
+                                bool allowSolidBlack = false,
+                                bool preferScreenCapture = false);
   static QImage preprocessForDiff(const QImage &input);
   static double changedPercent(const QImage &previous, const QImage &current);
 
