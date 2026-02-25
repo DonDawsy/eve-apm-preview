@@ -54,9 +54,11 @@ private:
   static QRect regionToPixels(const QRectF &normalizedRegion,
                               const QSize &sourceSize);
   static QRectF mapSourceRegionToThumbnailRegion(const QRectF &sourceRegion,
-                                                 const QRectF &thumbnailCrop);
+                                                 const QRectF &thumbnailCrop,
+                                                 const QSize &thumbnailSize);
   static bool captureClientArea(HWND hwnd, QImage *outImage,
-                                QString *outCaptureMethod = nullptr);
+                                QString *outCaptureMethod = nullptr,
+                                bool allowSolidBlack = false);
   static QImage preprocessForDiff(const QImage &input);
   static double changedPercent(const QImage &previous, const QImage &current);
 
