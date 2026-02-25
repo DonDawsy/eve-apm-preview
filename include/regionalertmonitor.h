@@ -6,7 +6,6 @@
 #include <QImage>
 #include <QObject>
 #include <QPointer>
-#include <QStringList>
 #include <QTimer>
 #include <QVector>
 #include <Windows.h>
@@ -48,7 +47,7 @@ private:
                                  const QImage &baselineFrame,
                                  const QImage &currentFrame, double score,
                                  int threshold, bool isAboveThreshold,
-                                 bool inCooldown);
+                                 bool inCooldown, bool triggered);
   QString debugOutputDirectoryPath();
   static QString effectiveRuleKey(const RegionAlertRule &rule);
   static QRect regionToPixels(const QRectF &normalizedRegion,
@@ -76,7 +75,6 @@ private:
   QHash<QString, QPointer<ThumbnailWidget>> m_characterThumbnails;
   QHash<QString, RuleState> m_ruleStateById;
   bool m_debugOutputEnabled = false;
-  QStringList m_recentDebugImagePaths;
   quint64 m_debugComparisonSequence = 0;
 };
 

@@ -18,7 +18,6 @@ constexpr int kCaptureFailureResetThreshold = 3;
 constexpr int kPreprocessSize = 96;
 constexpr int kPixelDeltaThreshold = 20;
 constexpr int kMinRegionPixelSize = 8;
-constexpr int kDebugMaxImages = 10;
 constexpr qint64 kDebugLogMaxBytes = 2 * 1024 * 1024;
 
 QString sanitizeForFileName(QString input) {
@@ -132,7 +131,6 @@ void RegionAlertMonitor::reloadFromConfig() {
   const bool debugOutputEnabled = cfg.regionAlertsDebugOutputEnabled();
 
   if (debugOutputEnabled && !m_debugOutputEnabled) {
-    m_recentDebugImagePaths.clear();
     m_debugComparisonSequence = 0;
 
     QDir debugDir(debugOutputDirectoryPath());
@@ -146,7 +144,6 @@ void RegionAlertMonitor::reloadFromConfig() {
       debugDir.remove(fileName);
     }
   } else if (!debugOutputEnabled && m_debugOutputEnabled) {
-    m_recentDebugImagePaths.clear();
     m_debugComparisonSequence = 0;
   }
 
@@ -439,10 +436,20 @@ void RegionAlertMonitor::pollRules() {
     const int threshold = qBound(1, rule.thresholdPercent, 100);
     const bool isAboveThreshold = score >= static_cast<double>(threshold);
     const bool inCooldown = now < state.cooldownUntilMs;
+    bool triggered = false;
 
-    writeComparisonDebugImage(ruleKey, characterName, state.baselineFrame,
-                              currentFrame, score, threshold, isAboveThreshold,
-                              inCooldown);
+    if (isAboveThreshold) {
+      state.consecutiveFramesAboveThreshold++;
+      triggered = now >= state.cooldownUntilMs &&
+                  state.consecutiveFramesAboveThreshold >=
+                      kConsecutiveFramesRequired;
+    }
+
+    if (score > 0.0) {
+      writeComparisonDebugImage(ruleKey, characterName, state.baselineFrame,
+                                currentFrame, score, threshold, isAboveThreshold,
+                                inCooldown, triggered);
+    }
     writeDebugLog(
         QStringLiteral(
             "Rule %1 compare: score=%2 threshold=%3 above=%4 inCooldown=%5 consecutive=%6")
@@ -455,10 +462,7 @@ void RegionAlertMonitor::pollRules() {
             .arg(state.consecutiveFramesAboveThreshold));
 
     if (isAboveThreshold) {
-      state.consecutiveFramesAboveThreshold++;
-
-      if (now >= state.cooldownUntilMs &&
-          state.consecutiveFramesAboveThreshold >= kConsecutiveFramesRequired) {
+      if (triggered) {
         writeDebugLog(QStringLiteral("Rule %1 triggered alert").arg(ruleKey));
         emit regionAlertTriggered(characterName, rule.id, rule.label, score);
         state.cooldownUntilMs = now + m_cooldownMs;
@@ -553,7 +557,7 @@ void RegionAlertMonitor::writeDebugLog(const QString &message) {
 void RegionAlertMonitor::writeComparisonDebugImage(
     const QString &ruleKey, const QString &characterName, const QImage &baselineFrame,
     const QImage &currentFrame, double score, int threshold, bool isAboveThreshold,
-    bool inCooldown) {
+    bool inCooldown, bool triggered) {
   if (!m_debugOutputEnabled) {
     return;
   }
@@ -620,20 +624,16 @@ void RegionAlertMonitor::writeComparisonDebugImage(
   m_debugComparisonSequence++;
   const QString timestamp =
       QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
-  const QString fileName = QStringLiteral("%1_%2_%3.png")
-                               .arg(timestamp,
-                                    QString::number(m_debugComparisonSequence),
-                                    sanitizeForFileName(ruleKey));
+  const QString fileName =
+      QStringLiteral("%1%2_%3_%4.png")
+          .arg(triggered ? QStringLiteral("triggered_") : QStringLiteral(""))
+          .arg(timestamp)
+          .arg(QString::number(m_debugComparisonSequence))
+          .arg(sanitizeForFileName(ruleKey));
   const QString fullPath = debugDir.filePath(fileName);
   if (!canvas.save(fullPath)) {
     writeDebugLog(QStringLiteral("Failed to save debug image: %1").arg(fullPath));
     return;
-  }
-
-  m_recentDebugImagePaths.append(fullPath);
-  while (m_recentDebugImagePaths.size() > kDebugMaxImages) {
-    const QString oldPath = m_recentDebugImagePaths.takeFirst();
-    QFile::remove(oldPath);
   }
 }
 
