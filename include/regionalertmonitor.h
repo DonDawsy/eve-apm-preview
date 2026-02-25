@@ -5,10 +5,13 @@
 #include <QHash>
 #include <QImage>
 #include <QObject>
+#include <QPointer>
 #include <QStringList>
 #include <QTimer>
 #include <QVector>
 #include <Windows.h>
+
+class ThumbnailWidget;
 
 class RegionAlertMonitor : public QObject {
   Q_OBJECT
@@ -18,6 +21,8 @@ public:
 
   void reloadFromConfig();
   void setCharacterWindows(const QHash<QString, HWND> &characterWindows);
+  void setCharacterThumbnails(
+      const QHash<QString, ThumbnailWidget *> &characterThumbnails);
 
 signals:
   void regionAlertTriggered(const QString &characterName, const QString &ruleId,
@@ -48,7 +53,10 @@ private:
   static QString effectiveRuleKey(const RegionAlertRule &rule);
   static QRect regionToPixels(const QRectF &normalizedRegion,
                               const QSize &sourceSize);
-  static bool captureClientArea(HWND hwnd, QImage *outImage);
+  static QRectF mapSourceRegionToThumbnailRegion(const QRectF &sourceRegion,
+                                                 const QRectF &thumbnailCrop);
+  static bool captureClientArea(HWND hwnd, QImage *outImage,
+                                QString *outCaptureMethod = nullptr);
   static QImage preprocessForDiff(const QImage &input);
   static double changedPercent(const QImage &previous, const QImage &current);
 
@@ -58,6 +66,7 @@ private:
   int m_cooldownMs = Config::DEFAULT_REGION_ALERTS_COOLDOWN_MS;
   QVector<RegionAlertRule> m_rules;
   QHash<QString, HWND> m_characterWindows;
+  QHash<QString, QPointer<ThumbnailWidget>> m_characterThumbnails;
   QHash<QString, RuleState> m_ruleStateById;
   QStringList m_recentDebugImagePaths;
   quint64 m_debugComparisonSequence = 0;

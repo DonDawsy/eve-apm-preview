@@ -1,4 +1,5 @@
 #include "regionalertmonitor.h"
+#include "thumbnailwidget.h"
 #include <QDateTime>
 #include <QDir>
 #include <QDebug>
@@ -32,6 +33,50 @@ QString sanitizeForFileName(QString input) {
     input = input.left(80);
   }
   return input;
+}
+
+bool isFrameAlmostSolidBlack(const QImage &image) {
+  if (image.isNull() || image.width() <= 0 || image.height() <= 0) {
+    return true;
+  }
+
+  QImage gray = image.convertToFormat(QImage::Format_Grayscale8);
+  if (gray.isNull()) {
+    return true;
+  }
+
+  constexpr int kTargetSampleCount = 2500;
+  const int approxAxisSamples =
+      qMax(1, static_cast<int>(std::sqrt(kTargetSampleCount)));
+  const int stepX = qMax(1, gray.width() / approxAxisSamples);
+  const int stepY = qMax(1, gray.height() / approxAxisSamples);
+
+  qint64 sampleCount = 0;
+  qint64 nearBlackCount = 0;
+  int minValue = 255;
+  int maxValue = 0;
+
+  for (int y = 0; y < gray.height(); y += stepY) {
+    const uchar *line = gray.constScanLine(y);
+    for (int x = 0; x < gray.width(); x += stepX) {
+      const int value = static_cast<int>(line[x]);
+      minValue = qMin(minValue, value);
+      maxValue = qMax(maxValue, value);
+      if (value <= 2) {
+        nearBlackCount++;
+      }
+      sampleCount++;
+    }
+  }
+
+  if (sampleCount <= 0) {
+    return true;
+  }
+
+  const double nearBlackRatio =
+      static_cast<double>(nearBlackCount) / static_cast<double>(sampleCount);
+  const int dynamicRange = maxValue - minValue;
+  return nearBlackRatio >= 0.995 && dynamicRange <= 4;
 }
 } // namespace
 
@@ -106,6 +151,17 @@ void RegionAlertMonitor::setCharacterWindows(
                     .arg(m_characterWindows.size()));
 }
 
+void RegionAlertMonitor::setCharacterThumbnails(
+    const QHash<QString, ThumbnailWidget *> &characterThumbnails) {
+  m_characterThumbnails.clear();
+  for (auto it = characterThumbnails.constBegin();
+       it != characterThumbnails.constEnd(); ++it) {
+    m_characterThumbnails.insert(it.key(), it.value());
+  }
+  writeDebugLog(QStringLiteral("Character thumbnails updated: count=%1")
+                    .arg(m_characterThumbnails.size()));
+}
+
 void RegionAlertMonitor::pollRules() {
   if (!m_enabled || m_rules.isEmpty()) {
     if (!m_enabled) {
@@ -136,52 +192,113 @@ void RegionAlertMonitor::pollRules() {
             .arg(ruleKey, characterName,
                  rule.enabled ? QStringLiteral("true") : QStringLiteral("false")));
 
-    HWND hwnd = m_characterWindows.value(characterName, nullptr);
-    if (!hwnd) {
-      for (auto it = m_characterWindows.constBegin();
-           it != m_characterWindows.constEnd(); ++it) {
+    QImage clientImage;
+    QString captureMethod;
+    bool capturedFromThumbnail = false;
+
+    ThumbnailWidget *thumbnail = m_characterThumbnails.value(characterName, nullptr);
+    if (!thumbnail) {
+      for (auto it = m_characterThumbnails.constBegin();
+           it != m_characterThumbnails.constEnd(); ++it) {
         if (it.key().compare(characterName, Qt::CaseInsensitive) == 0) {
-          hwnd = it.value();
+          thumbnail = it.value();
           break;
         }
       }
     }
-    if (!hwnd || !IsWindow(hwnd) || IsIconic(hwnd)) {
-      writeDebugLog(QStringLiteral(
-                        "Rule %1 capture skipped: hwnd invalid/not found/minimized")
-                        .arg(ruleKey));
-      noteCaptureFailure(ruleKey);
-      continue;
+
+    if (thumbnail) {
+      thumbnail->forceUpdate();
+      const QPixmap thumbnailPixmap = thumbnail->grab();
+      const QImage thumbnailImage = thumbnailPixmap.toImage();
+
+      if (!thumbnailImage.isNull()) {
+        const QRectF thumbnailCrop = thumbnail->cropRegionNormalized();
+        const QRectF mappedRegion =
+            mapSourceRegionToThumbnailRegion(rule.regionNormalized, thumbnailCrop);
+        const QRect mappedPixelRegion =
+            regionToPixels(mappedRegion, thumbnailImage.size());
+
+        if (mappedPixelRegion.width() >= kMinRegionPixelSize &&
+            mappedPixelRegion.height() >= kMinRegionPixelSize) {
+          clientImage = thumbnailImage.copy(mappedPixelRegion);
+          captureMethod = QStringLiteral("thumbnail_grab");
+          capturedFromThumbnail = true;
+        } else {
+          writeDebugLog(
+              QStringLiteral(
+                  "Rule %1 thumbnail region too small after crop mapping: x=%2 y=%3 w=%4 h=%5")
+                  .arg(ruleKey)
+                  .arg(mappedPixelRegion.x())
+                  .arg(mappedPixelRegion.y())
+                  .arg(mappedPixelRegion.width())
+                  .arg(mappedPixelRegion.height()));
+        }
+      } else {
+        writeDebugLog(
+            QStringLiteral("Rule %1 thumbnail grab failed: null image").arg(ruleKey));
+      }
     }
 
-    QImage clientImage;
-    if (!captureClientArea(hwnd, &clientImage)) {
-      writeDebugLog(
-          QStringLiteral("Rule %1 capture failed: captureClientArea returned false")
-              .arg(ruleKey));
-      noteCaptureFailure(ruleKey);
-      continue;
+    if (clientImage.isNull()) {
+      HWND hwnd = m_characterWindows.value(characterName, nullptr);
+      if (!hwnd) {
+        for (auto it = m_characterWindows.constBegin();
+             it != m_characterWindows.constEnd(); ++it) {
+          if (it.key().compare(characterName, Qt::CaseInsensitive) == 0) {
+            hwnd = it.value();
+            break;
+          }
+        }
+      }
+      if (!hwnd || !IsWindow(hwnd) || IsIconic(hwnd)) {
+        writeDebugLog(
+            QStringLiteral("Rule %1 capture skipped: no thumbnail and hwnd invalid/not found/minimized")
+                .arg(ruleKey));
+        noteCaptureFailure(ruleKey);
+        continue;
+      }
+
+      if (!captureClientArea(hwnd, &clientImage, &captureMethod)) {
+        writeDebugLog(
+            QStringLiteral(
+                "Rule %1 capture failed: captureClientArea returned false (%2)")
+                .arg(ruleKey, captureMethod));
+        noteCaptureFailure(ruleKey);
+        continue;
+      }
+
+      const QRect sourcePixelRegion =
+          regionToPixels(rule.regionNormalized, clientImage.size());
+      if (sourcePixelRegion.width() < kMinRegionPixelSize ||
+          sourcePixelRegion.height() < kMinRegionPixelSize) {
+        writeDebugLog(
+            QStringLiteral(
+                "Rule %1 source region too small after conversion: x=%2 y=%3 w=%4 h=%5")
+                .arg(ruleKey)
+                .arg(sourcePixelRegion.x())
+                .arg(sourcePixelRegion.y())
+                .arg(sourcePixelRegion.width())
+                .arg(sourcePixelRegion.height()));
+        resetRuleState(ruleKey);
+        continue;
+      }
+
+      clientImage = clientImage.copy(sourcePixelRegion);
+      captureMethod += QStringLiteral("+source_region");
     }
+
+    writeDebugLog(
+        QStringLiteral("Rule %1 capture succeeded via %2 (%3x%4, thumbnail=%5)")
+            .arg(ruleKey, captureMethod)
+            .arg(clientImage.width())
+            .arg(clientImage.height())
+            .arg(capturedFromThumbnail ? QStringLiteral("true")
+                                       : QStringLiteral("false")));
 
     state.consecutiveCaptureFailures = 0;
 
-    const QRect pixelRegion =
-        regionToPixels(rule.regionNormalized, clientImage.size());
-    if (pixelRegion.width() < kMinRegionPixelSize ||
-        pixelRegion.height() < kMinRegionPixelSize) {
-      writeDebugLog(
-          QStringLiteral(
-              "Rule %1 region too small after conversion: x=%2 y=%3 w=%4 h=%5")
-              .arg(ruleKey)
-              .arg(pixelRegion.x())
-              .arg(pixelRegion.y())
-              .arg(pixelRegion.width())
-              .arg(pixelRegion.height()));
-      resetRuleState(ruleKey);
-      continue;
-    }
-
-    const QImage currentFrame = preprocessForDiff(clientImage.copy(pixelRegion));
+    const QImage currentFrame = preprocessForDiff(clientImage);
     if (currentFrame.isNull()) {
       writeDebugLog(
           QStringLiteral("Rule %1 preprocess failed: current frame is null")
@@ -437,9 +554,46 @@ QRect RegionAlertMonitor::regionToPixels(const QRectF &normalizedRegion,
   return QRect(leftPx, topPx, rightPx - leftPx, bottomPx - topPx);
 }
 
-bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage) {
+QRectF RegionAlertMonitor::mapSourceRegionToThumbnailRegion(
+    const QRectF &sourceRegion, const QRectF &thumbnailCrop) {
+  QRectF source = sourceRegion.normalized();
+  QRectF crop = thumbnailCrop.normalized();
+
+  const qreal cropLeft = qBound(0.0, crop.left(), 1.0);
+  const qreal cropTop = qBound(0.0, crop.top(), 1.0);
+  const qreal cropRight = qBound(0.0, crop.right(), 1.0);
+  const qreal cropBottom = qBound(0.0, crop.bottom(), 1.0);
+
+  const qreal cropWidth = cropRight - cropLeft;
+  const qreal cropHeight = cropBottom - cropTop;
+  if (cropWidth <= 0.0001 || cropHeight <= 0.0001) {
+    return QRectF(0.0, 0.0, 1.0, 1.0);
+  }
+
+  const qreal srcLeft = qBound(0.0, source.left(), 1.0);
+  const qreal srcTop = qBound(0.0, source.top(), 1.0);
+  const qreal srcRight = qBound(0.0, source.right(), 1.0);
+  const qreal srcBottom = qBound(0.0, source.bottom(), 1.0);
+
+  const qreal mappedLeft = qBound(0.0, (srcLeft - cropLeft) / cropWidth, 1.0);
+  const qreal mappedTop = qBound(0.0, (srcTop - cropTop) / cropHeight, 1.0);
+  const qreal mappedRight =
+      qBound(0.0, (srcRight - cropLeft) / cropWidth, 1.0);
+  const qreal mappedBottom =
+      qBound(0.0, (srcBottom - cropTop) / cropHeight, 1.0);
+
+  return QRectF(QPointF(mappedLeft, mappedTop),
+                QPointF(mappedRight, mappedBottom))
+      .normalized();
+}
+
+bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage,
+                                           QString *outCaptureMethod) {
   if (!outImage || !hwnd || !IsWindow(hwnd) || IsIconic(hwnd)) {
     return false;
+  }
+  if (outCaptureMethod) {
+    *outCaptureMethod = QStringLiteral("none");
   }
 
   RECT clientRect {};
@@ -486,20 +640,78 @@ bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage) {
 
   HGDIOBJ oldBitmap = SelectObject(memoryDc, dib);
 
+  QString lastCaptureStatus = QStringLiteral("none");
+
+  auto tryConsumeBuffer = [&](const QString &methodName) {
+    QImage wrapped(static_cast<const uchar *>(pixels), width, height,
+                   QImage::Format_ARGB32);
+    QImage candidate = wrapped.copy();
+    if (candidate.isNull()) {
+      lastCaptureStatus = QStringLiteral("%1:null_frame").arg(methodName);
+      return false;
+    }
+    if (isFrameAlmostSolidBlack(candidate)) {
+      lastCaptureStatus = QStringLiteral("%1:black_frame").arg(methodName);
+      return false;
+    }
+    *outImage = candidate;
+    lastCaptureStatus = methodName;
+    if (outCaptureMethod) {
+      *outCaptureMethod = methodName;
+    }
+    return true;
+  };
+
   bool captured = (PrintWindow(hwnd, memoryDc, PW_CLIENTONLY) == TRUE);
   if (!captured) {
+    lastCaptureStatus = QStringLiteral("PrintWindow(PW_CLIENTONLY):api_fail");
+  }
+  if (captured && tryConsumeBuffer(QStringLiteral("PrintWindow(PW_CLIENTONLY)"))) {
+    SelectObject(memoryDc, oldBitmap);
+    DeleteObject(dib);
+    DeleteDC(memoryDc);
+    ReleaseDC(nullptr, screenDc);
+    return true;
+  }
+
+  {
     HDC clientDc = GetDC(hwnd);
     if (clientDc) {
       captured = (BitBlt(memoryDc, 0, 0, width, height, clientDc, 0, 0,
                          SRCCOPY | CAPTUREBLT) == TRUE);
       ReleaseDC(hwnd, clientDc);
+      if (!captured) {
+        lastCaptureStatus = QStringLiteral("BitBlt(clientDC):api_fail");
+      }
+
+      if (captured && tryConsumeBuffer(QStringLiteral("BitBlt(clientDC)"))) {
+        SelectObject(memoryDc, oldBitmap);
+        DeleteObject(dib);
+        DeleteDC(memoryDc);
+        ReleaseDC(nullptr, screenDc);
+        return true;
+      }
     }
   }
 
-  if (captured) {
-    QImage wrapped(static_cast<const uchar *>(pixels), width, height,
-                   QImage::Format_ARGB32);
-    *outImage = wrapped.copy();
+  POINT clientOrigin {0, 0};
+  if (ClientToScreen(hwnd, &clientOrigin)) {
+    captured =
+        (BitBlt(memoryDc, 0, 0, width, height, screenDc, clientOrigin.x,
+                clientOrigin.y, SRCCOPY | CAPTUREBLT) == TRUE);
+    if (!captured) {
+      lastCaptureStatus = QStringLiteral("BitBlt(screenDC_clientRect):api_fail");
+    }
+    if (captured &&
+        tryConsumeBuffer(QStringLiteral("BitBlt(screenDC_clientRect)"))) {
+      SelectObject(memoryDc, oldBitmap);
+      DeleteObject(dib);
+      DeleteDC(memoryDc);
+      ReleaseDC(nullptr, screenDc);
+      return true;
+    }
+  } else {
+    lastCaptureStatus = QStringLiteral("ClientToScreen:api_fail");
   }
 
   SelectObject(memoryDc, oldBitmap);
@@ -507,7 +719,10 @@ bool RegionAlertMonitor::captureClientArea(HWND hwnd, QImage *outImage) {
   DeleteDC(memoryDc);
   ReleaseDC(nullptr, screenDc);
 
-  return captured && !outImage->isNull();
+  if (outCaptureMethod) {
+    *outCaptureMethod = lastCaptureStatus;
+  }
+  return false;
 }
 
 QImage RegionAlertMonitor::preprocessForDiff(const QImage &input) {

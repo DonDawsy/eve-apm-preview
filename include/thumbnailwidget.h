@@ -60,6 +60,7 @@ public:
   QStringList getActiveCombatEventTypes() const;
 
   void setCropRegionNormalized(const QRectF &crop);
+  QRectF cropRegionNormalized() const { return m_cropRegionNormalized; }
 
   void forceUpdate();
   void updateWindowFlags(bool alwaysOnTop);

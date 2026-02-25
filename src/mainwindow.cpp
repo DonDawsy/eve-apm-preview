@@ -962,12 +962,25 @@ void MainWindow::updateCharacterMappings() {
   const Config &cfgLog = Config::instance();
   if (m_regionAlertMonitor) {
     m_regionAlertMonitor->setCharacterWindows(m_characterToWindow);
+    m_regionAlertMonitor->setCharacterThumbnails(buildCharacterThumbnailMap());
   }
   if (m_chatLogReader &&
       (cfgLog.enableChatLogMonitoring() || cfgLog.enableGameLogMonitoring())) {
     QStringList characterNames = m_characterToWindow.keys();
     m_chatLogReader->setCharacterNames(characterNames);
   }
+}
+
+QHash<QString, ThumbnailWidget *> MainWindow::buildCharacterThumbnailMap() const {
+  QHash<QString, ThumbnailWidget *> characterThumbnails;
+  for (auto it = m_characterToWindow.constBegin(); it != m_characterToWindow.constEnd();
+       ++it) {
+    ThumbnailWidget *thumbnail = thumbnails.value(it.value(), nullptr);
+    if (thumbnail) {
+      characterThumbnails.insert(it.key(), thumbnail);
+    }
+  }
+  return characterThumbnails;
 }
 
 void MainWindow::refreshSingleThumbnail(HWND hwnd) {
@@ -2456,6 +2469,8 @@ void MainWindow::reloadThumbnails() {
 
   if (m_regionAlertMonitor) {
     m_regionAlertMonitor->setCharacterWindows(m_characterToWindow);
+    m_regionAlertMonitor->setCharacterThumbnails(
+        QHash<QString, ThumbnailWidget *>());
     m_regionAlertMonitor->reloadFromConfig();
   }
 

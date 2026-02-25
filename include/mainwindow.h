@@ -185,6 +185,7 @@ private:
   void activateWindow(HWND hwnd);
   void activateCharacter(const QString &characterName);
   void updateCharacterMappings();
+  QHash<QString, ThumbnailWidget *> buildCharacterThumbnailMap() const;
   void updateSnappingLists();
   void refreshSingleThumbnail(HWND hwnd);
   void handleWindowTitleChange(HWND hwnd);
